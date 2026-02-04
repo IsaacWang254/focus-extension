@@ -1,2 +1,3 @@
 # Focus Extension
-Chrome extension for blocking sites and focusing on your work
+Chrome extension for blocking sites and focusing on your work.
+Has Todoist and Google Caledar integration
