@@ -1,0 +1,64 @@
+/**
+ * SVG Icon System
+ * All icons use currentColor for proper dark mode support
+ */
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon-xs { width: 12px; height: 12px; }
+.icon-sm { width: 16px; height: 16px; }
+.icon-md { width: 20px; height: 20px; }
+.icon-lg { width: 24px; height: 24px; }
+.icon-xl { width: 32px; height: 32px; }
+
+/* Profile Icons */
+.icon-profile-default { /* Target/Crosshair */ }
+.icon-profile-work { /* Briefcase */ }
+.icon-profile-study { /* Book */ }
+.icon-profile-relaxed { /* Sun */ }
+
+/* Category Icons */
+.icon-category { /* Folder */ }
+.icon-social { /* Message circle */ }
+.icon-entertainment { /* Play circle */ }
+.icon-news { /* Newspaper */ }
+.icon-gaming { /* Gamepad */ }
+.icon-shopping { /* Shopping cart */ }
+.icon-forums { /* Users */ }
+.icon-productivity { /* Briefcase */ }
+.icon-education { /* Graduation cap */ }
+.icon-email { /* Mail */ }
+
+/* Status Icons */
+.icon-check { /* Checkmark */ }
+.icon-x { /* X mark */ }
+.icon-alert { /* Alert triangle */ }
+.icon-info { /* Info circle */ }
+.icon-lock { /* Lock */ }
+.icon-unlock { /* Unlock */ }
+
+/* Feature Icons */
+.icon-focus { /* Target */ }
+.icon-timer { /* Clock */ }
+.icon-streak { /* Flame */ }
+.icon-star { /* Star */ }
+.icon-trophy { /* Trophy */ }
+.icon-blocked { /* Ban/Block */ }
+.icon-settings { /* Gear */ }
+
+/* Productivity breakdown */
+.icon-productive { /* Trending up */ }
+.icon-distracting { /* Trending down */ }
+.icon-neutral { /* Minus */ }

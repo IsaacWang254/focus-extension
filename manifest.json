@@ -1,0 +1,70 @@
+{
+  "manifest_version": 3,
+  "name": "Focus Extension",
+  "version": "1.0.0",
+  "description": "Block distracting websites and display your Todoist todos instead. Stay focused and productive.",
+  
+  "permissions": [
+    "declarativeNetRequest",
+    "declarativeNetRequestFeedback",
+    "storage",
+    "identity",
+    "tabs",
+    "alarms",
+    "history"
+  ],
+  
+  "optional_permissions": [
+    "identity.email"
+  ],
+  
+  "oauth2": {
+    "client_id": "979894583851-3n4pnn9kvst88iadnj0akiqat3lf38bq.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/calendar.readonly",
+      "https://www.googleapis.com/auth/calendar.events.readonly"
+    ]
+  },
+  
+  "host_permissions": [
+    "*://*/*",
+    "https://www.googleapis.com/*"
+  ],
+  
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["*://*.x.com/*", "*://x.com/*"],
+      "js": ["content-redirect.js"],
+      "run_at": "document_start"
+    }
+  ],
+  
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  
+  "options_page": "options/options.html",
+  
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["blocked/blocked.html", "blocked/blocked.css", "blocked/blocked.js", "lib/todoist.js", "stats/stats.html", "stats/stats.css", "stats/stats.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

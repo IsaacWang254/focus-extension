@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focus Mode - Stay Productive</title>
+  <link rel="stylesheet" href="blocked.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-top">
+        <h1 class="title">Focus Mode</h1>
+        <button id="theme-toggle" class="theme-toggle" title="Toggle dark mode">
+          <span class="theme-icon-light" id="theme-icon-light"></span>
+          <span class="theme-icon-dark" id="theme-icon-dark"></span>
+        </button>
+      </div>
+      <p class="blocked-url">You tried to visit: <span id="blocked-domain">-</span></p>
+    </header>
+
+    <!-- Motivational Quote -->
+    <div class="quote-section" id="quote-section">
+      <blockquote class="quote-text" id="quote-text"></blockquote>
+      <cite class="quote-author" id="quote-author"></cite>
+    </div>
+
+    <!-- Auth Required Message (shown when not logged into Todoist) -->
+    <div id="auth-required" class="section auth-section" style="display: none;">
+      <div class="auth-message">
+        <h2>Connect Todoist to see your tasks</h2>
+        <p>Link your Todoist account to view and complete your tasks while staying focused.</p>
+        <button id="auth-button" class="btn btn-primary">Connect Todoist</button>
+        <p class="auth-note">Or <a href="#" id="open-options">configure settings</a> to manage blocked sites.</p>
+      </div>
+    </div>
+
+    <!-- Todos Section -->
+    <div id="todos-section" class="section" style="display: none;">
+      <div class="section-header">
+        <h2>Your Tasks <span id="task-count-badge" class="task-count-badge"></span></h2>
+        <button id="refresh-todos" class="btn btn-small" title="Refresh tasks">Refresh</button>
+      </div>
+      
+      <div id="todos-loading" class="loading">
+        <div class="spinner"></div>
+        <span>Loading tasks...</span>
+      </div>
+      
+      <div id="todos-error" class="error" style="display: none;">
+        <p id="error-message">Failed to load tasks</p>
+        <button id="retry-button" class="btn btn-small">Retry</button>
+      </div>
+      
+      <ul id="todos-list" class="todos-list"></ul>
+      
+      <div id="no-todos" class="no-todos" style="display: none;">
+        <span class="no-todos-title">All caught up!</span>
+        <p>You have no pending tasks. Great job!</p>
+      </div>
+    </div>
+
+    <!-- Unblock Section -->
+    <div id="unblock-section" class="section">
+      <div class="section-header">
+        <h2>Unblock This Site</h2>
+        <span id="require-mode" class="require-badge">Complete any one</span>
+      </div>
+      
+      <div class="unblock-methods">
+        <!-- Timer Method -->
+        <div id="method-timer" class="method" style="display: none;">
+          <div class="method-header">
+            <span class="method-icon" id="method-timer-icon"></span>
+            <span class="method-title">Wait Timer</span>
+            <span id="timer-status" class="method-status"></span>
+          </div>
+          <div class="method-content">
+            <div id="timer-display" class="timer-display">
+              <span id="timer-minutes">00</span>:<span id="timer-seconds">00</span>
+            </div>
+            <div class="progress-bar">
+              <div id="timer-progress" class="progress-fill"></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Complete Todo Method -->
+        <div id="method-todo" class="method" style="display: none;">
+          <div class="method-header">
+            <span class="method-icon" id="method-todo-icon"></span>
+            <span class="method-title">Complete a Task</span>
+            <span id="todo-status" class="method-status"></span>
+          </div>
+          <div class="method-content">
+            <p class="method-hint">Complete at least one task from the list above to unlock.</p>
+          </div>
+        </div>
+        
+        <!-- Type Phrase Method -->
+        <div id="method-phrase" class="method" style="display: none;">
+          <div class="method-header">
+            <span class="method-icon" id="method-phrase-icon"></span>
+            <span class="method-title">Type Phrase</span>
+            <span id="phrase-status" class="method-status"></span>
+          </div>
+          <div class="method-content">
+            <p class="method-hint">Type the following phrase exactly:</p>
+            <p id="required-phrase" class="required-phrase">"I want to waste my time"</p>
+            <input type="text" id="phrase-input" class="input" placeholder="Type the phrase here..." autocomplete="off">
+            <button id="new-phrase" class="btn btn-small" style="display: none;">New Random String</button>
+          </div>
+        </div>
+        
+        <!-- Math Problem Method -->
+        <div id="method-math" class="method" style="display: none;">
+          <div class="method-header">
+            <span class="method-icon" id="method-math-icon"></span>
+            <span class="method-title">Solve Math Problem</span>
+            <span id="math-status" class="method-status"></span>
+          </div>
+          <div class="method-content">
+            <p class="method-hint">Solve this problem:</p>
+            <p id="math-problem" class="math-problem">12 + 7 = ?</p>
+            <input type="number" id="math-input" class="input" placeholder="Your answer" autocomplete="off">
+            <button id="new-math" class="btn btn-small">New Problem</button>
+          </div>
+        </div>
+        
+        <!-- Password Method -->
+        <div id="method-password" class="method" style="display: none;">
+          <div class="method-header">
+            <span class="method-icon" id="method-password-icon"></span>
+            <span class="method-title">Enter Password</span>
+            <span id="password-status" class="method-status"></span>
+          </div>
+          <div class="method-content">
+            <p class="method-hint">Enter your unlock password:</p>
+            <input type="password" id="password-input" class="input" placeholder="Password" autocomplete="off">
+          </div>
+        </div>
+        
+        <!-- Type Reason Method -->
+        <div id="method-reason" class="method" style="display: none;">
+          <div class="method-header">
+            <span class="method-icon" id="method-reason-icon"></span>
+            <span class="method-title">Explain Your Reason</span>
+            <span id="reason-status" class="method-status"></span>
+          </div>
+          <div class="method-content">
+            <p class="method-hint">Why do you need to access this site right now?</p>
+            <textarea id="reason-input" class="input reason-textarea" placeholder="Type your reason here..." rows="3"></textarea>
+            <div class="reason-counter">
+              <span id="reason-char-count">0</span> / <span id="reason-min-chars">50</span> characters
+            </div>
+          </div>
+        </div>
+        
+        <!-- No Methods Enabled -->
+        <div id="no-methods" class="no-methods" style="display: none;">
+          <p>No unblock methods are enabled. <a href="#" id="open-options-unblock">Configure settings</a> to set up unblock methods.</p>
+        </div>
+        
+        <!-- Schedule Locked (outside allowed time windows) -->
+        <div id="schedule-locked" class="schedule-locked" style="display: none;">
+          <div class="schedule-locked-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          <h3>Site Blocked</h3>
+          <p>This site is blocked according to your schedule.</p>
+          
+          <div class="schedule-countdown">
+            <p class="schedule-countdown-label">Unblocking available in:</p>
+            <div id="schedule-countdown-timer" class="schedule-countdown-timer">
+              <span id="countdown-hours">00</span>h
+              <span id="countdown-minutes">00</span>m
+              <span id="countdown-seconds">00</span>s
+            </div>
+            <p id="schedule-next-window" class="schedule-next-window"></p>
+          </div>
+          
+          <p class="schedule-locked-hint">You can adjust your schedule in <a href="#" id="open-options-schedule">Settings</a>.</p>
+        </div>
+
+        <!-- Daily Limit Exceeded -->
+        <div id="daily-limit-exceeded" class="daily-limit-exceeded" style="display: none;">
+          <div class="daily-limit-exceeded-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <h3>Daily Limit Reached</h3>
+          <p>You've used all your allowed time on blocked sites today.</p>
+          
+          <div class="daily-limit-usage">
+            <p class="daily-limit-usage-label">Time used today:</p>
+            <div class="daily-limit-usage-display">
+              <span id="daily-limit-used">0</span> / <span id="daily-limit-total">30</span> min
+            </div>
+          </div>
+          
+          <p class="daily-limit-reset-hint">Your limit will reset at midnight.</p>
+          <p class="daily-limit-settings-hint">You can adjust your daily limit in <a href="#" id="open-options-daily-limit">Settings</a>.</p>
+        </div>
+
+        <!-- Insufficient Earned Time -->
+        <div id="insufficient-earned-time" class="insufficient-earned-time" style="display: none;">
+          <div class="insufficient-earned-time-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v4"></path>
+              <path d="M12 18v4"></path>
+              <path d="m4.93 4.93 2.83 2.83"></path>
+              <path d="m16.24 16.24 2.83 2.83"></path>
+              <path d="M2 12h4"></path>
+              <path d="M18 12h4"></path>
+              <path d="m4.93 19.07 2.83-2.83"></path>
+              <path d="m16.24 7.76 2.83-2.83"></path>
+            </svg>
+          </div>
+          <h3>No Earned Time Available</h3>
+          <p>You need to earn screen time by completing tasks before you can unblock sites.</p>
+          
+          <div class="earned-time-bank-display">
+            <p class="earned-time-bank-label">Current bank:</p>
+            <div class="earned-time-bank-value">
+              <span id="earned-time-bank-minutes">0</span> min
+            </div>
+            <p class="earned-time-earn-hint">Complete a task above to earn <span id="earned-time-per-task">5</span> minutes</p>
+          </div>
+          
+          <p class="earned-time-settings-hint">You can adjust earned time settings in <a href="#" id="open-options-earned-time">Settings</a>.</p>
+        </div>
+
+        <!-- Nuclear Mode Active -->
+        <div id="nuclear-mode-active" class="nuclear-mode-active" style="display: none;">
+          <div class="nuclear-mode-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <circle cx="12" cy="12" r="4"></circle>
+              <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line>
+              <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line>
+              <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line>
+              <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line>
+            </svg>
+          </div>
+          <h3>Nuclear Mode Active</h3>
+          <p class="nuclear-mode-desc">All unblock methods are disabled. Stay focused!</p>
+          <div class="nuclear-countdown">
+            <p class="nuclear-countdown-label">Time remaining</p>
+            <div id="nuclear-countdown-timer" class="nuclear-countdown-timer">
+              <span id="nuclear-hours">00</span>h
+              <span id="nuclear-minutes">00</span>m
+              <span id="nuclear-seconds">00</span>s
+            </div>
+          </div>
+          <p class="nuclear-mode-hint">Nuclear mode cannot be disabled until the timer expires.</p>
+        </div>
+      </div>
+      
+      <!-- Time Limit Selection -->
+      <div class="time-limit-section">
+        <label class="time-limit-label">Access time limit:</label>
+        <div class="time-limit-options">
+          <button class="time-btn" data-minutes="5">5 min</button>
+          <button class="time-btn" data-minutes="10">10 min</button>
+          <button class="time-btn selected" data-minutes="15">15 min</button>
+          <button class="time-btn" data-minutes="30">30 min</button>
+          <button class="time-btn" data-minutes="60">1 hour</button>
+          <button class="time-btn time-btn-unlimited" data-minutes="0" style="display: none;">Unlimited</button>
+          <input type="number" id="custom-time" class="custom-time-input" placeholder="Custom" min="0.1" max="480" step="0.1"> min
+        </div>
+      </div>
+      
+      <!-- Unblock Button -->
+      <div class="unblock-action">
+        <button id="unblock-button" class="btn btn-primary btn-large" disabled>
+          Continue to Site
+        </button>
+        <p id="unblock-hint" class="unblock-hint">Complete the requirements above to unlock</p>
+      </div>
+    </div>
+
+    <!-- Schedule Info Card -->
+    <div id="schedule-info" class="section schedule-info-card" style="display: none;">
+      <div class="schedule-info-row">
+        <span class="schedule-info-icon" id="schedule-info-icon"></span>
+        <div class="schedule-info-text">
+          <span class="schedule-info-status" id="schedule-info-status"></span>
+          <span class="schedule-info-detail" id="schedule-info-detail"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily Limit Info Card -->
+    <div id="daily-limit-info" class="section daily-limit-info-card" style="display: none;">
+      <div class="daily-limit-info-row">
+        <span class="daily-limit-info-icon" id="daily-limit-info-icon"></span>
+        <div class="daily-limit-info-text">
+          <span class="daily-limit-info-status" id="daily-limit-info-status"></span>
+          <span class="daily-limit-info-detail" id="daily-limit-info-detail"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Earned Time Info Card -->
+    <div id="earned-time-info" class="section earned-time-info-card" style="display: none;">
+      <div class="earned-time-info-row">
+        <span class="earned-time-info-icon" id="earned-time-info-icon"></span>
+        <div class="earned-time-info-text">
+          <span class="earned-time-info-status" id="earned-time-info-status"></span>
+          <span class="earned-time-info-detail" id="earned-time-info-detail"></span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Footer -->
+    <footer class="footer">
+      <a href="#" id="settings-link">Settings</a>
+      <span class="separator">|</span>
+      <a href="#" id="go-back">Go Back</a>
+    </footer>
+  </div>
+  
+  <!-- Toast Notifications -->
+  <div id="toast-container" class="toast-container"></div>
+  
+  <script src="../lib/icons.js"></script>
+  <script src="blocked.js" type="module"></script>
+</body>
+</html>

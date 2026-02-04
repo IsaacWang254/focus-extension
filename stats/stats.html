@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focus Stats - Focus Extension</title>
+  <link rel="stylesheet" href="stats.css">
+</head>
+<body>
+  <!-- Sidebar Navigation -->
+  <nav class="stats-sidebar" id="stats-sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Navigation</span>
+    </div>
+    <ul class="sidebar-nav">
+      <li class="sidebar-item">
+        <a href="#overview" class="sidebar-link active" data-section="overview">
+          <span class="sidebar-icon" id="sidebar-icon-overview"></span>
+          <span>Overview</span>
+        </a>
+      </li>
+      <li class="sidebar-item">
+        <a href="#streak" class="sidebar-link" data-section="streak">
+          <span class="sidebar-icon" id="sidebar-icon-streak"></span>
+          <span>Streak History</span>
+        </a>
+      </li>
+      <li class="sidebar-item">
+        <a href="#achievements" class="sidebar-link" data-section="achievements">
+          <span class="sidebar-icon" id="sidebar-icon-achievements"></span>
+          <span>Achievements</span>
+        </a>
+      </li>
+      <li class="sidebar-item">
+        <a href="#blocking" class="sidebar-link" data-section="blocking">
+          <span class="sidebar-icon" id="sidebar-icon-blocking"></span>
+          <span>Blocking Stats</span>
+        </a>
+      </li>
+      <li class="sidebar-item">
+        <a href="#reasons" class="sidebar-link" data-section="reasons">
+          <span class="sidebar-icon" id="sidebar-icon-reasons"></span>
+          <span>Unblock Reasons</span>
+        </a>
+      </li>
+      <li class="sidebar-item">
+        <a href="#xp" class="sidebar-link" data-section="xp">
+          <span class="sidebar-icon" id="sidebar-icon-xp"></span>
+          <span>XP History</span>
+        </a>
+      </li>
+      <li class="sidebar-divider"></li>
+      <li class="sidebar-item">
+        <a href="#history-analysis" class="sidebar-link" data-section="history-analysis">
+          <span class="sidebar-icon" id="sidebar-icon-history"></span>
+          <span>History Analysis</span>
+        </a>
+      </li>
+      <li class="sidebar-subitem">
+        <a href="#productivity-score" class="sidebar-link sidebar-link-sub" data-section="productivity-score">
+          <span>Productivity Score</span>
+        </a>
+      </li>
+      <li class="sidebar-subitem">
+        <a href="#categories" class="sidebar-link sidebar-link-sub" data-section="categories">
+          <span>Categories</span>
+        </a>
+      </li>
+      <li class="sidebar-subitem">
+        <a href="#hourly" class="sidebar-link sidebar-link-sub" data-section="hourly">
+          <span>Hourly Activity</span>
+        </a>
+      </li>
+      <li class="sidebar-subitem">
+        <a href="#weekly" class="sidebar-link sidebar-link-sub" data-section="weekly">
+          <span>Weekly Pattern</span>
+        </a>
+      </li>
+      <li class="sidebar-subitem">
+        <a href="#top-sites" class="sidebar-link sidebar-link-sub" data-section="top-sites">
+          <span>Top Sites</span>
+        </a>
+      </li>
+      <li class="sidebar-subitem">
+        <a href="#suggestions" class="sidebar-link sidebar-link-sub" data-section="suggestions">
+          <span>Suggestions</span>
+        </a>
+      </li>
+      <li class="sidebar-subitem">
+        <a href="#insights" class="sidebar-link sidebar-link-sub" data-section="insights">
+          <span>Insights</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1>Focus Stats</h1>
+      <div class="header-actions">
+        <select id="time-range" class="time-range-select">
+          <option value="today">Today</option>
+          <option value="week" selected>This Week</option>
+          <option value="month">This Month</option>
+          <option value="all">All Time</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- Overview Cards -->
+    <section class="overview-section" id="overview">
+      <div class="stat-card">
+        <div class="stat-icon" id="icon-focus"></div>
+        <div class="stat-content">
+          <span class="stat-value" id="focus-sessions">0</span>
+          <span class="stat-label">Focus Sessions</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" id="icon-time"></div>
+        <div class="stat-content">
+          <span class="stat-value" id="focus-minutes">0</span>
+          <span class="stat-label">Minutes Focused</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" id="icon-streak"></div>
+        <div class="stat-content">
+          <span class="stat-value" id="current-streak">0</span>
+          <span class="stat-label">Day Streak</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" id="icon-xp"></div>
+        <div class="stat-content">
+          <span class="stat-value" id="total-xp">0</span>
+          <span class="stat-label">Total XP</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Streak Section -->
+    <section class="section" id="streak">
+      <h2 class="section-title">Streak History</h2>
+      <div class="streak-info">
+        <div class="streak-stat">
+          <span class="streak-value" id="longest-streak">0</span>
+          <span class="streak-label">Longest Streak</span>
+        </div>
+        <div class="streak-stat">
+          <span class="streak-value" id="streak-start">-</span>
+          <span class="streak-label">Current Started</span>
+        </div>
+      </div>
+      <div class="streak-calendar" id="streak-calendar">
+        <!-- Calendar will be generated by JS -->
+      </div>
+    </section>
+
+    <!-- Achievements Section -->
+    <section class="section" id="achievements">
+      <h2 class="section-title">Achievements</h2>
+      <div class="achievements-progress">
+        <div class="achievements-bar">
+          <div class="achievements-fill" id="achievements-fill"></div>
+        </div>
+        <span class="achievements-text" id="achievements-text">0 / 15 unlocked</span>
+      </div>
+      <div class="achievements-grid" id="achievements-grid">
+        <!-- Achievements will be generated by JS -->
+      </div>
+    </section>
+
+    <!-- Blocking Stats Section -->
+    <section class="section" id="blocking">
+      <h2 class="section-title">Blocking Stats</h2>
+      <div class="blocking-stats">
+        <div class="blocking-stat">
+          <span class="blocking-value" id="total-blocks">0</span>
+          <span class="blocking-label">Sites Blocked</span>
+        </div>
+        <div class="blocking-stat">
+          <span class="blocking-value" id="unblock-count">0</span>
+          <span class="blocking-label">Times Unblocked</span>
+        </div>
+        <div class="blocking-stat">
+          <span class="blocking-value" id="unblock-minutes">0</span>
+          <span class="blocking-label">Minutes Unblocked</span>
+        </div>
+      </div>
+      <div class="top-blocked" id="top-blocked">
+        <!-- Top blocked sites will be generated by JS -->
+      </div>
+    </section>
+
+    <!-- Unblock Reasons Section -->
+    <section class="section" id="reasons">
+      <h2 class="section-title">Unblock Reasons</h2>
+      <div class="reasons-chart" id="reasons-chart">
+        <!-- Reasons breakdown will be generated by JS -->
+      </div>
+      <div class="recent-reasons" id="recent-reasons">
+        <!-- Recent reasons will be generated by JS -->
+      </div>
+    </section>
+
+    <!-- XP History Section -->
+    <section class="section" id="xp">
+      <h2 class="section-title">XP History</h2>
+      <div class="xp-summary">
+        <div class="xp-stat">
+          <span class="xp-value" id="xp-level">1</span>
+          <span class="xp-label">Current Level</span>
+        </div>
+        <div class="xp-stat">
+          <span class="xp-value" id="xp-to-next">100</span>
+          <span class="xp-label">XP to Next Level</span>
+        </div>
+      </div>
+      <div class="xp-history-list" id="xp-history-list">
+        <!-- XP history will be generated by JS -->
+      </div>
+    </section>
+
+    <!-- Browser History Analysis Section -->
+    <section class="section history-analysis-section" id="history-analysis">
+      <h2 class="section-title">
+        Browser History Analysis
+      </h2>
+      <p class="section-desc">Analyze your browsing patterns to understand your habits and find sites to block.</p>
+      
+      <!-- Productivity Score -->
+      <div class="productivity-score-card" id="productivity-score">
+        <div class="productivity-header">
+          <div class="productivity-grade" id="productivity-grade">-</div>
+          <div class="productivity-info">
+            <span class="productivity-label">Productivity Score</span>
+            <span class="productivity-sublabel" id="productivity-period">Last 7 days</span>
+          </div>
+          <div class="productivity-score-container">
+            <div class="productivity-score-ring">
+              <svg viewBox="0 0 36 36" class="productivity-ring-svg">
+                <path class="productivity-ring-bg"
+                  d="M18 2.0845
+                    a 15.9155 15.9155 0 0 1 0 31.831
+                    a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke-width="3"
+                />
+                <path class="productivity-ring-fill" id="productivity-ring-fill"
+                  d="M18 2.0845
+                    a 15.9155 15.9155 0 0 1 0 31.831
+                    a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke-width="3"
+                  stroke-dasharray="0, 100"
+                />
+              </svg>
+              <span class="productivity-score-value" id="productivity-score-value">0</span>
+            </div>
+          </div>
+        </div>
+        <div class="productivity-breakdown">
+          <div class="breakdown-item productive">
+            <span class="breakdown-icon" id="icon-productive"></span>
+            <span class="breakdown-label">Productive</span>
+            <span class="breakdown-value" id="productive-percent">0%</span>
+          </div>
+          <div class="breakdown-item distracting">
+            <span class="breakdown-icon" id="icon-distracting"></span>
+            <span class="breakdown-label">Distracting</span>
+            <span class="breakdown-value" id="distracting-percent">0%</span>
+          </div>
+          <div class="breakdown-item neutral">
+            <span class="breakdown-icon" id="icon-neutral"></span>
+            <span class="breakdown-label">Neutral</span>
+            <span class="breakdown-value" id="neutral-percent">0%</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Category Breakdown -->
+      <div class="history-card" id="categories">
+        <h3 class="history-card-title" id="title-category">Browsing by Category</h3>
+        <div class="category-bars" id="category-bars">
+          <!-- Categories will be generated by JS -->
+        </div>
+      </div>
+      
+      <!-- Hourly Distribution -->
+      <div class="history-card" id="hourly">
+        <h3 class="history-card-title" id="title-hourly">Browsing by Hour</h3>
+        <div class="hourly-chart" id="hourly-chart">
+          <!-- Hourly bars will be generated by JS -->
+        </div>
+        <div class="hourly-labels">
+          <span>12 AM</span>
+          <span>6 AM</span>
+          <span>12 PM</span>
+          <span>6 PM</span>
+          <span>11 PM</span>
+        </div>
+      </div>
+      
+      <!-- Day of Week Patterns -->
+      <div class="history-card" id="weekly">
+        <h3 class="history-card-title" id="title-weekly">Weekly Pattern</h3>
+        <div class="weekly-chart" id="weekly-chart">
+          <!-- Weekly bars will be generated by JS -->
+        </div>
+      </div>
+      
+      <!-- Top Sites -->
+      <div class="history-card" id="top-sites">
+        <h3 class="history-card-title" id="title-top-sites">Most Visited Sites</h3>
+        <div class="top-sites-list" id="top-sites-list">
+          <!-- Top sites will be generated by JS -->
+        </div>
+      </div>
+      
+      <!-- Block Suggestions -->
+      <div class="history-card suggestions-card" id="suggestions">
+        <h3 class="history-card-title" id="title-suggestions">Suggested Sites to Block</h3>
+        <p class="suggestions-desc">Based on your browsing history, these sites might be distracting you.</p>
+        <div class="suggestions-list" id="suggestions-list">
+          <!-- Suggestions will be generated by JS -->
+        </div>
+      </div>
+      
+      <!-- Insights -->
+      <div class="history-card insights-card" id="insights">
+        <h3 class="history-card-title" id="title-insights">Insights</h3>
+        <div class="insights-list" id="insights-list">
+          <!-- Insights will be generated by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <button id="back-btn" class="btn btn-secondary">Back to Extension</button>
+    </footer>
+  </div>
+  
+  <script src="../lib/icons.js"></script>
+  <script src="stats.js" type="module"></script>
+</body>
+</html>
