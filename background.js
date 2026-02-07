@@ -112,7 +112,7 @@ const DEFAULT_SETTINGS = {
     timer: { enabled: false, minutes: 5 },
     completeTodo: { enabled: true },
     typePhrase: { enabled: false, phrase: 'I want to waste my time', useRandomString: false, randomLength: 30 },
-    typeReason: { enabled: false, minLength: 50 },
+    typeReason: { enabled: true, minLength: 50 },
     mathProblem: { enabled: false },
     password: { enabled: false, value: '' }
   },
@@ -179,7 +179,7 @@ const DEFAULT_PROFILE = {
   },
   unblockMethods: {
     timer: { enabled: false, minutes: 5 },
-    completeTodo: { enabled: false },
+    completeTodo: { enabled: true},
     typePhrase: { enabled: false, phrase: 'I want to waste my time', useRandomString: false, randomLength: 30 },
     typeReason: { enabled: true, minLength: 50 },
     mathProblem: { enabled: false },
