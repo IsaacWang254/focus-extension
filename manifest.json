@@ -53,6 +53,10 @@
     }
   },
   
+  "chrome_url_overrides": {
+    "newtab": "newtab/newtab.html"
+  },
+  
   "options_page": "options/options.html",
   
   "icons": {
@@ -63,7 +67,7 @@
   
   "web_accessible_resources": [
     {
-      "resources": ["blocked/blocked.html", "blocked/blocked.css", "blocked/blocked.js", "lib/todoist.js", "stats/stats.html", "stats/stats.css", "stats/stats.js"],
+      "resources": ["blocked/blocked.html", "blocked/blocked.css", "blocked/blocked.js", "lib/todoist.js", "stats/stats.html", "stats/stats.css", "stats/stats.js", "newtab/newtab.html", "newtab/newtab.css", "newtab/newtab.js", "newtab/quotes.js"],
       "matches": ["<all_urls>"]
     }
   ]

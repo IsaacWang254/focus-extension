@@ -1,0 +1,577 @@
+@import '../lib/common.css';
+
+/* ============================================
+   New Tab Page Layout
+   ============================================ */
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: var(--background);
+}
+
+/* ============================================
+   Top Bar
+   ============================================ */
+
+.top-bar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  padding: var(--space-4);
+  z-index: 50;
+}
+
+.top-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Settings dropdown positioning */
+#settings-dropdown .dropdown-menu-right {
+  right: 0;
+  left: auto;
+}
+
+.settings-panel {
+  padding: var(--space-2);
+  min-width: 200px;
+}
+
+.settings-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-foreground);
+  padding: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.settings-row:hover {
+  background-color: var(--accent);
+}
+
+.settings-label {
+  font-size: 0.875rem;
+  color: var(--foreground);
+}
+
+.settings-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--foreground);
+}
+
+.settings-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ============================================
+   Main Content
+   ============================================ */
+
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+  padding: var(--space-12) var(--space-6) var(--space-8);
+  margin: 0 auto;
+  flex: 1;
+}
+
+/* ============================================
+   Hero: Clock + Greeting
+   ============================================ */
+
+.hero {
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+
+.clock {
+  font-size: 5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--foreground);
+  letter-spacing: -2px;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: var(--space-2);
+}
+
+.greeting {
+  font-size: 1.375rem;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+
+/* ============================================
+   Weather Section
+   ============================================ */
+
+.weather-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+  min-height: 40px;
+}
+
+.weather-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner-sm {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
+
+.weather-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.weather-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--foreground);
+}
+
+.weather-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.weather-temp {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.weather-desc {
+  font-size: 1rem;
+  color: var(--muted-foreground);
+}
+
+.weather-highlow {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.weather-highlow::before {
+  content: '\00B7\00A0';
+}
+
+.weather-error {
+  text-align: center;
+}
+
+/* ============================================
+   Quote Section
+   ============================================ */
+
+.quote-section {
+  text-align: center;
+  max-width: 560px;
+  margin-bottom: var(--space-10);
+  padding: 0 var(--space-4);
+}
+
+.quote-text {
+  font-size: 0.9375rem;
+  font-style: italic;
+  color: var(--muted-foreground);
+  line-height: 1.6;
+  margin-bottom: var(--space-2);
+}
+
+.quote-text::before {
+  content: '\201C';
+}
+
+.quote-text::after {
+  content: '\201D';
+}
+
+.quote-author {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  opacity: 0.7;
+  font-style: normal;
+}
+
+.quote-author::before {
+  content: '\2014\00A0';
+}
+
+/* ============================================
+   Content Panels (Calendar + Todos)
+   ============================================ */
+
+.content-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+  width: 100%;
+}
+
+.panel {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--indigo);
+}
+
+.panel-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.panel-header-text {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.panel-date {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+
+.panel-body {
+  padding: var(--space-3) var(--space-4);
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.panel-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) 0;
+}
+
+.panel-empty {
+  text-align: center;
+  padding: var(--space-6) 0;
+}
+
+/* ============================================
+   Connect Prompt
+   ============================================ */
+
+.connect-prompt {
+  text-align: center;
+  padding: var(--space-5) var(--space-2);
+}
+
+.connect-text {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  margin-bottom: var(--space-3);
+}
+
+/* ============================================
+   Calendar Events
+   ============================================ */
+
+.event-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.event-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.event-item:last-child {
+  border-bottom: none;
+}
+
+.event-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.event-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--foreground);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-time {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  margin-top: 1px;
+}
+
+.event-allday {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--indigo);
+  background-color: var(--indigo-subtle);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+}
+
+/* Current event highlight */
+.event-item.event-current {
+  background-color: var(--indigo-subtle);
+  margin: 0 calc(-1 * var(--space-2));
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  border-bottom: none;
+}
+
+.event-item.event-current + .event-item {
+  border-top: none;
+}
+
+/* ============================================
+   Todo List
+   ============================================ */
+
+.todo-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.todo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+  transition: opacity var(--transition-normal);
+}
+
+.todo-item:last-child {
+  border-bottom: none;
+}
+
+.todo-item.completing {
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: opacity var(--transition-normal), transform var(--transition-normal);
+}
+
+.todo-checkbox {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: none;
+  padding: 0;
+}
+
+.todo-checkbox:hover {
+  border-color: var(--indigo);
+  background-color: var(--indigo-subtle);
+}
+
+.todo-checkbox.checked {
+  border-color: var(--indigo);
+  background-color: var(--indigo);
+}
+
+.todo-checkbox.checked::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Priority indicators */
+.todo-checkbox.priority-urgent {
+  border-color: var(--destructive);
+}
+
+.todo-checkbox.priority-urgent:hover {
+  background-color: var(--destructive-subtle);
+}
+
+.todo-checkbox.priority-high {
+  border-color: var(--warning);
+}
+
+.todo-checkbox.priority-high:hover {
+  background-color: var(--warning-subtle);
+}
+
+.todo-checkbox.priority-medium {
+  border-color: var(--indigo);
+}
+
+.todo-checkbox.priority-medium:hover {
+  background-color: var(--indigo-subtle);
+}
+
+.todo-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.todo-content {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--foreground);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 2px;
+}
+
+.todo-due {
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}
+
+.todo-due.overdue {
+  color: var(--destructive);
+  font-weight: 500;
+}
+
+.todo-due.today {
+  color: var(--indigo);
+  font-weight: 500;
+}
+
+/* Show more */
+.show-more-btn {
+  width: 100%;
+  margin-top: var(--space-2);
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+/* ============================================
+   Fade-in Animation
+   ============================================ */
+
+.main {
+  animation: newtabFadeIn 0.4s ease;
+}
+
+@keyframes newtabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+
+@media (max-width: 640px) {
+  .main {
+    padding: var(--space-8) var(--space-4) var(--space-6);
+  }
+
+  .clock {
+    font-size: 3.5rem;
+  }
+
+  .greeting {
+    font-size: 1.125rem;
+  }
+
+  .content-panels {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-body {
+    max-height: 280px;
+  }
+}

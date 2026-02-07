@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Tab</title>
+  <link rel="stylesheet" href="newtab.css">
+</head>
+<body>
+  <!-- Top bar: settings + theme toggle -->
+  <div class="top-bar">
+    <div class="top-bar-actions">
+      <!-- Settings dropdown -->
+      <div class="dropdown" id="settings-dropdown">
+        <button class="theme-toggle" id="settings-btn" title="Settings">
+          <span class="settings-icon" id="settings-icon"></span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-right" id="settings-menu">
+          <div class="settings-panel">
+            <h4 class="settings-title">Display</h4>
+            <div class="settings-row">
+              <span class="settings-label">Show weather</span>
+              <label class="toggle">
+                <input type="checkbox" id="toggle-weather" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">Show quotes</span>
+              <label class="toggle">
+                <input type="checkbox" id="toggle-quotes" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">Show calendar</span>
+              <label class="toggle">
+                <input type="checkbox" id="toggle-calendar" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">Show todos</span>
+              <label class="toggle">
+                <input type="checkbox" id="toggle-todos" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Theme toggle -->
+      <button id="theme-toggle" class="theme-toggle" title="Toggle dark mode">
+        <span class="theme-icon-light" id="theme-icon-light"></span>
+        <span class="theme-icon-dark" id="theme-icon-dark"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <main class="main">
+    <!-- Clock & Greeting -->
+    <div class="hero">
+      <div class="clock" id="clock">00:00</div>
+      <div class="greeting" id="greeting">Good morning</div>
+    </div>
+
+    <!-- Weather -->
+    <div class="weather-section" id="weather-section">
+      <div class="weather-loading" id="weather-loading">
+        <div class="spinner spinner-sm"></div>
+      </div>
+      <div class="weather-content hidden" id="weather-content">
+        <span class="weather-icon" id="weather-icon"></span>
+        <span class="weather-temp" id="weather-temp"></span>
+        <span class="weather-desc" id="weather-desc"></span>
+        <span class="weather-highlow" id="weather-highlow"></span>
+      </div>
+      <div class="weather-error hidden" id="weather-error">
+        <span class="text-muted text-sm" id="weather-error-text"></span>
+      </div>
+    </div>
+
+    <!-- Motivational Quote -->
+    <div class="quote-section" id="quote-section">
+      <blockquote class="quote-text" id="quote-text"></blockquote>
+      <cite class="quote-author" id="quote-author"></cite>
+    </div>
+
+    <!-- Content panels: Calendar + Todos -->
+    <div class="content-panels" id="content-panels">
+      <!-- Calendar panel -->
+      <div class="panel" id="calendar-panel">
+        <div class="panel-header">
+          <span class="panel-icon" id="calendar-icon"></span>
+          <div class="panel-header-text">
+            <h3 class="panel-title">Today's Schedule</h3>
+            <span class="panel-date" id="calendar-date"></span>
+          </div>
+        </div>
+        <div class="panel-body">
+          <!-- Calendar not connected state -->
+          <div class="connect-prompt" id="calendar-connect">
+            <p class="connect-text">Connect Google Calendar to see your schedule</p>
+            <button class="btn btn-secondary btn-small" id="calendar-connect-btn">Connect Calendar</button>
+          </div>
+          <!-- Calendar loading state -->
+          <div class="panel-loading hidden" id="calendar-loading">
+            <div class="spinner"></div>
+          </div>
+          <!-- Calendar empty state -->
+          <div class="panel-empty hidden" id="calendar-empty">
+            <p class="text-muted text-sm">No events today</p>
+          </div>
+          <!-- Calendar events list -->
+          <ul class="event-list" id="event-list"></ul>
+        </div>
+      </div>
+
+      <!-- Todos panel -->
+      <div class="panel" id="todos-panel">
+        <div class="panel-header">
+          <span class="panel-icon" id="todos-icon"></span>
+          <h3 class="panel-title">Tasks</h3>
+        </div>
+        <div class="panel-body">
+          <!-- Todoist not connected state -->
+          <div class="connect-prompt" id="todos-connect">
+            <p class="connect-text">Connect Todoist to see your tasks</p>
+            <button class="btn btn-secondary btn-small" id="todos-connect-btn">Connect Todoist</button>
+          </div>
+          <!-- Todos loading state -->
+          <div class="panel-loading hidden" id="todos-loading">
+            <div class="spinner"></div>
+          </div>
+          <!-- Todos empty state -->
+          <div class="panel-empty hidden" id="todos-empty">
+            <p class="text-muted text-sm">No tasks for today</p>
+          </div>
+          <!-- Todos list -->
+          <ul class="todo-list" id="todo-list"></ul>
+          <!-- Show more button -->
+          <button class="btn btn-ghost btn-small show-more-btn hidden" id="todos-show-more">Show more</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="../lib/icons.js"></script>
+  <script src="newtab.js" type="module"></script>
+</body>
+</html>
