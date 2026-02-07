@@ -1301,10 +1301,10 @@ function formatTime(time) {
   return `${hour12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
 }
 
-// Timer Method - only counts when page is visible
+// Timer Method - only counts when page is visible and focused
 let timerRemainingSeconds = 0;
 let timerTotalSeconds = 0;
-let isPageVisible = true;
+let isPageVisible = !document.hidden && document.hasFocus();
 
 function startTimer(minutes) {
   timerTotalSeconds = minutes * 60;
@@ -1313,15 +1313,18 @@ function startTimer(minutes) {
   // Initialize progress bar to 0% width (shows empty track)
   document.getElementById('timer-progress').style.width = '0%';
   
-  // Listen for visibility changes
+  // Listen for visibility changes (tab switches)
   document.addEventListener('visibilitychange', handleVisibilityChange);
+  // Listen for window focus/blur (app switches, minimizing, etc.)
+  window.addEventListener('blur', handleWindowBlur);
+  window.addEventListener('focus', handleWindowFocus);
   
   updateTimerDisplay();
   timerInterval = setInterval(timerTick, 1000);
 }
 
-function handleVisibilityChange() {
-  isPageVisible = !document.hidden;
+function updatePageVisible(visible) {
+  isPageVisible = visible;
   
   // Update the timer hint when visibility changes
   const timerMethod = document.getElementById('method-timer');
@@ -1340,6 +1343,21 @@ function handleVisibilityChange() {
     if (existingPausedHint) {
       existingPausedHint.remove();
     }
+  }
+}
+
+function handleVisibilityChange() {
+  updatePageVisible(!document.hidden && document.hasFocus());
+}
+
+function handleWindowBlur() {
+  updatePageVisible(false);
+}
+
+function handleWindowFocus() {
+  // Only mark visible if the document itself isn't hidden (e.g. tab is active)
+  if (!document.hidden) {
+    updatePageVisible(true);
   }
 }
 
@@ -1367,6 +1385,8 @@ function updateTimerDisplay() {
   if (timerRemainingSeconds <= 0) {
     clearInterval(timerInterval);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('blur', handleWindowBlur);
+    window.removeEventListener('focus', handleWindowFocus);
     completedMethods.timer = true;
     updateMethodStatus('method-timer', 'timer-status', true);
     checkUnblockReady();
