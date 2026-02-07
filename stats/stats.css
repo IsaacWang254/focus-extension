@@ -310,60 +310,124 @@ html {
 }
 
 /* ============================================
-   Streak Section
+   Streak Section - Contribution Graph
    ============================================ */
 
 .streak-info {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 .streak-stat {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-3);
+  padding: var(--space-2);
   background-color: var(--secondary);
   border-radius: var(--radius-md);
   text-align: center;
 }
 
 .streak-value {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 600;
   color: var(--foreground);
 }
 
 .streak-label {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   color: var(--muted-foreground);
 }
 
-.streak-calendar {
+.streak-graph {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: var(--space-1);
+  column-gap: 2px;
+  row-gap: 2px;
+  grid-auto-rows: 1fr;
+  overflow: hidden;
 }
 
-.streak-day {
-  aspect-ratio: 1;
+.graph-day-label {
+  font-size: 0.625rem;
+  color: var(--muted-foreground);
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
+  min-width: 0;
+}
+
+.graph-month-cell {
+  font-size: 0.625rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  overflow: visible;
+  text-align: left;
+  min-width: 0;
+}
+
+.graph-cell {
+  border-radius: 2px;
+  outline: 1px solid rgba(0, 0, 0, 0.04);
+  outline-offset: -1px;
+  min-width: 0;
+}
+
+.graph-cell.empty {
+  background-color: transparent;
+  outline: none;
+}
+
+.graph-cell.no-data {
   background-color: var(--secondary);
-  border-radius: var(--radius-sm);
 }
 
-.streak-day.active {
+.graph-cell.unfocused {
+  background-color: var(--destructive-subtle);
+  outline-color: rgba(239, 68, 68, 0.1);
+}
+
+.graph-cell.focused {
   background-color: var(--indigo);
-  color: var(--indigo-foreground);
+  outline-color: rgba(99, 102, 241, 0.1);
 }
 
-.streak-day.today {
-  border: 2px solid var(--indigo);
+.graph-cell.today {
+  border-radius: 2px;
+}
+
+.graph-legend {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: var(--space-1);
+  justify-content: flex-end;
+}
+
+.graph-legend-cell {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  outline: 1px solid rgba(0, 0, 0, 0.04);
+  outline-offset: -1px;
+}
+
+.graph-legend-cell.no-data {
+  background-color: var(--secondary);
+}
+
+.graph-legend-cell.unfocused {
+  background-color: var(--destructive-subtle);
+}
+
+.graph-legend-cell.focused {
+  background-color: var(--indigo);
+}
+
+.graph-legend-label {
+  font-size: 0.625rem;
+  color: var(--muted-foreground);
+  margin: 0 2px;
 }
 
 /* ============================================

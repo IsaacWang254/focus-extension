@@ -244,8 +244,8 @@ async function loadStreakStats() {
 }
 
 function buildStreakCalendar(history) {
-  const calendar = document.getElementById('streak-calendar');
-  calendar.innerHTML = '';
+  const graph = document.getElementById('streak-graph');
+  graph.innerHTML = '';
   
   // Create a map of dates to focus status
   const focusMap = {};
@@ -256,29 +256,112 @@ function buildStreakCalendar(history) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  // Show last 28 days (4 weeks)
-  for (let i = 27; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    const dateStr = date.toDateString();
-    
-    const dayEl = document.createElement('div');
-    dayEl.className = 'streak-day';
-    dayEl.textContent = date.getDate();
-    
-    if (i === 0) {
-      dayEl.classList.add('today');
+  // Calculate how many weeks to show (go back ~52 weeks, aligning to Sunday starts)
+  const todayDay = today.getDay(); // 0=Sun
+  const totalDays = 52 * 7 + todayDay + 1; // 52 full weeks + partial current week
+  
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - totalDays + 1);
+  
+  // Build weeks array
+  const weeks = [];
+  let currentWeek = [];
+  const tempDate = new Date(startDate);
+  
+  for (let i = 0; i < totalDays; i++) {
+    currentWeek.push(new Date(tempDate));
+    if (tempDate.getDay() === 6 || i === totalDays - 1) {
+      weeks.push(currentWeek);
+      currentWeek = [];
     }
-    
-    if (focusMap[dateStr] === true) {
-      dayEl.classList.add('focused');
-    } else if (focusMap[dateStr] === false) {
-      dayEl.classList.add('unfocused');
-    }
-    
-    dayEl.title = formatDate(date);
-    calendar.appendChild(dayEl);
+    tempDate.setDate(tempDate.getDate() + 1);
   }
+  
+  const numWeeks = weeks.length;
+  
+  // Set grid template: 1 col for day labels + 1 per week; auto row for months, equal rows for days, auto for legend
+  graph.style.gridTemplateColumns = `28px repeat(${numWeeks}, 1fr)`;
+  graph.style.gridTemplateRows = `auto repeat(7, 1fr) auto`;
+  
+  // Row 1: month labels
+  // Empty corner cell for day-label column
+  const corner = document.createElement('span');
+  corner.className = 'graph-day-label';
+  graph.appendChild(corner);
+  
+  // One month-label cell per week column
+  let prevMonth = -1;
+  for (let w = 0; w < numWeeks; w++) {
+    const firstDay = weeks[w][0];
+    const month = firstDay.getMonth();
+    
+    const cell = document.createElement('span');
+    cell.className = 'graph-month-cell';
+    
+    if (month !== prevMonth) {
+      cell.textContent = firstDay.toLocaleDateString('en-US', { month: 'short' });
+      prevMonth = month;
+    }
+    
+    graph.appendChild(cell);
+  }
+  
+  // Rows 2-8: one per day of week (Sun=0 through Sat=6)
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  
+  for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+    // Day label
+    const label = document.createElement('span');
+    label.className = 'graph-day-label';
+    if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) {
+      label.textContent = dayNames[dayOfWeek];
+    }
+    graph.appendChild(label);
+    
+    // One cell per week
+    for (let w = 0; w < numWeeks; w++) {
+      const cell = document.createElement('span');
+      
+      const matchingDay = weeks[w].find(d => d.getDay() === dayOfWeek);
+      
+      if (!matchingDay || matchingDay > today) {
+        cell.className = 'graph-cell empty';
+      } else {
+        const dateStr = matchingDay.toDateString();
+        const isToday = matchingDay.getTime() === today.getTime();
+        
+        if (focusMap[dateStr] === true) {
+          cell.className = 'graph-cell focused';
+        } else if (focusMap[dateStr] === false) {
+          cell.className = 'graph-cell unfocused';
+        } else {
+          cell.className = 'graph-cell no-data';
+        }
+        
+        if (isToday) {
+          cell.classList.add('today');
+        }
+        
+        const status = focusMap[dateStr] === true ? 'Focused' : focusMap[dateStr] === false ? 'Unfocused' : 'No data';
+        cell.title = `${formatDate(matchingDay)} - ${status}`;
+      }
+      
+      graph.appendChild(cell);
+    }
+  }
+  
+  // Legend (outside the grid)
+  const legend = document.createElement('div');
+  legend.className = 'graph-legend';
+  legend.style.gridColumn = `1 / -1`;
+  legend.innerHTML = `
+    <span class="graph-legend-label">Less</span>
+    <span class="graph-legend-cell no-data"></span>
+    <span class="graph-legend-cell unfocused"></span>
+    <span class="graph-legend-cell focused"></span>
+    <span class="graph-legend-label">More</span>
+  `;
+  graph.appendChild(legend);
 }
 
 async function loadAchievements() {
