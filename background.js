@@ -109,8 +109,8 @@ const DEFAULT_SETTINGS = {
     activeDays: [1, 2, 3, 4, 5] // Weekdays by default
   },
   unblockMethods: {
-    timer: { enabled: true, minutes: 5 },
-    completeTodo: { enabled: false },
+    timer: { enabled: false, minutes: 5 },
+    completeTodo: { enabled: true },
     typePhrase: { enabled: false, phrase: 'I want to waste my time', useRandomString: false, randomLength: 30 },
     typeReason: { enabled: false, minLength: 50 },
     mathProblem: { enabled: false },
