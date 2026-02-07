@@ -170,11 +170,11 @@ async function updateUI() {
   // Streak
   await updateStreakDisplay();
   
-  // Schedule status
-  updateScheduleStatus();
+  // Schedule status - returns whether schedule is currently locked
+  const scheduleLocked = updateScheduleStatus();
   
-  // Daily limit status
-  await updateDailyLimitStatus();
+  // Daily limit status - only show when schedule is not locked
+  await updateDailyLimitStatus(scheduleLocked);
 }
 
 function updateSiteActions() {
@@ -421,7 +421,7 @@ function updateScheduleStatus() {
   // Check if schedule is enabled
   if (!settings.schedule || !settings.schedule.enabled) {
     container.style.display = 'none';
-    return;
+    return false;
   }
   
   // Check if there are any time windows configured
@@ -432,7 +432,7 @@ function updateScheduleStatus() {
     detailEl.textContent = 'No time windows configured';
     iconWrapper.classList.remove('available');
     iconWrapper.classList.add('locked');
-    return;
+    return true;
   }
   
   container.style.display = 'flex';
@@ -448,7 +448,7 @@ function updateScheduleStatus() {
     detailEl.textContent = getNextActiveDayText();
     iconWrapper.classList.remove('locked');
     iconWrapper.classList.add('available');
-    return;
+    return false;
   }
   
   const inAllowedWindow = isInAllowedTimeWindow();
@@ -460,6 +460,7 @@ function updateScheduleStatus() {
     detailEl.textContent = getWindowEndText();
     iconWrapper.classList.remove('locked');
     iconWrapper.classList.add('available');
+    return false;
   } else {
     // Outside allowed window - fully locked
     iconEl.innerHTML = Icons.clock;
@@ -468,6 +469,7 @@ function updateScheduleStatus() {
     detailEl.textContent = nextWindowText || 'No upcoming windows';
     iconWrapper.classList.remove('available');
     iconWrapper.classList.add('locked');
+    return true;
   }
 }
 
@@ -605,12 +607,18 @@ function formatTimeDisplay(hours, minutes) {
 // DAILY LIMIT STATUS
 // =============================================================================
 
-async function updateDailyLimitStatus() {
+async function updateDailyLimitStatus(scheduleLocked) {
   const container = document.getElementById('daily-limit-status');
   const iconEl = document.getElementById('daily-limit-icon');
   const iconWrapper = document.getElementById('daily-limit-icon-wrapper');
   const textEl = document.getElementById('daily-limit-text');
   const detailEl = document.getElementById('daily-limit-detail');
+  
+  // Hide daily limit when schedule is locked to avoid overflow
+  if (scheduleLocked) {
+    container.style.display = 'none';
+    return;
+  }
   
   // Get daily usage info from background
   const usageInfo = await chrome.runtime.sendMessage({ type: 'GET_DAILY_USAGE' });
