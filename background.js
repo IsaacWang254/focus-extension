@@ -178,10 +178,10 @@ const DEFAULT_PROFILE = {
     activeDays: [1, 2, 3, 4, 5]
   },
   unblockMethods: {
-    timer: { enabled: true, minutes: 5 },
+    timer: { enabled: false, minutes: 5 },
     completeTodo: { enabled: false },
     typePhrase: { enabled: false, phrase: 'I want to waste my time', useRandomString: false, randomLength: 30 },
-    typeReason: { enabled: false, minLength: 50 },
+    typeReason: { enabled: true, minLength: 50 },
     mathProblem: { enabled: false },
     password: { enabled: false, value: '' }
   },
