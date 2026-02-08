@@ -5047,11 +5047,31 @@ async function getTodayEvents() {
   
   // Filter to today's events
   const today = new Date();
+  const todayStr = today.getFullYear() + '-' +
+    String(today.getMonth() + 1).padStart(2, '0') + '-' +
+    String(today.getDate()).padStart(2, '0');
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
   
   return events.filter(event => {
+    // Skip completed/checked-off events (e.g. "✓ quiz 3")
+    const title = (event.title || '').trim();
+    if (title.startsWith('✓') || title.startsWith('✔')) {
+      return false;
+    }
+    
+    if (event.isAllDay) {
+      // For all-day events, compare date strings directly to avoid
+      // UTC vs local timezone mismatches (e.g. "2026-02-09" parsed as
+      // UTC midnight would appear as the previous evening in US timezones)
+      const eventStartDate = event.start.split('T')[0];
+      const eventEndDate = event.end.split('T')[0];
+      // end date is exclusive in Google Calendar (single-day event on
+      // Feb 8 has end = "2026-02-09"), so use > not >=
+      return eventStartDate <= todayStr && eventEndDate > todayStr;
+    }
+    
     const start = new Date(event.start).getTime();
     return start >= today.getTime() && start < tomorrow.getTime();
   });
