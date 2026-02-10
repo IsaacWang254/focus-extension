@@ -532,6 +532,72 @@ body {
 }
 
 /* ============================================
+   Completed Today Section
+   ============================================ */
+
+.completed-section {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.completed-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-family: inherit;
+  transition: color var(--transition-fast);
+}
+
+.completed-toggle:hover {
+  color: var(--foreground);
+}
+
+.completed-toggle-icon {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid currentColor;
+  transition: transform var(--transition-fast);
+}
+
+.completed-toggle.expanded .completed-toggle-icon {
+  transform: rotate(90deg);
+}
+
+.completed-toggle-text {
+  font-weight: 500;
+}
+
+.completed-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: var(--space-1);
+}
+
+.completed-item {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+  padding: var(--space-1) 0;
+  padding-left: calc(5px + var(--space-2));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================
    Fade-in Animation
    ============================================ */
 

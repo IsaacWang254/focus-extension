@@ -28,6 +28,8 @@ const DEFAULTS = {
 
 let allTasks = [];
 let tasksExpanded = false;
+let completedToday = [];
+let completedExpanded = false;
 
 // =============================================================================
 // THEME (same pattern as blocked.js / options.js)
@@ -472,6 +474,82 @@ function setupCalendarConnect() {
 }
 
 // =============================================================================
+// COMPLETED TASKS TRACKING
+// =============================================================================
+
+function getTodayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+async function loadCompletedToday() {
+  const result = await chrome.storage.local.get('completedToday');
+  const data = result.completedToday;
+
+  if (data && data.date === getTodayKey()) {
+    completedToday = data.tasks || [];
+  } else {
+    // New day — reset
+    completedToday = [];
+    await saveCompletedToday();
+  }
+}
+
+async function saveCompletedToday() {
+  await chrome.storage.local.set({
+    completedToday: {
+      date: getTodayKey(),
+      tasks: completedToday,
+    },
+  });
+}
+
+async function addCompletedTask(task) {
+  completedToday.push({
+    id: task.id,
+    content: task.content,
+    completedAt: Date.now(),
+  });
+  await saveCompletedToday();
+}
+
+function renderCompletedSection() {
+  const container = document.getElementById('completed-section');
+  const countEl = document.getElementById('completed-count');
+  const listEl = document.getElementById('completed-list');
+  const toggleBtn = document.getElementById('completed-toggle');
+
+  if (completedToday.length === 0) {
+    container.classList.add('hidden');
+    return;
+  }
+
+  container.classList.remove('hidden');
+  countEl.textContent = completedToday.length;
+
+  // Render the list
+  listEl.innerHTML = '';
+  for (const task of completedToday) {
+    const li = document.createElement('li');
+    li.className = 'completed-item';
+    li.textContent = task.content;
+    listEl.appendChild(li);
+  }
+
+  // Toggle visibility
+  listEl.classList.toggle('hidden', !completedExpanded);
+  toggleBtn.classList.toggle('expanded', completedExpanded);
+}
+
+function setupCompletedToggle() {
+  const toggleBtn = document.getElementById('completed-toggle');
+  toggleBtn.addEventListener('click', () => {
+    completedExpanded = !completedExpanded;
+    renderCompletedSection();
+  });
+}
+
+// =============================================================================
 // TODOIST
 // =============================================================================
 
@@ -609,8 +687,17 @@ async function completeTask(taskId, li, checkbox) {
 
   checkbox.classList.add('checked');
 
+  // Find the task before removing it so we can track it
+  const task = allTasks.find(t => t.id === taskId);
+
   try {
     await todoist.completeTask(taskId);
+
+    // Track completed task
+    if (task) {
+      await addCompletedTask(task);
+      renderCompletedSection();
+    }
 
     // Animate removal
     li.classList.add('completing');
@@ -677,6 +764,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupCalendarConnect();
   setupTodosConnect();
   setupShowMore();
+  setupCompletedToggle();
 
   // Start clock
   startClock();
@@ -686,6 +774,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load settings and apply visibility
   await loadSettings();
+
+  // Load completed tasks data then render
+  await loadCompletedToday();
+  renderCompletedSection();
 
   // Load data (in parallel)
   loadCalendar();
