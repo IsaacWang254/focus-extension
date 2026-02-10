@@ -29,7 +29,6 @@ const DEFAULTS = {
 let allTasks = [];
 let tasksExpanded = false;
 let completedToday = [];
-let completedExpanded = false;
 
 // =============================================================================
 // THEME (same pattern as blocked.js / options.js)
@@ -66,6 +65,7 @@ function setupIcons() {
   document.getElementById('settings-icon').innerHTML = Icons.settings;
   document.getElementById('calendar-icon').innerHTML = Icons.calendar;
   document.getElementById('todos-icon').innerHTML = Icons.list;
+  document.getElementById('completed-icon').innerHTML = Icons.checkCircle;
 }
 
 // =============================================================================
@@ -274,6 +274,7 @@ function applyVisibility(settings) {
   const quoteSection = document.getElementById('quote-section');
   const calendarPanel = document.getElementById('calendar-panel');
   const todosPanel = document.getElementById('todos-panel');
+  const completedPanel = document.getElementById('completed-panel');
   const contentPanels = document.getElementById('content-panels');
 
   weatherSection.classList.toggle('hidden', !settings.newtabShowWeather);
@@ -281,18 +282,12 @@ function applyVisibility(settings) {
   calendarPanel.classList.toggle('hidden', !settings.newtabShowCalendar);
   todosPanel.classList.toggle('hidden', !settings.newtabShowTodos);
 
-  // Hide the content-panels container if both panels are hidden
-  const bothHidden = !settings.newtabShowCalendar && !settings.newtabShowTodos;
-  contentPanels.classList.toggle('hidden', bothHidden);
+  // Completed panel is tied to the todos toggle
+  completedPanel.classList.toggle('hidden', !settings.newtabShowTodos);
 
-  // If only one panel visible, make it full width
-  if (settings.newtabShowCalendar && !settings.newtabShowTodos) {
-    contentPanels.style.gridTemplateColumns = '1fr';
-  } else if (!settings.newtabShowCalendar && settings.newtabShowTodos) {
-    contentPanels.style.gridTemplateColumns = '1fr';
-  } else {
-    contentPanels.style.gridTemplateColumns = '';
-  }
+  // Hide the content-panels container if all panels are hidden
+  const allHidden = !settings.newtabShowCalendar && !settings.newtabShowTodos;
+  contentPanels.classList.toggle('hidden', allHidden);
 }
 
 function setupSettings() {
@@ -474,79 +469,76 @@ function setupCalendarConnect() {
 }
 
 // =============================================================================
-// COMPLETED TASKS TRACKING
+// COMPLETED TASKS (from Todoist API)
 // =============================================================================
 
-function getTodayKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
+async function fetchCompletedToday() {
+  const loadingEl = document.getElementById('completed-loading');
+  const emptyEl = document.getElementById('completed-empty');
 
-async function loadCompletedToday() {
-  const result = await chrome.storage.local.get('completedToday');
-  const data = result.completedToday;
+  try {
+    const authenticated = await todoist.isAuthenticated();
+    if (!authenticated) return;
 
-  if (data && data.date === getTodayKey()) {
-    completedToday = data.tasks || [];
-  } else {
-    // New day — reset
-    completedToday = [];
-    await saveCompletedToday();
+    loadingEl.classList.remove('hidden');
+    emptyEl.classList.add('hidden');
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const since = startOfDay.toISOString();
+    const until = now.toISOString();
+
+    const tasks = await todoist.getCompletedTasks({ since, until, limit: 50 });
+    completedToday = tasks.map(t => ({
+      id: t.id || t.task_id,
+      content: t.content,
+    }));
+
+    loadingEl.classList.add('hidden');
+    renderCompletedSection();
+  } catch (err) {
+    console.error('Failed to fetch completed tasks:', err);
+    loadingEl.classList.add('hidden');
+    renderCompletedSection();
   }
-}
-
-async function saveCompletedToday() {
-  await chrome.storage.local.set({
-    completedToday: {
-      date: getTodayKey(),
-      tasks: completedToday,
-    },
-  });
-}
-
-async function addCompletedTask(task) {
-  completedToday.push({
-    id: task.id,
-    content: task.content,
-    completedAt: Date.now(),
-  });
-  await saveCompletedToday();
 }
 
 function renderCompletedSection() {
-  const container = document.getElementById('completed-section');
   const countEl = document.getElementById('completed-count');
+  const emptyEl = document.getElementById('completed-empty');
   const listEl = document.getElementById('completed-list');
-  const toggleBtn = document.getElementById('completed-toggle');
+
+  countEl.textContent = completedToday.length;
 
   if (completedToday.length === 0) {
-    container.classList.add('hidden');
+    emptyEl.classList.remove('hidden');
+    listEl.classList.add('hidden');
     return;
   }
 
-  container.classList.remove('hidden');
-  countEl.textContent = completedToday.length;
+  emptyEl.classList.add('hidden');
+  listEl.classList.remove('hidden');
 
   // Render the list
   listEl.innerHTML = '';
   for (const task of completedToday) {
     const li = document.createElement('li');
     li.className = 'completed-item';
-    li.textContent = task.content;
+
+    // Checkmark circle
+    const check = document.createElement('span');
+    check.className = 'completed-item-check';
+    check.innerHTML = Icons.check;
+    li.appendChild(check);
+
+    // Task content
+    const content = document.createElement('span');
+    content.className = 'completed-item-content';
+    content.textContent = task.content;
+    li.appendChild(content);
+
     listEl.appendChild(li);
   }
-
-  // Toggle visibility
-  listEl.classList.toggle('hidden', !completedExpanded);
-  toggleBtn.classList.toggle('expanded', completedExpanded);
-}
-
-function setupCompletedToggle() {
-  const toggleBtn = document.getElementById('completed-toggle');
-  toggleBtn.addEventListener('click', () => {
-    completedExpanded = !completedExpanded;
-    renderCompletedSection();
-  });
 }
 
 // =============================================================================
@@ -687,17 +679,11 @@ async function completeTask(taskId, li, checkbox) {
 
   checkbox.classList.add('checked');
 
-  // Find the task before removing it so we can track it
-  const task = allTasks.find(t => t.id === taskId);
-
   try {
     await todoist.completeTask(taskId);
 
-    // Track completed task
-    if (task) {
-      await addCompletedTask(task);
-      renderCompletedSection();
-    }
+    // Re-fetch completed tasks from Todoist API
+    fetchCompletedToday();
 
     // Animate removal
     li.classList.add('completing');
@@ -764,7 +750,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupCalendarConnect();
   setupTodosConnect();
   setupShowMore();
-  setupCompletedToggle();
 
   // Start clock
   startClock();
@@ -775,12 +760,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load settings and apply visibility
   await loadSettings();
 
-  // Load completed tasks data then render
-  await loadCompletedToday();
-  renderCompletedSection();
-
   // Load data (in parallel)
   loadCalendar();
   loadTodos();
   loadWeather();
+  fetchCompletedToday();
 });

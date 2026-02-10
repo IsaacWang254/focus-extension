@@ -89,10 +89,10 @@
       <cite class="quote-author" id="quote-author"></cite>
     </div>
 
-    <!-- Content panels: Calendar + Todos -->
+    <!-- Content panels -->
     <div class="content-panels" id="content-panels">
       <!-- Calendar panel -->
-      <div class="panel" id="calendar-panel">
+      <div class="panel panel-calendar" id="calendar-panel">
         <div class="panel-header">
           <span class="panel-icon" id="calendar-icon"></span>
           <div class="panel-header-text">
@@ -120,7 +120,7 @@
       </div>
 
       <!-- Todos panel -->
-      <div class="panel" id="todos-panel">
+      <div class="panel panel-todos" id="todos-panel">
         <div class="panel-header">
           <span class="panel-icon" id="todos-icon"></span>
           <h3 class="panel-title">Tasks</h3>
@@ -143,14 +143,29 @@
           <ul class="todo-list" id="todo-list"></ul>
           <!-- Show more button -->
           <button class="btn btn-ghost btn-small show-more-btn hidden" id="todos-show-more">Show more</button>
-          <!-- Completed today section -->
-          <div class="completed-section hidden" id="completed-section">
-            <button class="completed-toggle" id="completed-toggle">
-              <span class="completed-toggle-icon"></span>
-              <span class="completed-toggle-text"><span id="completed-count">0</span> completed today</span>
-            </button>
-            <ul class="completed-list hidden" id="completed-list"></ul>
+        </div>
+      </div>
+
+      <!-- Completed panel -->
+      <div class="panel panel-completed" id="completed-panel">
+        <div class="panel-header">
+          <span class="panel-icon" id="completed-icon"></span>
+          <div class="panel-header-text">
+            <h3 class="panel-title">Completed</h3>
+            <span class="panel-count" id="completed-count">0</span>
           </div>
+        </div>
+        <div class="panel-body">
+          <!-- Completed loading state -->
+          <div class="panel-loading hidden" id="completed-loading">
+            <div class="spinner"></div>
+          </div>
+          <!-- Completed empty state -->
+          <div class="panel-empty" id="completed-empty">
+            <p class="text-muted text-sm">No tasks completed yet today</p>
+          </div>
+          <!-- Completed list -->
+          <ul class="completed-list" id="completed-list"></ul>
         </div>
       </div>
     </div>
