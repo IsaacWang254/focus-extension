@@ -20,6 +20,7 @@ const DEFAULTS = {
   newtabShowQuotes: true,
   newtabShowCalendar: true,
   newtabShowTodos: true,
+  newtabBgColor: 'default',
 };
 
 // =============================================================================
@@ -267,6 +268,10 @@ async function loadSettings() {
 
   // Apply visibility
   applyVisibility(settings);
+
+  // Apply background color
+  applyBgColor(settings.newtabBgColor);
+  setSwatchSelected(settings.newtabBgColor);
 }
 
 function applyVisibility(settings) {
@@ -332,6 +337,61 @@ function setupSettings() {
       applyVisibility(settings);
     });
   }
+
+  // Background color swatches
+  setupBgColorPicker();
+}
+
+// =============================================================================
+// BACKGROUND COLOR
+// =============================================================================
+
+function applyBgColor(color) {
+  if (color === 'default') {
+    document.body.style.backgroundColor = '';
+  } else {
+    document.body.style.backgroundColor = color;
+  }
+}
+
+function setSwatchSelected(color) {
+  const swatches = document.querySelectorAll('.color-swatch');
+  swatches.forEach(s => s.classList.remove('selected'));
+
+  // Find matching preset swatch
+  const match = document.querySelector(`.color-swatch[data-color="${color}"]`);
+  if (match) {
+    match.classList.add('selected');
+  } else if (color !== 'default') {
+    // Custom color — select the custom swatch and update its input
+    const customSwatch = document.querySelector('.swatch-custom');
+    customSwatch.classList.add('selected');
+    document.getElementById('custom-color-input').value = color;
+  }
+}
+
+function setupBgColorPicker() {
+  const swatchContainer = document.getElementById('color-swatches');
+  const customInput = document.getElementById('custom-color-input');
+
+  // Click on preset swatches
+  swatchContainer.addEventListener('click', async (e) => {
+    const swatch = e.target.closest('.color-swatch:not(.swatch-custom)');
+    if (!swatch) return;
+
+    const color = swatch.dataset.color;
+    await chrome.storage.local.set({ newtabBgColor: color });
+    applyBgColor(color);
+    setSwatchSelected(color);
+  });
+
+  // Custom color input
+  customInput.addEventListener('input', async (e) => {
+    const color = e.target.value;
+    await chrome.storage.local.set({ newtabBgColor: color });
+    applyBgColor(color);
+    setSwatchSelected(color);
+  });
 }
 
 // =============================================================================
