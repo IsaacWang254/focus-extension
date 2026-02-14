@@ -20,7 +20,29 @@ const DEFAULTS = {
   newtabShowQuotes: true,
   newtabShowCalendar: true,
   newtabShowTodos: true,
-  newtabBgColor: 'default',
+  newtabBgColorLight: 'default',
+  newtabBgColorDark: 'default',
+};
+
+const BG_PRESETS = {
+  light: [
+    { color: '#f8f9fa', name: 'Light Gray' },
+    { color: '#fff8f0', name: 'Warm Cream' },
+    { color: '#f0f4ff', name: 'Soft Blue' },
+    { color: '#f0fdf4', name: 'Soft Green' },
+    { color: '#faf5ff', name: 'Lavender' },
+    { color: '#fff1f2', name: 'Soft Rose' },
+    { color: '#fefce8', name: 'Soft Yellow' },
+  ],
+  dark: [
+    { color: '#1a1a2e', name: 'Midnight' },
+    { color: '#1c1917', name: 'Warm Dark' },
+    { color: '#0f172a', name: 'Deep Navy' },
+    { color: '#0d1a14', name: 'Forest' },
+    { color: '#1a1025', name: 'Deep Purple' },
+    { color: '#1c1012', name: 'Dark Rose' },
+    { color: '#1a1814', name: 'Dark Amber' },
+  ],
 };
 
 // =============================================================================
@@ -45,6 +67,14 @@ async function loadTheme() {
   document.documentElement.setAttribute('data-theme', theme);
 }
 
+function getCurrentTheme() {
+  return document.documentElement.getAttribute('data-theme') || 'light';
+}
+
+function getBgStorageKey() {
+  return getCurrentTheme() === 'dark' ? 'newtabBgColorDark' : 'newtabBgColorLight';
+}
+
 function setupThemeToggle() {
   const toggle = document.getElementById('theme-toggle');
   toggle.addEventListener('click', async () => {
@@ -53,6 +83,9 @@ function setupThemeToggle() {
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     root.setAttribute('data-theme', newTheme);
     await chrome.storage.local.set({ theme: newTheme });
+
+    // Refresh background color for the new theme
+    await refreshBgColor();
   });
 }
 
@@ -269,9 +302,11 @@ async function loadSettings() {
   // Apply visibility
   applyVisibility(settings);
 
-  // Apply background color
-  applyBgColor(settings.newtabBgColor);
-  setSwatchSelected(settings.newtabBgColor);
+  // Apply background color for current theme
+  const bgKey = getBgStorageKey();
+  const bgColor = settings[bgKey] || 'default';
+  applyBgColor(bgColor);
+  renderSwatches(bgColor);
 }
 
 function applyVisibility(settings) {
@@ -354,6 +389,62 @@ function applyBgColor(color) {
   }
 }
 
+function renderSwatches(selectedColor) {
+  const container = document.getElementById('color-swatches');
+  const theme = getCurrentTheme();
+  const presets = BG_PRESETS[theme] || BG_PRESETS.light;
+
+  container.innerHTML = '';
+
+  // Default swatch
+  const defaultBtn = document.createElement('button');
+  defaultBtn.className = 'color-swatch swatch-default';
+  defaultBtn.dataset.color = 'default';
+  defaultBtn.title = 'Default';
+  if (selectedColor === 'default') defaultBtn.classList.add('selected');
+  container.appendChild(defaultBtn);
+
+  // Preset swatches
+  for (const preset of presets) {
+    const btn = document.createElement('button');
+    btn.className = 'color-swatch';
+    btn.dataset.color = preset.color;
+    btn.title = preset.name;
+    btn.style.setProperty('--swatch-color', preset.color);
+    if (selectedColor === preset.color) btn.classList.add('selected');
+    container.appendChild(btn);
+  }
+
+  // Custom color swatch
+  const customLabel = document.createElement('label');
+  customLabel.className = 'color-swatch swatch-custom';
+  customLabel.title = 'Custom color';
+
+  const customInput = document.createElement('input');
+  customInput.type = 'color';
+  customInput.id = 'custom-color-input';
+  customInput.value = theme === 'dark' ? '#1a1a2e' : '#ffffff';
+
+  // If the selected color is custom (not default and not a preset), mark it
+  const isPreset = selectedColor === 'default' || presets.some(p => p.color === selectedColor);
+  if (!isPreset && selectedColor) {
+    customLabel.classList.add('selected');
+    customInput.value = selectedColor;
+  }
+
+  customLabel.appendChild(customInput);
+  container.appendChild(customLabel);
+
+  // Wire up custom input event
+  customInput.addEventListener('input', async (e) => {
+    const color = e.target.value;
+    const key = getBgStorageKey();
+    await chrome.storage.local.set({ [key]: color });
+    applyBgColor(color);
+    setSwatchSelected(color);
+  });
+}
+
 function setSwatchSelected(color) {
   const swatches = document.querySelectorAll('.color-swatch');
   swatches.forEach(s => s.classList.remove('selected'));
@@ -365,30 +456,33 @@ function setSwatchSelected(color) {
   } else if (color !== 'default') {
     // Custom color — select the custom swatch and update its input
     const customSwatch = document.querySelector('.swatch-custom');
-    customSwatch.classList.add('selected');
-    document.getElementById('custom-color-input').value = color;
+    if (customSwatch) {
+      customSwatch.classList.add('selected');
+      const input = document.getElementById('custom-color-input');
+      if (input) input.value = color;
+    }
   }
 }
 
-function setupBgColorPicker() {
-  const swatchContainer = document.getElementById('color-swatches');
-  const customInput = document.getElementById('custom-color-input');
+async function refreshBgColor() {
+  const key = getBgStorageKey();
+  const result = await chrome.storage.local.get(key);
+  const color = result[key] || 'default';
+  applyBgColor(color);
+  renderSwatches(color);
+}
 
-  // Click on preset swatches
-  swatchContainer.addEventListener('click', async (e) => {
+function setupBgColorPicker() {
+  const container = document.getElementById('color-swatches');
+
+  // Delegated click for preset swatches (not custom)
+  container.addEventListener('click', async (e) => {
     const swatch = e.target.closest('.color-swatch:not(.swatch-custom)');
     if (!swatch) return;
 
     const color = swatch.dataset.color;
-    await chrome.storage.local.set({ newtabBgColor: color });
-    applyBgColor(color);
-    setSwatchSelected(color);
-  });
-
-  // Custom color input
-  customInput.addEventListener('input', async (e) => {
-    const color = e.target.value;
-    await chrome.storage.local.set({ newtabBgColor: color });
+    const key = getBgStorageKey();
+    await chrome.storage.local.set({ [key]: color });
     applyBgColor(color);
     setSwatchSelected(color);
   });

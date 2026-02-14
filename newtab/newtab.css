@@ -136,9 +136,9 @@ body {
   transform: translate(-50%, -50%);
 }
 
-/* Default swatch with split theme indicator */
+/* Default swatch — shows the theme's default background color */
 .swatch-default {
-  background: linear-gradient(135deg, #ffffff 50%, #09090b 50%);
+  background-color: var(--background);
 }
 
 /* Custom color swatch */
