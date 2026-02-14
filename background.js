@@ -958,6 +958,9 @@ async function handleMessage(message, sender) {
     case 'END_TEMP_UNBLOCK':
       return await endTempUnblock(message.domain);
     
+    case 'TRACK_BLOCK_ATTEMPT':
+      return await incrementBlockAttempts();
+    
     case 'GET_EARNED_TIME':
       return await getEarnedTimeInfo();
     
@@ -1116,8 +1119,12 @@ async function handleMessage(message, sender) {
     case 'GET_BLOCK_SUGGESTIONS':
       return await getBlockSuggestions();
     
-    case 'GET_PRODUCTIVITY_SCORE':
-      return await getProductivityScore(message.days || 7);
+    case 'GET_PRODUCTIVITY_SCORE': {
+      const prodResult = await getProductivityScore(message.days || 7);
+      // Also check productivity achievements when score is fetched
+      await checkProductivityAchievements();
+      return prodResult;
+    }
     
     case 'GET_BROWSING_PATTERNS':
       return await getBrowsingPatterns(message.days || 30);
@@ -1181,6 +1188,9 @@ async function addBlockedSite(site) {
   if (!blockedSites.includes(domain)) {
     blockedSites.push(domain);
     await saveProfileSettings({ blockedSites });
+    
+    // Check blocking achievements after adding a site
+    await checkBlockingAchievements();
   }
   
   return { success: true, blockedSites };
@@ -3129,6 +3139,65 @@ const ACHIEVEMENTS = [
     description: 'Complete a focus session after 10 PM',
     icon: '[PM]',
     xpReward: 30
+  },
+  // Blocking achievements
+  {
+    id: 'first_block',
+    name: 'Gatekeeper',
+    description: 'Add your first site to the blocklist',
+    icon: '[BL]',
+    xpReward: 15
+  },
+  {
+    id: 'block_5',
+    name: 'Building Walls',
+    description: 'Have 5 or more sites on your blocklist',
+    icon: '[B5]',
+    xpReward: 25
+  },
+  {
+    id: 'block_15',
+    name: 'Digital Fortress',
+    description: 'Have 15 or more sites on your blocklist',
+    icon: '[B15]',
+    xpReward: 50
+  },
+  // Resisting temptation achievements
+  {
+    id: 'bouncer_10',
+    name: 'Bouncer',
+    description: 'Get blocked from distracting sites 10 times',
+    icon: '[X10]',
+    xpReward: 25
+  },
+  {
+    id: 'bouncer_50',
+    name: 'Brick Wall',
+    description: 'Get blocked from distracting sites 50 times',
+    icon: '[X50]',
+    xpReward: 50
+  },
+  {
+    id: 'bouncer_100',
+    name: 'Impenetrable',
+    description: 'Get blocked from distracting sites 100 times',
+    icon: '[X100]',
+    xpReward: 100
+  },
+  // Productivity score achievements
+  {
+    id: 'productivity_b',
+    name: 'Focused Surfer',
+    description: 'Achieve a B-grade (65+) productivity score',
+    icon: '[B+]',
+    xpReward: 50
+  },
+  {
+    id: 'productivity_a',
+    name: 'Laser Focus',
+    description: 'Achieve an A-grade (80+) productivity score',
+    icon: '[A+]',
+    xpReward: 100
   }
 ];
 
@@ -3280,6 +3349,14 @@ async function checkAchievements() {
   
   // Night owl is checked when session completes (after 10 PM)
   
+  // Check blocking achievements (blocklist size + block attempts)
+  const blockingUnlocked = await checkBlockingAchievements();
+  newlyUnlocked.push(...blockingUnlocked);
+  
+  // Check productivity score achievements (from browser history)
+  const productivityUnlocked = await checkProductivityAchievements();
+  newlyUnlocked.push(...productivityUnlocked);
+  
   return newlyUnlocked;
 }
 
@@ -3326,6 +3403,97 @@ async function incrementTotalFocusSessions() {
   const current = await getTotalFocusSessions();
   await chrome.storage.local.set({ totalFocusSessions: current + 1 });
   return current + 1;
+}
+
+/**
+ * Get total block attempts (all time)
+ * Tracks how many times the user was blocked from visiting a distracting site
+ */
+async function getTotalBlockAttempts() {
+  const result = await chrome.storage.local.get('totalBlockAttempts');
+  return result.totalBlockAttempts || 0;
+}
+
+/**
+ * Increment total block attempts counter
+ * Called each time the blocked page is shown
+ */
+async function incrementBlockAttempts() {
+  const current = await getTotalBlockAttempts();
+  const newTotal = current + 1;
+  await chrome.storage.local.set({ totalBlockAttempts: newTotal });
+  
+  // Check achievements after incrementing
+  await checkBlockingAchievements();
+  
+  return newTotal;
+}
+
+/**
+ * Check blocking-related achievements specifically
+ * Called after a block attempt or when blocklist changes
+ */
+async function checkBlockingAchievements() {
+  const newlyUnlocked = [];
+  const settings = await getSettings();
+  const blockedCount = settings.blockedSites?.length || 0;
+  const blockAttempts = await getTotalBlockAttempts();
+  
+  // Blocklist size achievements
+  if (blockedCount >= 1) {
+    const result = await unlockAchievement('first_block');
+    if (result.success) newlyUnlocked.push(result.achievement);
+  }
+  if (blockedCount >= 5) {
+    const result = await unlockAchievement('block_5');
+    if (result.success) newlyUnlocked.push(result.achievement);
+  }
+  if (blockedCount >= 15) {
+    const result = await unlockAchievement('block_15');
+    if (result.success) newlyUnlocked.push(result.achievement);
+  }
+  
+  // Block attempt (resisting temptation) achievements
+  if (blockAttempts >= 10) {
+    const result = await unlockAchievement('bouncer_10');
+    if (result.success) newlyUnlocked.push(result.achievement);
+  }
+  if (blockAttempts >= 50) {
+    const result = await unlockAchievement('bouncer_50');
+    if (result.success) newlyUnlocked.push(result.achievement);
+  }
+  if (blockAttempts >= 100) {
+    const result = await unlockAchievement('bouncer_100');
+    if (result.success) newlyUnlocked.push(result.achievement);
+  }
+  
+  return newlyUnlocked;
+}
+
+/**
+ * Check productivity score achievements
+ * Called periodically or when browsing history analysis runs
+ */
+async function checkProductivityAchievements() {
+  const newlyUnlocked = [];
+  
+  try {
+    const productivityData = await getProductivityScore(7);
+    if (productivityData.error) return newlyUnlocked;
+    
+    if (productivityData.score >= 65) {
+      const result = await unlockAchievement('productivity_b');
+      if (result.success) newlyUnlocked.push(result.achievement);
+    }
+    if (productivityData.score >= 80) {
+      const result = await unlockAchievement('productivity_a');
+      if (result.success) newlyUnlocked.push(result.achievement);
+    }
+  } catch (e) {
+    console.error('Error checking productivity achievements:', e);
+  }
+  
+  return newlyUnlocked;
 }
 
 // =============================================================================

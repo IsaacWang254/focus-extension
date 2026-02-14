@@ -20,6 +20,7 @@ const DEFAULTS = {
   newtabShowQuotes: true,
   newtabShowCalendar: true,
   newtabShowTodos: true,
+  newtabTempUnit: 'C', // 'C' or 'F'
   newtabBgColorLight: 'default',
   newtabBgColorDark: 'default',
 };
@@ -259,12 +260,18 @@ async function loadWeather() {
     // Parse data
     const current = data.current;
     const daily = data.daily;
-    const temp = Math.round(current.temperature_2m);
     const weatherCode = current.weather_code;
     const isDay = current.is_day === 1;
-    const high = Math.round(daily.temperature_2m_max[0]);
-    const low = Math.round(daily.temperature_2m_min[0]);
     const info = getWeatherInfo(weatherCode, isDay);
+
+    // Get temp unit preference
+    const unitResult = await chrome.storage.local.get('newtabTempUnit');
+    const unit = unitResult.newtabTempUnit || 'C';
+    const convert = unit === 'F' ? (c) => Math.round(c * 9 / 5 + 32) : (c) => Math.round(c);
+
+    const temp = convert(current.temperature_2m);
+    const high = convert(daily.temperature_2m_max[0]);
+    const low = convert(daily.temperature_2m_min[0]);
 
     // Render
     const iconHtml = Icons[info.icon] || Icons.cloud;
@@ -298,6 +305,12 @@ async function loadSettings() {
   document.getElementById('toggle-quotes').checked = settings.newtabShowQuotes;
   document.getElementById('toggle-calendar').checked = settings.newtabShowCalendar;
   document.getElementById('toggle-todos').checked = settings.newtabShowTodos;
+
+  // Apply temp unit toggle
+  const unit = settings.newtabTempUnit || 'C';
+  document.querySelectorAll('.temp-unit-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.unit === unit);
+  });
 
   // Apply visibility
   applyVisibility(settings);
@@ -372,6 +385,22 @@ function setupSettings() {
       applyVisibility(settings);
     });
   }
+
+  // Temperature unit toggle
+  document.querySelectorAll('.temp-unit-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const unit = btn.dataset.unit;
+      await chrome.storage.local.set({ newtabTempUnit: unit });
+
+      // Update selected state
+      document.querySelectorAll('.temp-unit-btn').forEach(b => {
+        b.classList.toggle('selected', b.dataset.unit === unit);
+      });
+
+      // Re-render weather with new unit
+      loadWeather();
+    });
+  });
 
   // Background color swatches
   setupBgColorPicker();

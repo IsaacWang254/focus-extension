@@ -94,6 +94,38 @@ body {
   margin: var(--space-2) 0;
 }
 
+/* Temperature unit toggle */
+.temp-unit-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.temp-unit-btn {
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.temp-unit-btn:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+
+.temp-unit-btn.selected {
+  background-color: var(--indigo);
+  color: #fff;
+}
+
+.temp-unit-btn:hover:not(.selected) {
+  background-color: var(--accent);
+}
+
 .color-swatches {
   display: flex;
   flex-wrap: wrap;

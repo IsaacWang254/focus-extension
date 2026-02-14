@@ -139,6 +139,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Display blocked domain
   document.getElementById('blocked-domain').textContent = blockedDomain;
   
+  // Track this block attempt for achievements
+  try {
+    await chrome.runtime.sendMessage({ type: 'TRACK_BLOCK_ATTEMPT' });
+  } catch (e) {
+    // Silently ignore - non-critical for page functionality
+  }
+  
   // Load settings
   settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
   
