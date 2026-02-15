@@ -660,10 +660,13 @@ async function updateBlockingRules() {
     const newRules = [];
     let ruleId = RULE_ID_START;
     
-    // Only build rules if extension is enabled
+    // During pomodoro breaks, suspend all blocking rules as a reward
+    const onBreak = await isOnFocusBreak();
+    
+    // Only build rules if extension is enabled AND not on a focus break
     // Note: Schedule controls whether unblock methods are available on the blocked page,
     // not whether blocking happens. Sites are always blocked when schedule is enabled.
-    if (settings.enabled) {
+    if (settings.enabled && !onBreak) {
       // Get the blocked page URL
       const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
       
@@ -1987,6 +1990,19 @@ async function enforceSchedule() {
 // =============================================================================
 
 /**
+ * Check if the user is currently on a pomodoro break (break or longBreak phase).
+ * Reads directly from storage to avoid getFocusSession()'s auto-phase-end side effects.
+ * @returns {Promise<boolean>}
+ */
+async function isOnFocusBreak() {
+  const result = await chrome.storage.local.get('focusSession');
+  const session = result.focusSession;
+  if (!session || !session.active) return false;
+  if (session.endTime && session.endTime <= Date.now()) return false;
+  return session.phase === 'break' || session.phase === 'longBreak';
+}
+
+/**
  * Check if a domain should be blocked
  */
 async function shouldBlockDomain(domain) {
@@ -1994,6 +2010,9 @@ async function shouldBlockDomain(domain) {
   
   const settings = await getSettings();
   if (!settings.enabled) return false;
+  
+  // During pomodoro breaks, all sites are unblocked as a reward
+  if (await isOnFocusBreak()) return false;
   
   // Check if schedule allows unblocks
   const scheduleAllowsUnblock = isInAllowedTimeWindow(settings.schedule);
@@ -2431,7 +2450,7 @@ async function handleSessionPhaseEnd(session) {
       
       sendFocusNotification(
         'Time for a long break!',
-        `Great work! You completed ${preset.sessionsBeforeLongBreak} sessions. Take a ${preset.longBreakMinutes} minute break.`
+        `Great work! You completed ${preset.sessionsBeforeLongBreak} sessions. Take a ${preset.longBreakMinutes} minute break — all sites are unblocked.`
       );
     } else {
       session.phase = 'break';
@@ -2439,7 +2458,7 @@ async function handleSessionPhaseEnd(session) {
       
       sendFocusNotification(
         'Focus session complete!',
-        `Nice work! Take a ${preset.breakMinutes} minute break. (${session.sessionsCompleted}/${preset.sessionsBeforeLongBreak} sessions)`
+        `Nice work! Take a ${preset.breakMinutes} minute break — all sites are unblocked. (${session.sessionsCompleted}/${preset.sessionsBeforeLongBreak} sessions)`
       );
     }
     
@@ -2451,6 +2470,9 @@ async function handleSessionPhaseEnd(session) {
     
     // Set alarm for next phase end
     chrome.alarms.create('focusSessionEnd', { when: session.endTime });
+    
+    // Unblock sites for the break
+    await updateBlockingRules();
     
     // Now safe to check achievements (storage has the updated, non-expired session)
     await checkNightOwlAchievement();
@@ -2465,6 +2487,9 @@ async function handleSessionPhaseEnd(session) {
     await chrome.storage.local.set({ focusSession: session });
     chrome.alarms.clear('focusSessionEnd');
     
+    // Re-enable blocking now that the cycle is over
+    await updateBlockingRules();
+    
     sendFocusNotification(
       'Break over — cycle complete!',
       `You finished a full focus cycle. ${session.totalSessionsToday} sessions today (${session.totalMinutesToday} min). Start another when you\'re ready.`
@@ -2478,9 +2503,12 @@ async function handleSessionPhaseEnd(session) {
     await chrome.storage.local.set({ focusSession: session });
     chrome.alarms.create('focusSessionEnd', { when: session.endTime });
     
+    // Re-enable blocking for the work phase
+    await updateBlockingRules();
+    
     sendFocusNotification(
       'Break over — time to focus!',
-      `Starting a ${preset.workMinutes} minute focus session. (${session.sessionsCompleted + 1}/${preset.sessionsBeforeLongBreak})`
+      `Starting a ${preset.workMinutes} minute focus session. Sites are blocked again. (${session.sessionsCompleted + 1}/${preset.sessionsBeforeLongBreak})`
     );
   }
   
@@ -2548,6 +2576,9 @@ async function stopFocusSession() {
   
   await chrome.storage.local.set({ focusSession: session });
   chrome.alarms.clear('focusSessionEnd');
+  
+  // Re-enable blocking in case we were on a break
+  await updateBlockingRules();
   
   console.log(`Focus session stopped. Partial minutes: ${partialMinutes}`);
   
