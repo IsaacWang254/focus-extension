@@ -1,0 +1,10 @@
+name = "focus-extension-proxy"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+# Public env vars (safe to commit)
+[vars]
+TODOIST_CLIENT_ID = "5452c5e3699e449680b216fad4d60ee2"
+
+# Secret env vars — set via CLI, never committed:
+#   npx wrangler secret put TODOIST_CLIENT_SECRET
