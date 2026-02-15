@@ -1793,11 +1793,11 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await checkNuclearSurvivorAchievement();
   } else if (alarm.name === 'focusSessionEnd') {
     // Focus session phase ended
+    // Note: getFocusSession() already detects expired phases and calls handleSessionPhaseEnd internally,
+    // so we must NOT call handleSessionPhaseEnd again here to avoid double XP awards and phase skipping.
     const session = await getFocusSession();
     if (session.active) {
-      console.log(`Focus session phase ended: ${session.phase}`);
-      await handleSessionPhaseEnd(session);
-      // Could add notification here in the future
+      console.log(`Focus session phase transitioned: now in ${session.phase}`);
     }
   } else if (alarm.name === 'calendar-sync') {
     // Calendar sync alarm
@@ -2341,6 +2341,9 @@ const FOCUS_SESSION_PRESETS = {
   long: { workMinutes: 50, breakMinutes: 10, longBreakMinutes: 20, sessionsBeforeLongBreak: 3 }
 };
 
+// Lock to prevent concurrent phase-end handling (avoids duplicate XP, counter increments, etc.)
+let _handlingPhaseEnd = false;
+
 /**
  * Get current focus session state
  * @returns {Promise<{active: boolean, type: string, phase: string, endTime: number, sessionsCompleted: number, totalSessionsToday: number}>}
@@ -2369,8 +2372,21 @@ async function getFocusSession() {
   
   // Check if session has expired
   if (session.active && session.endTime && session.endTime <= Date.now()) {
-    // Session phase ended - handle completion
-    return await handleSessionPhaseEnd(session);
+    // Guard against concurrent callers each triggering handleSessionPhaseEnd
+    // (e.g., popup timer + alarm firing simultaneously). Without this lock,
+    // each caller reads the same expired state and independently awards XP.
+    if (_handlingPhaseEnd) {
+      // Another call is already handling the phase end; return current state from storage
+      // (will be stale for a moment, but the next poll will pick up the updated state)
+      return session;
+    }
+    _handlingPhaseEnd = true;
+    try {
+      // Session phase ended - handle completion
+      return await handleSessionPhaseEnd(session);
+    } finally {
+      _handlingPhaseEnd = false;
+    }
   }
   
   return session;
@@ -2395,12 +2411,6 @@ async function handleSessionPhaseEnd(session) {
     // Increment total focus sessions counter (for achievements)
     await incrementTotalFocusSessions();
     
-    // Check for night owl achievement
-    await checkNightOwlAchievement();
-    
-    // Check other achievements
-    await checkAchievements();
-    
     // Determine next phase
     if (session.sessionsCompleted >= preset.sessionsBeforeLongBreak) {
       session.phase = 'longBreak';
@@ -2411,11 +2421,18 @@ async function handleSessionPhaseEnd(session) {
       session.endTime = Date.now() + (preset.breakMinutes * 60 * 1000);
     }
     
-    // Save updated session
+    // IMPORTANT: Save updated session to storage BEFORE checking achievements.
+    // checkAchievements() calls getFocusSession() internally, which reads from storage.
+    // If we haven't saved yet, it reads the old expired session and triggers
+    // handleSessionPhaseEnd again -> infinite recursion -> runaway CPU/memory/XP.
     await chrome.storage.local.set({ focusSession: session });
     
     // Set alarm for next phase end
     chrome.alarms.create('focusSessionEnd', { when: session.endTime });
+    
+    // Now safe to check achievements (storage has the updated, non-expired session)
+    await checkNightOwlAchievement();
+    await checkAchievements();
   } else {
     // Break phase completed - start new work phase automatically
     session.phase = 'work';
@@ -2495,9 +2512,12 @@ async function stopFocusSession() {
  * Skip the current phase (break or work)
  */
 async function skipFocusSessionPhase() {
-  const session = await getFocusSession();
+  // Read directly from storage to avoid getFocusSession()'s auto-phase-end handling,
+  // since we want to explicitly trigger the phase end here ourselves.
+  const result = await chrome.storage.local.get('focusSession');
+  const session = result.focusSession;
   
-  if (!session.active) {
+  if (!session || !session.active) {
     return { success: false, error: 'No active session' };
   }
   

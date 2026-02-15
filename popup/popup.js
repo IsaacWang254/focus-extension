@@ -747,8 +747,13 @@ async function updateAchievementsDisplay() {
 // =============================================================================
 
 let currentFocusSession = null;
+let focusSessionLoading = false;
 
 async function loadFocusSession() {
+  // Guard against concurrent calls to prevent race conditions
+  // that cause duplicate XP awards and memory issues
+  if (focusSessionLoading) return;
+  focusSessionLoading = true;
   try {
     const session = await chrome.runtime.sendMessage({ type: 'GET_FOCUS_SESSION' });
     const stats = await chrome.runtime.sendMessage({ type: 'GET_FOCUS_SESSION_STATS' });
@@ -778,6 +783,8 @@ async function loadFocusSession() {
     }
   } catch (e) {
     console.error('Failed to load focus session:', e);
+  } finally {
+    focusSessionLoading = false;
   }
 }
 
