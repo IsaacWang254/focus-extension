@@ -372,7 +372,6 @@ async function exportAllData() {
         xpData: data.xpData,
         streakData: data.streakData,
         focusSessionHistory: data.focusSessionHistory,
-        todoistCredentials: data.todoistCredentials,
         theme: data.theme
       }
     };
@@ -426,10 +425,6 @@ async function importAllData(importData) {
     
     if (importData.focusSessionHistory) {
       dataToImport.focusSessionHistory = importData.focusSessionHistory;
-    }
-    
-    if (importData.todoistCredentials) {
-      dataToImport.todoistCredentials = importData.todoistCredentials;
     }
     
     if (importData.theme) {
@@ -2334,6 +2329,22 @@ function scheduleMidnightReset() {
 // FOCUS SESSIONS
 // =============================================================================
 
+/**
+ * Send a focus session notification
+ * @param {string} title - Notification title
+ * @param {string} message - Notification body
+ */
+function sendFocusNotification(title, message) {
+  chrome.notifications.create(`focus-${Date.now()}`, {
+    type: 'basic',
+    iconUrl: 'icons/icon128.png',
+    title,
+    message,
+    priority: 2,
+    requireInteraction: true
+  });
+}
+
 // Preset focus session types
 const FOCUS_SESSION_PRESETS = {
   pomodoro: { workMinutes: 25, breakMinutes: 5, longBreakMinutes: 15, sessionsBeforeLongBreak: 4 },
@@ -2413,12 +2424,23 @@ async function handleSessionPhaseEnd(session) {
     
     // Determine next phase
     if (session.sessionsCompleted >= preset.sessionsBeforeLongBreak) {
+      // Full cycle complete — start long break, then stop
       session.phase = 'longBreak';
       session.endTime = Date.now() + (preset.longBreakMinutes * 60 * 1000);
       session.sessionsCompleted = 0; // Reset cycle
+      
+      sendFocusNotification(
+        'Time for a long break!',
+        `Great work! You completed ${preset.sessionsBeforeLongBreak} sessions. Take a ${preset.longBreakMinutes} minute break.`
+      );
     } else {
       session.phase = 'break';
       session.endTime = Date.now() + (preset.breakMinutes * 60 * 1000);
+      
+      sendFocusNotification(
+        'Focus session complete!',
+        `Nice work! Take a ${preset.breakMinutes} minute break. (${session.sessionsCompleted}/${preset.sessionsBeforeLongBreak} sessions)`
+      );
     }
     
     // IMPORTANT: Save updated session to storage BEFORE checking achievements.
@@ -2433,14 +2455,33 @@ async function handleSessionPhaseEnd(session) {
     // Now safe to check achievements (storage has the updated, non-expired session)
     await checkNightOwlAchievement();
     await checkAchievements();
+  } else if (session.phase === 'longBreak') {
+    // Long break completed — full cycle done, stop the session
+    session.active = false;
+    session.phase = null;
+    session.endTime = null;
+    session.startedAt = null;
+    
+    await chrome.storage.local.set({ focusSession: session });
+    chrome.alarms.clear('focusSessionEnd');
+    
+    sendFocusNotification(
+      'Break over — cycle complete!',
+      `You finished a full focus cycle. ${session.totalSessionsToday} sessions today (${session.totalMinutesToday} min). Start another when you\'re ready.`
+    );
   } else {
-    // Break phase completed - start new work phase automatically
+    // Short break completed - start new work phase
     session.phase = 'work';
     session.endTime = Date.now() + (preset.workMinutes * 60 * 1000);
     session.startedAt = Date.now();
     
     await chrome.storage.local.set({ focusSession: session });
     chrome.alarms.create('focusSessionEnd', { when: session.endTime });
+    
+    sendFocusNotification(
+      'Break over — time to focus!',
+      `Starting a ${preset.workMinutes} minute focus session. (${session.sessionsCompleted + 1}/${preset.sessionsBeforeLongBreak})`
+    );
   }
   
   return session;
@@ -2472,6 +2513,11 @@ async function startFocusSession(type, customMinutes = null) {
   
   // Set alarm for session end
   chrome.alarms.create('focusSessionEnd', { when: session.endTime });
+  
+  sendFocusNotification(
+    'Focus session started!',
+    `${workMinutes} minute focus session. Let's go!`
+  );
   
   console.log(`Focus session started: ${type} (${workMinutes} min work)`);
   

@@ -113,15 +113,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Store original settings for unsaved changes detection
   originalSettingsJson = JSON.stringify(settings);
   
-  // Display OAuth redirect URL for setup
-  document.getElementById('redirect-url').textContent = todoist.getRedirectURL();
-  
   // Initialize UI
-  await loadCredentials();
   await checkAuthStatus();
   populateSettings();
   setupEventListeners();
-  setupCredentialsListeners();
   setupScheduleListeners();
   setupNuclearModeListeners();
   setupUnsavedChangesWarning();
@@ -912,113 +907,6 @@ function showBackupStatus(message, isError = false) {
     statusEl.textContent = '';
     statusEl.className = 'backup-status';
   }, 3000);
-}
-
-// =============================================================================
-// CREDENTIALS
-// =============================================================================
-
-async function loadCredentials() {
-  try {
-    const result = await chrome.storage.local.get('todoistCredentials');
-    const creds = result.todoistCredentials;
-    
-    if (creds) {
-      document.getElementById('todoist-client-id').value = creds.clientId || '';
-      document.getElementById('todoist-client-secret').value = creds.clientSecret || '';
-    }
-    
-    updateConnectButtonState();
-  } catch (e) {
-    console.error('Failed to load credentials:', e);
-  }
-}
-
-async function saveCredentials() {
-  const clientId = document.getElementById('todoist-client-id').value.trim();
-  const clientSecret = document.getElementById('todoist-client-secret').value.trim();
-  
-  if (!clientId || !clientSecret) {
-    showCredentialsStatus('Please enter both Client ID and Client Secret', true);
-    return;
-  }
-  
-  try {
-    await chrome.storage.local.set({
-      todoistCredentials: {
-        clientId: clientId,
-        clientSecret: clientSecret
-      }
-    });
-    showCredentialsStatus('Credentials saved!');
-    updateConnectButtonState();
-  } catch (e) {
-    console.error('Failed to save credentials:', e);
-    showCredentialsStatus('Failed to save credentials', true);
-  }
-}
-
-function showCredentialsStatus(message, isError = false) {
-  const statusEl = document.getElementById('credentials-status');
-  statusEl.textContent = message;
-  statusEl.className = isError ? 'credentials-status error' : 'credentials-status';
-  
-  // Clear after 3 seconds
-  setTimeout(() => {
-    statusEl.textContent = '';
-  }, 3000);
-}
-
-async function updateConnectButtonState() {
-  const hasCredentials = await todoist.hasCredentials();
-  const connectBtn = document.getElementById('connect-btn');
-  const notConnected = document.getElementById('not-connected');
-  
-  if (!hasCredentials) {
-    // Disable connect button and show warning
-    connectBtn.disabled = true;
-    connectBtn.title = 'Please save your Todoist credentials first';
-    
-    // Add warning if not already present
-    let warning = notConnected.querySelector('.no-credentials-warning');
-    if (!warning) {
-      warning = document.createElement('div');
-      warning.className = 'no-credentials-warning';
-      warning.innerHTML = '<span class="warning-icon">&#9888;</span> Save your credentials above to connect';
-      notConnected.appendChild(warning);
-    }
-  } else {
-    // Enable connect button and remove warning
-    connectBtn.disabled = false;
-    connectBtn.title = '';
-    
-    const warning = notConnected.querySelector('.no-credentials-warning');
-    if (warning) {
-      warning.remove();
-    }
-  }
-}
-
-function setupCredentialsListeners() {
-  // Save credentials button
-  document.getElementById('save-credentials-btn').addEventListener('click', saveCredentials);
-  
-  // Toggle secret visibility
-  const toggleBtn = document.getElementById('toggle-secret');
-  toggleBtn.addEventListener('click', () => {
-    const secretInput = document.getElementById('todoist-client-secret');
-    const isPassword = secretInput.type === 'password';
-    secretInput.type = isPassword ? 'text' : 'password';
-    toggleBtn.classList.toggle('showing', isPassword);
-  });
-  
-  // Save credentials on Enter in either field
-  document.getElementById('todoist-client-id').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') saveCredentials();
-  });
-  document.getElementById('todoist-client-secret').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') saveCredentials();
-  });
 }
 
 // =============================================================================

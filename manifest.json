@@ -11,7 +11,8 @@
     "identity",
     "tabs",
     "alarms",
-    "history"
+    "history",
+    "notifications"
   ],
   
   "optional_permissions": [

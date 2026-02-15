@@ -18,6 +18,7 @@ Thumbs.db
 
 # Node
 node_modules/
+worker/node_modules/
 
 # Build artifacts
 dist/
