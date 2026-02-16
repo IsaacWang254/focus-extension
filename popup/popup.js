@@ -50,7 +50,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load active sessions
   await loadActiveSessions();
   
-  // Load focus session
+  // Load focus presets and session
+  await loadFocusPresets();
   await loadFocusSession();
   
   // Check Todoist status
@@ -384,14 +385,6 @@ function setupEventListeners() {
   // Stats button
   document.getElementById('stats-btn').addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('stats/stats.html') });
-  });
-  
-  // Focus session preset buttons
-  document.querySelectorAll('.focus-preset-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const sessionType = btn.dataset.type;
-      await startFocusSession(sessionType);
-    });
   });
   
   // Skip phase button
@@ -748,6 +741,41 @@ async function updateAchievementsDisplay() {
 
 let currentFocusSession = null;
 let focusSessionLoading = false;
+let cachedPresets = null;
+
+/**
+ * Load focus presets from settings and render the preset buttons dynamically
+ */
+async function loadFocusPresets() {
+  cachedPresets = await chrome.runtime.sendMessage({ type: 'GET_FOCUS_PRESETS' });
+  
+  const container = document.querySelector('.focus-presets');
+  if (!container || !cachedPresets) return;
+  
+  const presetConfig = [
+    { type: 'pomodoro', label: 'Pomodoro' },
+    { type: 'short',    label: 'Short' },
+    { type: 'long',     label: 'Long' }
+  ];
+  
+  container.innerHTML = '';
+  
+  for (const { type, label } of presetConfig) {
+    const preset = cachedPresets[type];
+    if (!preset) continue;
+    
+    const btn = document.createElement('button');
+    btn.className = 'focus-preset-btn';
+    btn.dataset.type = type;
+    btn.title = `${preset.workMinutes} min work / ${preset.breakMinutes} min break`;
+    btn.innerHTML = `
+      <span class="preset-time">${preset.workMinutes}</span>
+      <span class="preset-label">${label}</span>
+    `;
+    btn.addEventListener('click', () => startFocusSession(type));
+    container.appendChild(btn);
+  }
+}
 
 async function loadFocusSession() {
   // Guard against concurrent calls to prevent race conditions
@@ -812,11 +840,12 @@ function updateFocusSessionDisplay(session) {
   timeEl.textContent = `${remainingMins.toString().padStart(2, '0')}:${remainingSecs.toString().padStart(2, '0')}`;
   
   // Update progress bar
-  const presets = {
+  const defaultPresets = {
     pomodoro: { workMinutes: 25, breakMinutes: 5, longBreakMinutes: 15, sessionsBeforeLongBreak: 4 },
     short: { workMinutes: 15, breakMinutes: 3, longBreakMinutes: 10, sessionsBeforeLongBreak: 4 },
     long: { workMinutes: 50, breakMinutes: 10, longBreakMinutes: 20, sessionsBeforeLongBreak: 3 }
   };
+  const presets = cachedPresets || defaultPresets;
   const preset = presets[session.type] || presets.pomodoro;
   
   let totalMs;

@@ -119,7 +119,13 @@ const DEFAULT_SETTINGS = {
   requireAllMethods: false, // true = ALL methods required, false = ANY method works
   todoistToken: null,
   // Privacy settings
-  historyAnalysisEnabled: true // Allow browser history analysis for productivity insights
+  historyAnalysisEnabled: true, // Allow browser history analysis for productivity insights
+  // Focus session presets (customizable pomodoro timers)
+  focusPresets: {
+    pomodoro: { workMinutes: 25, breakMinutes: 5, longBreakMinutes: 15, sessionsBeforeLongBreak: 4 },
+    short:    { workMinutes: 15, breakMinutes: 3, longBreakMinutes: 10, sessionsBeforeLongBreak: 4 },
+    long:     { workMinutes: 50, breakMinutes: 10, longBreakMinutes: 20, sessionsBeforeLongBreak: 3 }
+  }
 };
 
 // Default profile structure
@@ -320,6 +326,16 @@ async function migrateSettings() {
         ...DEFAULT_SETTINGS.earnedTime, 
         ...existingSettings.earnedTime 
       };
+    }
+    
+    if (DEFAULT_SETTINGS.focusPresets && existingSettings.focusPresets) {
+      migratedSettings.focusPresets = {};
+      for (const key of Object.keys(DEFAULT_SETTINGS.focusPresets)) {
+        migratedSettings.focusPresets[key] = {
+          ...DEFAULT_SETTINGS.focusPresets[key],
+          ...(existingSettings.focusPresets[key] || {})
+        };
+      }
     }
     
     await chrome.storage.local.set({ settings: migratedSettings });
@@ -997,6 +1013,9 @@ async function handleMessage(message, sender) {
     
     case 'GET_QUOTE_OF_DAY':
       return await getQuoteOfTheDay();
+    
+    case 'GET_FOCUS_PRESETS':
+      return await getFocusPresets();
     
     case 'GET_FOCUS_SESSION':
       return await getFocusSession();
@@ -2364,12 +2383,21 @@ function sendFocusNotification(title, message) {
   });
 }
 
-// Preset focus session types
-const FOCUS_SESSION_PRESETS = {
+// Default focus session presets (fallback if settings haven't loaded)
+const DEFAULT_FOCUS_PRESETS = {
   pomodoro: { workMinutes: 25, breakMinutes: 5, longBreakMinutes: 15, sessionsBeforeLongBreak: 4 },
   short: { workMinutes: 15, breakMinutes: 3, longBreakMinutes: 10, sessionsBeforeLongBreak: 4 },
   long: { workMinutes: 50, breakMinutes: 10, longBreakMinutes: 20, sessionsBeforeLongBreak: 3 }
 };
+
+/**
+ * Get focus session presets from user settings
+ * @returns {Promise<Object>} The presets object
+ */
+async function getFocusPresets() {
+  const settings = await getSettings();
+  return settings.focusPresets || DEFAULT_FOCUS_PRESETS;
+}
 
 // Lock to prevent concurrent phase-end handling (avoids duplicate XP, counter increments, etc.)
 let _handlingPhaseEnd = false;
@@ -2426,7 +2454,8 @@ async function getFocusSession() {
  * Handle when a session phase ends
  */
 async function handleSessionPhaseEnd(session) {
-  const preset = FOCUS_SESSION_PRESETS[session.type] || FOCUS_SESSION_PRESETS.pomodoro;
+  const presets = await getFocusPresets();
+  const preset = presets[session.type] || presets.pomodoro;
   
   if (session.phase === 'work') {
     // Work phase completed - award XP
@@ -2521,7 +2550,8 @@ async function handleSessionPhaseEnd(session) {
  * @param {number} customMinutes - Custom duration in minutes (only if type is 'custom')
  */
 async function startFocusSession(type, customMinutes = null) {
-  const preset = FOCUS_SESSION_PRESETS[type] || FOCUS_SESSION_PRESETS.pomodoro;
+  const presets = await getFocusPresets();
+  const preset = presets[type] || presets.pomodoro;
   const workMinutes = type === 'custom' && customMinutes ? customMinutes : preset.workMinutes;
   
   const session = {

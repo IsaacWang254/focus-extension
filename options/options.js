@@ -1013,6 +1013,9 @@ function populateSettings() {
     historyAnalysisToggle.checked = settings.historyAnalysisEnabled !== false; // Default to true
   }
   
+  // Focus session presets
+  populateFocusPresets();
+  
   // Schedule
   populateSchedule();
 }
@@ -1413,6 +1416,9 @@ async function saveSettings() {
     settings.historyAnalysisEnabled = historyAnalysisToggle.checked;
   }
   
+  // Focus session presets
+  settings.focusPresets = gatherFocusPresets();
+  
   // Save to storage via background
   try {
     await chrome.runtime.sendMessage({
@@ -1465,6 +1471,88 @@ function showSaveStatus(message, isError = false) {
   setTimeout(() => {
     statusEl.textContent = '';
   }, 3000);
+}
+
+// =============================================================================
+// FOCUS SESSION PRESETS
+// =============================================================================
+
+const PRESET_FIELDS = {
+  pomodoro: { work: 'preset-pomodoro-work', break: 'preset-pomodoro-break', longBreak: 'preset-pomodoro-long-break', sessions: 'preset-pomodoro-sessions' },
+  short:    { work: 'preset-short-work',    break: 'preset-short-break',    longBreak: 'preset-short-long-break',    sessions: 'preset-short-sessions' },
+  long:     { work: 'preset-long-work',     break: 'preset-long-break',     longBreak: 'preset-long-long-break',     sessions: 'preset-long-sessions' }
+};
+
+function populateFocusPresets() {
+  const presets = settings.focusPresets || {};
+  
+  for (const [type, fields] of Object.entries(PRESET_FIELDS)) {
+    const preset = presets[type];
+    if (!preset) continue;
+    
+    const workEl = document.getElementById(fields.work);
+    const breakEl = document.getElementById(fields.break);
+    const longBreakEl = document.getElementById(fields.longBreak);
+    const sessionsEl = document.getElementById(fields.sessions);
+    
+    if (workEl) workEl.value = preset.workMinutes;
+    if (breakEl) breakEl.value = preset.breakMinutes;
+    if (longBreakEl) longBreakEl.value = preset.longBreakMinutes;
+    if (sessionsEl) sessionsEl.value = preset.sessionsBeforeLongBreak;
+  }
+  
+  // Update the icon numbers on the cards to reflect custom work minutes
+  updatePresetCardIcons();
+  
+  // Setup change listeners
+  setupFocusPresetListeners();
+}
+
+function updatePresetCardIcons() {
+  const cards = document.querySelectorAll('.preset-card');
+  const types = ['pomodoro', 'short', 'long'];
+  
+  cards.forEach((card, i) => {
+    const type = types[i];
+    const fields = PRESET_FIELDS[type];
+    if (fields) {
+      const workEl = document.getElementById(fields.work);
+      const icon = card.querySelector('.preset-card-icon');
+      if (icon && workEl) icon.textContent = workEl.value;
+    }
+  });
+}
+
+function setupFocusPresetListeners() {
+  for (const [type, fields] of Object.entries(PRESET_FIELDS)) {
+    for (const fieldId of Object.values(fields)) {
+      const el = document.getElementById(fieldId);
+      if (!el) continue;
+      
+      el.addEventListener('change', () => {
+        settings.focusPresets = gatherFocusPresets();
+        updateSaveBarVisibility();
+      });
+      el.addEventListener('input', () => {
+        updatePresetCardIcons();
+      });
+    }
+  }
+}
+
+function gatherFocusPresets() {
+  const presets = {};
+  
+  for (const [type, fields] of Object.entries(PRESET_FIELDS)) {
+    presets[type] = {
+      workMinutes:            parseInt(document.getElementById(fields.work).value) || 25,
+      breakMinutes:           parseInt(document.getElementById(fields.break).value) || 5,
+      longBreakMinutes:       parseInt(document.getElementById(fields.longBreak).value) || 15,
+      sessionsBeforeLongBreak: parseInt(document.getElementById(fields.sessions).value) || 4
+    };
+  }
+  
+  return presets;
 }
 
 // =============================================================================

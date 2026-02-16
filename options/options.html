@@ -34,6 +34,7 @@
       </div>
       <div class="sidebar-group">
         <div class="sidebar-group-label">Automation</div>
+        <a href="#section-focus-presets" class="sidebar-link" data-section="section-focus-presets">Focus Sessions</a>
         <a href="#section-schedule" class="sidebar-link" data-section="section-schedule">Block Schedule</a>
         <a href="#section-nuclear" class="sidebar-link" data-section="section-nuclear">Nuclear Mode</a>
         <a href="#section-profiles" class="sidebar-link" data-section="section-profiles">Profiles</a>
@@ -588,6 +589,127 @@
       </ul>
       
       <p class="whitelist-hint">Tip: Copy the full URL from your browser's address bar and paste it here.</p>
+    </section>
+
+    <!-- Focus Session Presets -->
+    <section id="section-focus-presets" class="section" data-search-keywords="focus session pomodoro timer work break long short custom minutes preset">
+      <h2>Focus Sessions</h2>
+      <p class="section-desc">Customize your pomodoro timer durations</p>
+
+      <div class="focus-presets-grid">
+        <!-- Pomodoro -->
+        <div class="preset-card">
+          <div class="preset-card-header">
+            <span class="preset-card-icon">25</span>
+            <span class="preset-card-name">Pomodoro</span>
+          </div>
+          <div class="preset-card-fields">
+            <label class="preset-field">
+              <span>Work</span>
+              <div class="preset-input-group">
+                <input type="number" id="preset-pomodoro-work" class="input input-small" min="1" max="120" value="25">
+                <span class="input-suffix">min</span>
+              </div>
+            </label>
+            <label class="preset-field">
+              <span>Break</span>
+              <div class="preset-input-group">
+                <input type="number" id="preset-pomodoro-break" class="input input-small" min="1" max="60" value="5">
+                <span class="input-suffix">min</span>
+              </div>
+            </label>
+            <label class="preset-field">
+              <span>Long Break</span>
+              <div class="preset-input-group">
+                <input type="number" id="preset-pomodoro-long-break" class="input input-small" min="1" max="60" value="15">
+                <span class="input-suffix">min</span>
+              </div>
+            </label>
+            <label class="preset-field">
+              <span>Sessions before long break</span>
+              <div class="preset-input-group">
+                <input type="number" id="preset-pomodoro-sessions" class="input input-small" min="1" max="10" value="4">
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Short -->
+        <div class="preset-card">
+          <div class="preset-card-header">
+            <span class="preset-card-icon">15</span>
+            <span class="preset-card-name">Short</span>
+          </div>
+          <div class="preset-card-fields">
+            <label class="preset-field">
+              <span>Work</span>
+              <div class="preset-input-group">
+                <input type="number" id="preset-short-work" class="input input-small" min="1" max="120" value="15">
+                <span class="input-suffix">min</span>
+              </div>
+            </label>
+            <label class="preset-field">
+              <span>Break</span>
+              <div class="preset-input-group">
+                <input type="number" id="preset-short-break" class="input input-small" min="1" max="60" value="3">
+                <span class="input-suffix">min</span>
+              </div>
+            </label>
+            <label class="preset-field">
+              <span>Long Break</span>
+              <div class="preset-input-group">
+                <input type="number" id="preset-short-long-break" class="input input-small" min="1" max="60" value="10">
+                <span class="input-suffix">min</span>
+              </div>
+            </label>
+            <label class="preset-field">
+              <span>Sessions before long break</span>
+              <div class="preset-input-group">
+                <input type="number" id="preset-short-sessions" class="input input-small" min="1" max="10" value="4">
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Long -->
+        <div class="preset-card">
+          <div class="preset-card-header">
+            <span class="preset-card-icon">50</span>
+            <span class="preset-card-name">Long</span>
+          </div>
+          <div class="preset-card-fields">
+            <label class="preset-field">
+              <span>Work</span>
+              <div class="preset-input-group">
+                <input type="number" id="preset-long-work" class="input input-small" min="1" max="120" value="50">
+                <span class="input-suffix">min</span>
+              </div>
+            </label>
+            <label class="preset-field">
+              <span>Break</span>
+              <div class="preset-input-group">
+                <input type="number" id="preset-long-break" class="input input-small" min="1" max="60" value="10">
+                <span class="input-suffix">min</span>
+              </div>
+            </label>
+            <label class="preset-field">
+              <span>Long Break</span>
+              <div class="preset-input-group">
+                <input type="number" id="preset-long-long-break" class="input input-small" min="1" max="60" value="20">
+                <span class="input-suffix">min</span>
+              </div>
+            </label>
+            <label class="preset-field">
+              <span>Sessions before long break</span>
+              <div class="preset-input-group">
+                <input type="number" id="preset-long-sessions" class="input input-small" min="1" max="10" value="3">
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <p class="section-hint">Changes are saved automatically. During breaks, all blocked sites are temporarily unblocked as a reward.</p>
     </section>
 
     <!-- Schedule -->
