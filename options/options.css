@@ -1364,11 +1364,12 @@ input.search-input {
 }
 
 .preset-card {
-  background: var(--card);
+  background: var(--secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
   transition: border-color var(--transition-fast);
+  color: var(--foreground);
 }
 
 .preset-card:hover {
@@ -1390,7 +1391,7 @@ input.search-input {
   height: 40px;
   border-radius: var(--radius-md);
   background: var(--primary);
-  color: white;
+  color: var(--primary-foreground);
   font-size: 0.875rem;
   font-weight: 700;
   flex-shrink: 0;
@@ -1399,7 +1400,7 @@ input.search-input {
 .preset-card-name {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--foreground);
+  color: var(--card-foreground);
 }
 
 .preset-card-fields {
@@ -1414,7 +1415,12 @@ input.search-input {
   justify-content: space-between;
   gap: var(--space-3);
   font-size: 0.8125rem;
-  color: var(--muted-foreground);
+  color: var(--secondary-foreground);
+}
+
+.preset-field > span:first-child {
+  color: var(--secondary-foreground);
+  font-weight: 500;
 }
 
 .preset-input-group {
@@ -1427,6 +1433,10 @@ input.search-input {
 .preset-input-group .input-small {
   width: 60px;
   text-align: center;
+}
+
+.preset-input-group .input-suffix {
+  color: var(--muted-foreground);
 }
 
 .section-hint {
