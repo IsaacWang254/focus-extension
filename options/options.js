@@ -1426,6 +1426,17 @@ async function saveSettings() {
       settings: settings
     });
     
+    // Save calendar selections if they changed
+    const currentCalendarIds = getSelectedCalendarIds();
+    if (JSON.stringify(currentCalendarIds) !== JSON.stringify([...originalSelectedCalendars].sort())) {
+      await chrome.runtime.sendMessage({
+        type: 'UPDATE_CALENDAR_SETTINGS',
+        settings: { selectedCalendars: currentCalendarIds }
+      });
+      originalSelectedCalendars = [...currentCalendarIds];
+      await loadTodayEvents();
+    }
+    
     // Reset unsaved changes tracking
     hasUnsavedChanges = false;
     originalSettingsJson = JSON.stringify(settings);
@@ -1770,10 +1781,26 @@ function hideSaveBar() {
   }
 }
 
+function getSelectedCalendarIds() {
+  const ids = [];
+  document.querySelectorAll('.calendar-checkbox-item').forEach(item => {
+    const cb = item.querySelector('input[type="checkbox"]');
+    if (cb?.checked) {
+      ids.push(item.dataset.calendarId);
+    }
+  });
+  return ids.sort();
+}
+
 function checkForChanges() {
   // Build current settings object and compare to original
   const currentSettings = gatherCurrentSettings();
-  return JSON.stringify(currentSettings) !== originalSettingsJson;
+  const mainChanged = JSON.stringify(currentSettings) !== originalSettingsJson;
+  
+  // Check calendar selections separately
+  const calendarChanged = JSON.stringify(getSelectedCalendarIds()) !== JSON.stringify([...originalSelectedCalendars].sort());
+  
+  return mainChanged || calendarChanged;
 }
 
 function gatherCurrentSettings() {
@@ -3050,6 +3077,7 @@ async function createProfileFromTemplate(templateKey) {
 
 let calendarSettings = null;
 let calendarList = [];
+let originalSelectedCalendars = [];
 let profiles = [];
 
 /**
@@ -3258,54 +3286,32 @@ async function loadCalendarList() {
     }
     
     const selectedIds = calendarSettings?.selectedCalendars || [];
+    originalSelectedCalendars = [...selectedIds];
     
     container.innerHTML = calendarList.map(cal => `
-      <label class="calendar-checkbox-item" data-calendar-id="${cal.id}">
+      <div class="calendar-checkbox-item" data-calendar-id="${cal.id}">
         <input type="checkbox" ${selectedIds.includes(cal.id) ? 'checked' : ''}>
         <span class="calendar-color-dot" style="background: ${cal.color || '#4285f4'}"></span>
         <span class="calendar-checkbox-label">${escapeHtml(cal.name)}</span>
         ${cal.primary ? '<span class="calendar-checkbox-badge">Primary</span>' : ''}
-      </label>
+      </div>
     `).join('');
     
     // Add click handlers
     container.querySelectorAll('.calendar-checkbox-item').forEach(item => {
       const checkbox = item.querySelector('input[type="checkbox"]');
       
-      item.addEventListener('click', async (e) => {
-        if (e.target.type === 'checkbox') {
-          await saveSelectedCalendars();
-          return;
+      item.addEventListener('click', (e) => {
+        if (e.target.type !== 'checkbox') {
+          checkbox.checked = !checkbox.checked;
         }
-        checkbox.checked = !checkbox.checked;
-        await saveSelectedCalendars();
+        updateSaveBarVisibility();
       });
     });
   } catch (e) {
     console.error('Failed to load calendars:', e);
     container.innerHTML = '<div class="calendar-loading">Failed to load calendars</div>';
   }
-}
-
-/**
- * Save selected calendars
- */
-async function saveSelectedCalendars() {
-  const selectedIds = [];
-  document.querySelectorAll('.calendar-checkbox:checked').forEach(cb => {
-    const item = cb.closest('.calendar-item');
-    if (item) {
-      selectedIds.push(item.dataset.calendarId);
-    }
-  });
-  
-  await chrome.runtime.sendMessage({
-    type: 'UPDATE_CALENDAR_SETTINGS',
-    settings: { selectedCalendars: selectedIds }
-  });
-  
-  // Refresh events with new calendars
-  await loadTodayEvents();
 }
 
 /**
