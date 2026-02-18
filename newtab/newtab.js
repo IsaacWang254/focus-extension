@@ -814,9 +814,9 @@ function renderTodos(listEl, showMoreBtn) {
   }
 }
 
-function createTodoItem(task) {
+function createTodoItem(task, isSubtask = false) {
   const li = document.createElement('li');
-  li.className = 'todo-item';
+  li.className = `todo-item${isSubtask ? ' subtask' : ''}`;
   li.dataset.taskId = task.id;
 
   // Checkbox
@@ -835,21 +835,45 @@ function createTodoItem(task) {
   content.textContent = task.content;
   details.appendChild(content);
 
-  // Meta (due date)
+  // Meta (due date + subtask count)
   const dueStr = todoist.formatDueDate(task);
-  if (dueStr) {
+  const hasSubtasks = !isSubtask && task.subtasks && task.subtasks.length > 0;
+
+  if (dueStr || hasSubtasks) {
     const meta = document.createElement('div');
     meta.className = 'todo-meta';
 
-    const due = document.createElement('span');
-    due.className = 'todo-due';
-    due.textContent = dueStr;
+    if (dueStr) {
+      const due = document.createElement('span');
+      due.className = 'todo-due';
+      due.textContent = dueStr;
 
-    if (dueStr === 'Overdue') due.classList.add('overdue');
-    if (dueStr === 'Today' || dueStr.startsWith('Today')) due.classList.add('today');
+      if (dueStr === 'Overdue') due.classList.add('overdue');
+      if (dueStr === 'Today' || dueStr.startsWith('Today')) due.classList.add('today');
 
-    meta.appendChild(due);
+      meta.appendChild(due);
+    }
+
+    if (hasSubtasks) {
+      const subtaskCount = document.createElement('span');
+      subtaskCount.className = 'subtask-count';
+      subtaskCount.textContent = `${task.subtasks.length} subtask${task.subtasks.length > 1 ? 's' : ''}`;
+      meta.appendChild(subtaskCount);
+    }
+
     details.appendChild(meta);
+  }
+
+  // Render nested subtasks
+  if (hasSubtasks) {
+    const subtasksList = document.createElement('ul');
+    subtasksList.className = 'subtasks-list';
+
+    for (const subtask of task.subtasks) {
+      subtasksList.appendChild(createTodoItem(subtask, true));
+    }
+
+    details.appendChild(subtasksList);
   }
 
   li.appendChild(details);
