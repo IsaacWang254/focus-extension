@@ -6,7 +6,7 @@
 // STATE
 // =============================================================================
 
-let currentTimeRange = 'week';
+// All overview stats show all-time values for consistency
 
 // =============================================================================
 // INITIALIZATION
@@ -155,12 +155,6 @@ async function loadTheme() {
 // =============================================================================
 
 function setupEventListeners() {
-  // Time range selector
-  document.getElementById('time-range').addEventListener('change', async (e) => {
-    currentTimeRange = e.target.value;
-    await loadAllStats();
-  });
-  
   // Back button
   document.getElementById('back-btn').addEventListener('click', () => {
     window.close();
@@ -185,37 +179,14 @@ async function loadAllStats() {
 
 async function loadOverviewStats() {
   try {
-    const focusStats = await chrome.runtime.sendMessage({ type: 'GET_FOCUS_SESSION_STATS' });
-    const streakInfo = await chrome.runtime.sendMessage({ type: 'GET_STREAK_INFO' });
-    const xpData = await chrome.runtime.sendMessage({ type: 'GET_XP_DATA' });
+    const [allTimeStats, streakInfo, xpData] = await Promise.all([
+      chrome.runtime.sendMessage({ type: 'GET_ALL_TIME_STATS' }),
+      chrome.runtime.sendMessage({ type: 'GET_STREAK_INFO' }),
+      chrome.runtime.sendMessage({ type: 'GET_XP_DATA' }),
+    ]);
     
-    // Get stats based on time range
-    const allTimeStats = await chrome.runtime.sendMessage({ type: 'GET_ALL_TIME_STATS' });
-    
-    let sessions = 0;
-    let minutes = 0;
-    
-    switch (currentTimeRange) {
-      case 'today':
-        sessions = focusStats?.todaySessions || 0;
-        minutes = focusStats?.todayMinutes || 0;
-        break;
-      case 'week':
-        sessions = focusStats?.weeklySessions || 0;
-        minutes = focusStats?.weeklyMinutes || 0;
-        break;
-      case 'month':
-        sessions = allTimeStats?.monthlySessions || focusStats?.weeklySessions || 0;
-        minutes = allTimeStats?.monthlyMinutes || focusStats?.weeklyMinutes || 0;
-        break;
-      case 'all':
-        sessions = allTimeStats?.totalSessions || 0;
-        minutes = allTimeStats?.totalMinutes || 0;
-        break;
-    }
-    
-    document.getElementById('focus-sessions').textContent = sessions;
-    document.getElementById('focus-minutes').textContent = minutes;
+    document.getElementById('focus-sessions').textContent = allTimeStats?.totalSessions || 0;
+    document.getElementById('focus-minutes').textContent = allTimeStats?.totalMinutes || 0;
     document.getElementById('current-streak').textContent = streakInfo?.currentStreak || 0;
     document.getElementById('total-xp').textContent = xpData?.totalXpEarned || xpData?.xp || 0;
   } catch (e) {
