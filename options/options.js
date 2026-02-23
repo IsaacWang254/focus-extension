@@ -1456,14 +1456,14 @@ function showSaveSuccess() {
   saveBtn.classList.remove('saving');
   saveBtn.classList.add('saved');
   
-  // Hide save bar after animation completes
+  // Hide save bar after animation completes (timings aligned with CSS: icon + checkmark ~0.5s)
   setTimeout(() => {
     hideSaveBar();
-    // Reset button state for next time
+    // Reset button state after bar transition
     setTimeout(() => {
       saveBtn.classList.remove('saved');
-    }, 300);
-  }, 1000);
+    }, 200);
+  }, 550);
 }
 
 function resetSaveButton() {

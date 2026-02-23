@@ -2964,7 +2964,7 @@ input.search-input {
   gap: var(--space-3);
   padding: 0;
   z-index: 60;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .save-bar.hidden {
@@ -2988,12 +2988,12 @@ input.search-input {
   position: relative;
   overflow: hidden;
   min-width: 140px;
-  transition: all 0.3s ease;
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #save-btn .btn-text {
   display: inline-block;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #save-btn .btn-icon {
@@ -3004,7 +3004,7 @@ input.search-input {
   justify-content: center;
   opacity: 0;
   transform: scale(0);
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #save-btn .btn-icon svg {
@@ -3045,7 +3045,7 @@ input.search-input {
 }
 
 #save-btn.saved .checkmark-path {
-  animation: drawCheck 0.4s ease forwards 0.1s;
+  animation: drawCheck 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards 0.05s;
 }
 
 @keyframes drawCheck {
