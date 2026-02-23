@@ -119,6 +119,11 @@
             <p class="connect-text">Connect Google Calendar to see your schedule</p>
             <button class="btn btn-secondary btn-small" id="calendar-connect-btn">Connect Calendar</button>
           </div>
+          <!-- Calendar session expired state -->
+          <div class="connect-prompt hidden" id="calendar-reconnect">
+            <p class="connect-text connect-text-warning">Calendar session expired. Please reconnect.</p>
+            <button class="btn btn-secondary btn-small" id="calendar-reconnect-btn">Reconnect Calendar</button>
+          </div>
           <!-- Calendar loading state -->
           <div class="panel-loading hidden" id="calendar-loading">
             <div class="spinner"></div>

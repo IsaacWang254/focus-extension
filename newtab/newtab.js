@@ -523,6 +523,7 @@ function setupBgColorPicker() {
 
 async function loadCalendar() {
   const connectEl = document.getElementById('calendar-connect');
+  const reconnectEl = document.getElementById('calendar-reconnect');
   const loadingEl = document.getElementById('calendar-loading');
   const emptyEl = document.getElementById('calendar-empty');
   const listEl = document.getElementById('event-list');
@@ -533,18 +534,31 @@ async function loadCalendar() {
 
     if (!status || !status.connected) {
       connectEl.classList.remove('hidden');
+      reconnectEl.classList.add('hidden');
       loadingEl.classList.add('hidden');
       return;
     }
 
-    // Connected — hide prompt, show loading
+    // Connected — hide prompts, show loading
     connectEl.classList.add('hidden');
+    reconnectEl.classList.add('hidden');
     loadingEl.classList.remove('hidden');
 
     // Fetch today's events
     const events = await chrome.runtime.sendMessage({ type: 'GET_TODAY_EVENTS' });
 
     loadingEl.classList.add('hidden');
+
+    // The fetch may have discovered a revoked token and marked the
+    // calendar disconnected — re-check so we show the reconnect prompt
+    // instead of a misleading "No events today".
+    const freshStatus = await chrome.runtime.sendMessage({ type: 'GET_CALENDAR_STATUS' });
+    if (!freshStatus || !freshStatus.connected) {
+      reconnectEl.classList.remove('hidden');
+      emptyEl.classList.add('hidden');
+      listEl.innerHTML = '';
+      return;
+    }
 
     if (!events || events.length === 0) {
       emptyEl.classList.remove('hidden');
@@ -635,20 +649,24 @@ function formatTime(date) {
 }
 
 function setupCalendarConnect() {
-  const btn = document.getElementById('calendar-connect-btn');
-  btn.addEventListener('click', async () => {
+  const connectBtn = document.getElementById('calendar-connect-btn');
+  const reconnectBtn = document.getElementById('calendar-reconnect-btn');
+
+  const handleConnect = async (btn, label) => {
     btn.disabled = true;
     btn.textContent = 'Connecting...';
     try {
       await chrome.runtime.sendMessage({ type: 'CONNECT_GOOGLE_CALENDAR' });
-      // Reload calendar section
       await loadCalendar();
     } catch (err) {
       console.error('Failed to connect calendar:', err);
       btn.disabled = false;
-      btn.textContent = 'Connect Calendar';
+      btn.textContent = label;
     }
-  });
+  };
+
+  connectBtn.addEventListener('click', () => handleConnect(connectBtn, 'Connect Calendar'));
+  reconnectBtn.addEventListener('click', () => handleConnect(reconnectBtn, 'Reconnect Calendar'));
 }
 
 // =============================================================================

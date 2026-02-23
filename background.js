@@ -5161,7 +5161,15 @@ async function getValidCalendarToken() {
     return settings.accessToken;
   }
   
-  // Try to get a new token
+  // Token looks expired — clear Chrome's internal cache of the old token
+  // first, otherwise getAuthToken may return the same stale token.
+  if (settings.accessToken) {
+    await new Promise(resolve => {
+      chrome.identity.removeCachedAuthToken({ token: settings.accessToken }, resolve);
+    });
+  }
+  
+  // Now request a fresh token
   try {
     const token = await new Promise((resolve, reject) => {
       chrome.identity.getAuthToken({ interactive: false }, (token) => {
@@ -5182,6 +5190,80 @@ async function getValidCalendarToken() {
     }
   } catch (e) {
     console.error('Failed to refresh calendar token:', e);
+    
+    const msg = e.message || '';
+    const isRevoked = msg.includes('not granted') || msg.includes('revoked');
+    
+    if (isRevoked) {
+      // Consent was revoked — mark disconnected so the UI shows
+      // the "Connect Calendar" button for re-authentication.
+      console.log('Calendar OAuth grant revoked, marking disconnected');
+      await saveCalendarSettings({
+        connected: false,
+        accessToken: null,
+        tokenExpiry: null,
+      });
+      return null;
+    }
+    
+    // Transient network error — fall back to the cached token; the
+    // actual API call will surface a real 401 if it's truly expired.
+    if (settings.accessToken) {
+      console.log('Using cached calendar token as fallback');
+      return settings.accessToken;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Force-invalidate the current token and obtain a fresh one.
+ * Called after receiving a 401 from the Google Calendar API.
+ * @returns {Promise<string|null>}
+ */
+async function forceRefreshCalendarToken() {
+  const settings = await getCalendarSettings();
+  
+  if (settings.accessToken) {
+    await new Promise(resolve => {
+      chrome.identity.removeCachedAuthToken({ token: settings.accessToken }, resolve);
+    });
+  }
+  
+  // Clear stored expiry so getValidCalendarToken doesn't short-circuit
+  await saveCalendarSettings({ accessToken: null, tokenExpiry: null });
+  
+  try {
+    const token = await new Promise((resolve, reject) => {
+      chrome.identity.getAuthToken({ interactive: false }, (token) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve(token);
+        }
+      });
+    });
+    
+    if (token) {
+      await saveCalendarSettings({
+        accessToken: token,
+        tokenExpiry: Date.now() + 3600000
+      });
+      return token;
+    }
+  } catch (e) {
+    console.error('Failed to force-refresh calendar token:', e);
+    
+    const msg = e.message || '';
+    if (msg.includes('not granted') || msg.includes('revoked')) {
+      console.log('Calendar OAuth grant revoked, marking disconnected');
+      await saveCalendarSettings({
+        connected: false,
+        accessToken: null,
+        tokenExpiry: null,
+      });
+    }
   }
   
   return null;
@@ -5224,11 +5306,32 @@ async function fetchCalendarList(token) {
  * @returns {Promise<Array>}
  */
 async function fetchUpcomingEvents(days = 7) {
-  const token = await getValidCalendarToken();
+  let token = await getValidCalendarToken();
   if (!token) {
     return { error: 'Not connected to Google Calendar' };
   }
   
+  let result = await fetchUpcomingEventsWithToken(token, days);
+  
+  // If we got 401s on all calendars, force-refresh and retry once
+  if (result.got401 && result.events.length === 0) {
+    const freshToken = await forceRefreshCalendarToken();
+    if (freshToken && freshToken !== token) {
+      result = await fetchUpcomingEventsWithToken(freshToken, days);
+    }
+  }
+  
+  const events = result.events;
+  events.sort((a, b) => new Date(a.start) - new Date(b.start));
+  
+  if (events.length > 0 || !result.failed) {
+    await saveCalendarSettings({ upcomingEvents: events, lastSync: Date.now() });
+  }
+  
+  return events;
+}
+
+async function fetchUpcomingEventsWithToken(token, days) {
   const settings = await getCalendarSettings();
   const calendarsToFetch = settings.selectedCalendars.length > 0 
     ? settings.selectedCalendars 
@@ -5238,7 +5341,9 @@ async function fetchUpcomingEvents(days = 7) {
   const timeMin = now.toISOString();
   const timeMax = new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
   
-  const allEvents = [];
+  const events = [];
+  let failed = false;
+  let got401 = false;
   
   for (const calendarId of calendarsToFetch) {
     try {
@@ -5255,21 +5360,27 @@ async function fetchUpcomingEvents(days = 7) {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
+      if (response.status === 401) {
+        got401 = true;
+        failed = true;
+        continue;
+      }
+      
       if (!response.ok) {
         console.error(`Failed to fetch events from calendar ${calendarId}:`, response.status);
+        failed = true;
         continue;
       }
       
       const data = await response.json();
       
       for (const event of (data.items || [])) {
-        // Skip all-day events or events without times
         const startTime = event.start?.dateTime || event.start?.date;
         const endTime = event.end?.dateTime || event.end?.date;
         
         if (!startTime || !endTime) continue;
         
-        allEvents.push({
+        events.push({
           id: event.id,
           calendarId: calendarId,
           title: event.summary || '(No title)',
@@ -5284,19 +5395,11 @@ async function fetchUpcomingEvents(days = 7) {
       }
     } catch (e) {
       console.error(`Error fetching events from calendar ${calendarId}:`, e);
+      failed = true;
     }
   }
   
-  // Sort by start time
-  allEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
-  
-  // Cache the events
-  await saveCalendarSettings({
-    upcomingEvents: allEvents,
-    lastSync: Date.now()
-  });
-  
-  return allEvents;
+  return { events, failed, got401 };
 }
 
 /**
@@ -5325,51 +5428,162 @@ async function getCurrentEvents() {
 }
 
 /**
- * Get today's events
+ * Get today's events — fetches the full day (start-of-day to end-of-day)
+ * so past events still appear on the schedule. Falls back to cached
+ * events when the network or token refresh is unavailable.
  * @returns {Promise<Array>}
  */
 async function getTodayEvents() {
-  const settings = await getCalendarSettings();
-  
-  // Use cached events if recent
-  let events = settings.upcomingEvents || [];
-  if (!settings.lastSync || Date.now() - settings.lastSync > 300000) {
-    const freshEvents = await fetchUpcomingEvents(1);
-    if (!freshEvents.error) {
-      events = freshEvents;
-    }
-  }
-  
-  // Filter to today's events
   const today = new Date();
   const todayStr = today.getFullYear() + '-' +
     String(today.getMonth() + 1).padStart(2, '0') + '-' +
     String(today.getDate()).padStart(2, '0');
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const startOfDay = new Date(today);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setDate(endOfDay.getDate() + 1);
   
-  return events.filter(event => {
-    // Skip completed/checked-off events (e.g. "✓ quiz 3")
-    const title = (event.title || '').trim();
-    if (title.startsWith('✓') || title.startsWith('✔')) {
-      return false;
+  const token = await getValidCalendarToken();
+  
+  if (!token) {
+    return filterEventsForToday(await getCachedEvents(), todayStr, startOfDay, endOfDay);
+  }
+  
+  // First attempt
+  let result = await fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay);
+  
+  // If every calendar returned 401, force-refresh the token and retry once
+  if (result.got401 && result.events.length === 0) {
+    console.log('Got 401 from all calendars, force-refreshing token…');
+    const freshToken = await forceRefreshCalendarToken();
+    
+    if (freshToken && freshToken !== token) {
+      result = await fetchTodayEventsWithToken(freshToken, todayStr, startOfDay, endOfDay);
     }
+  }
+  
+  // If still no events after retry, fall back to cache
+  if (result.events.length === 0 && result.failed) {
+    console.log('Calendar fetch failed after retry, using cached events');
+    return filterEventsForToday(await getCachedEvents(), todayStr, startOfDay, endOfDay);
+  }
+  
+  const filtered = filterEventsForToday(result.events, todayStr, startOfDay, endOfDay);
+  
+  if (result.events.length > 0) {
+    await saveCalendarSettings({ upcomingEvents: result.events, lastSync: Date.now() });
+  }
+  
+  return filtered;
+}
+
+/**
+ * Fetch today's events from all selected calendars using a given token.
+ * @returns {Promise<{events: Array, failed: boolean, got401: boolean}>}
+ */
+async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) {
+  const settings = await getCalendarSettings();
+  const calendarsToFetch = settings.selectedCalendars.length > 0
+    ? settings.selectedCalendars
+    : ['primary'];
+  
+  const timeMin = startOfDay.toISOString();
+  const timeMax = endOfDay.toISOString();
+  
+  const allEvents = [];
+  let fetchFailed = false;
+  let got401 = false;
+  
+  for (const calendarId of calendarsToFetch) {
+    try {
+      const params = new URLSearchParams({
+        timeMin,
+        timeMax,
+        singleEvents: 'true',
+        orderBy: 'startTime',
+        maxResults: '100'
+      });
+      
+      const response = await fetch(
+        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.status === 401) {
+        got401 = true;
+        fetchFailed = true;
+        continue;
+      }
+      
+      if (!response.ok) {
+        console.error(`Failed to fetch today's events from calendar ${calendarId}:`, response.status);
+        fetchFailed = true;
+        continue;
+      }
+      
+      const data = await response.json();
+      
+      for (const event of (data.items || [])) {
+        const startTime = event.start?.dateTime || event.start?.date;
+        const endTime = event.end?.dateTime || event.end?.date;
+        
+        if (!startTime || !endTime) continue;
+        
+        const title = (event.summary || '').trim();
+        if (title.startsWith('✓') || title.startsWith('✔')) continue;
+        
+        allEvents.push({
+          id: event.id,
+          calendarId: calendarId,
+          title: title || '(No title)',
+          description: event.description || '',
+          start: startTime,
+          end: endTime,
+          isAllDay: !event.start?.dateTime,
+          location: event.location || '',
+          status: event.status,
+          htmlLink: event.htmlLink
+        });
+      }
+    } catch (e) {
+      console.error(`Error fetching today's events from calendar ${calendarId}:`, e);
+      fetchFailed = true;
+    }
+  }
+  
+  return { events: allEvents, failed: fetchFailed, got401 };
+}
+
+/**
+ * Filter a list of events down to those that fall on a given day.
+ */
+function filterEventsForToday(events, todayStr, startOfDay, endOfDay) {
+  const filtered = (events || []).filter(event => {
+    const title = (event.title || '').trim();
+    if (title.startsWith('✓') || title.startsWith('✔')) return false;
     
     if (event.isAllDay) {
-      // For all-day events, compare date strings directly to avoid
-      // UTC vs local timezone mismatches (e.g. "2026-02-09" parsed as
-      // UTC midnight would appear as the previous evening in US timezones)
       const eventStartDate = event.start.split('T')[0];
       const eventEndDate = event.end.split('T')[0];
-      // end date is exclusive in Google Calendar (single-day event on
-      // Feb 8 has end = "2026-02-09"), so use > not >=
       return eventStartDate <= todayStr && eventEndDate > todayStr;
     }
     
     const start = new Date(event.start).getTime();
-    return start >= today.getTime() && start < tomorrow.getTime();
+    const end = new Date(event.end).getTime();
+    // Include events that overlap with today at all
+    return start < endOfDay.getTime() && end > startOfDay.getTime();
   });
+  
+  filtered.sort((a, b) => new Date(a.start) - new Date(b.start));
+  return filtered;
+}
+
+/**
+ * Get cached upcoming events from storage.
+ */
+async function getCachedEvents() {
+  const settings = await getCalendarSettings();
+  return settings.upcomingEvents || [];
 }
 
 /**

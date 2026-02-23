@@ -464,6 +464,10 @@ body {
   margin-bottom: var(--space-3);
 }
 
+.connect-text-warning {
+  color: var(--warning, #d97706);
+}
+
 /* ============================================
    Calendar Events
    ============================================ */
