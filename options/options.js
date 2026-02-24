@@ -937,8 +937,8 @@ function populateSettings() {
   // Show/hide site lists based on mode
   updateModeDisplay(settings.mode);
   
-  // Populate blocked sites
-  renderSiteList('blocked-sites-list', settings.blockedSites, 'blocked');
+  // Populate blocked sites (respects search filter in input)
+  renderBlockedSitesList();
   
   // Populate allowed sites
   renderSiteList('allowed-sites-list', settings.allowedSites, 'allowed');
@@ -1198,6 +1198,28 @@ function renderSiteList(listId, sites, type) {
   });
 }
 
+/** Returns the current blocked-sites search/filter query (trimmed). */
+function getBlockedSitesFilter() {
+  const input = document.getElementById('blocked-site-input');
+  return input ? input.value.trim().toLowerCase() : '';
+}
+
+/** Renders the blocked sites list, filtered by the search input when present. */
+function renderBlockedSitesList() {
+  const query = getBlockedSitesFilter();
+  const filtered = query
+    ? settings.blockedSites.filter(site => site.toLowerCase().includes(query))
+    : [...settings.blockedSites];
+  renderSiteList('blocked-sites-list', filtered, 'blocked');
+  if (filtered.length === 0 && query) {
+    const listEl = document.getElementById('blocked-sites-list');
+    const emptyLi = listEl.querySelector('.empty-list');
+    if (emptyLi) {
+      emptyLi.textContent = `No blocked sites match "${escapeHtml(query)}"`;
+    }
+  }
+}
+
 function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
@@ -1242,14 +1264,16 @@ function setupEventListeners() {
     
     if (site && !settings.blockedSites.includes(site)) {
       settings.blockedSites.push(site);
-      renderSiteList('blocked-sites-list', settings.blockedSites, 'blocked');
+      renderBlockedSitesList();
       input.value = '';
       markAsChanged();
     }
   });
   
-  // Add blocked site on Enter
-  document.getElementById('blocked-site-input').addEventListener('keypress', (e) => {
+  // Blocked site input: filter list as user types (search), add on Enter
+  const blockedSiteInput = document.getElementById('blocked-site-input');
+  blockedSiteInput.addEventListener('input', () => renderBlockedSitesList());
+  blockedSiteInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       document.getElementById('add-blocked-btn').click();
     }
@@ -1283,7 +1307,7 @@ function setupEventListeners() {
       
       if (type === 'blocked') {
         settings.blockedSites = settings.blockedSites.filter(s => s !== site);
-        renderSiteList('blocked-sites-list', settings.blockedSites, 'blocked');
+        renderBlockedSitesList();
       } else {
         settings.allowedSites = settings.allowedSites.filter(s => s !== site);
         renderSiteList('allowed-sites-list', settings.allowedSites, 'allowed');
