@@ -1,514 +1,164 @@
 /**
- * Focus Extension - Popup Styles
- * Modern, clean design with improved visual hierarchy
+ * Focus Extension - Simplified Popup Styles
+ * Minimal, distraction-free design with readable text
  */
 
 @import '../lib/common.css';
 
-/* ============================================
-   Base & Container
-   ============================================ */
-
 html {
-  font-size: 14px;
+  font-size: 16px;
   overflow: hidden;
 }
 
 body {
-  width: 380px;
-  height: auto;
-  max-height: 600px;
-  overflow: hidden;
+  width: 320px;
+  min-height: auto;
   background-color: var(--background);
 }
 
 .popup {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-  background-color: var(--background);
+  padding: var(--space-4);
+  gap: var(--space-3);
 }
 
-/* ============================================
-   Header - Compact & Modern
-   ============================================ */
-
+/* Header */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
-  background-color: var(--card);
-  border-bottom: 1px solid var(--border);
 }
 
 .header h1 {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--foreground);
-  letter-spacing: -0.01em;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-/* Achievement Badge */
-.achievements-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  font-size: 0.6875rem;
+  font-size: 1.25rem;
   font-weight: 600;
-  color: var(--muted-foreground);
-  background-color: var(--secondary);
-  border-radius: var(--radius-full);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.achievements-badge:hover {
-  background-color: var(--accent);
   color: var(--foreground);
 }
 
-.achievement-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-}
-
-.achievement-icon svg {
-  width: 12px;
-  height: 12px;
-}
-
-/* Level Badge */
-.level-badge {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px 8px;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: var(--indigo);
-  background-color: var(--secondary);
-  border-radius: var(--radius-full);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.level-badge:hover {
-  background-color: var(--accent);
-}
-
-.level-label {
-  color: var(--muted-foreground);
-}
-
-.level-number {
-  font-weight: 700;
-}
-
-/* Toggle Switch */
-.toggle {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.toggle input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.toggle-slider {
-  position: relative;
-  width: 36px;
-  height: 20px;
-  background-color: var(--input);
-  border-radius: var(--radius-full);
-  transition: background-color var(--transition-fast);
-}
-
-.toggle-slider::before {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  background-color: white;
-  border-radius: 50%;
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--transition-fast);
-}
-
-input:checked + .toggle-slider {
+.toggle input:checked + .toggle-slider {
   background-color: var(--indigo);
 }
 
-input:checked + .toggle-slider::before {
-  transform: translateX(16px);
-  background-color: white;
-}
-
-input:focus-visible + .toggle-slider {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-/* ============================================
-   XP Progress Bar - Integrated in Header
-   ============================================ */
-
-.xp-bar-container {
-  padding: var(--space-2) var(--space-4);
-  background-color: var(--card);
-  border-bottom: 1px solid var(--border);
-}
-
-.xp-bar {
-  height: 4px;
-  background-color: var(--secondary);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
-
-.xp-fill {
-  height: 100%;
-  background-color: var(--indigo);
-  border-radius: var(--radius-full);
-  transition: width var(--transition-slow);
-}
-
-.xp-text {
+/* Status row */
+.status {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: var(--space-1);
-  font-size: 0.6875rem;
-  color: var(--muted-foreground);
-}
-
-.level-name {
-  font-weight: 600;
-  color: var(--indigo);
-}
-
-/* ============================================
-   Status Bar - Unified Status Display
-   ============================================ */
-
-.status-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
-  background-color: var(--card);
-  border-bottom: 1px solid var(--border);
+  font-size: 0.9375rem;
 }
 
 #status-text {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: 0.875rem;
-  font-weight: 500;
   color: var(--foreground);
+  font-weight: 500;
 }
 
 #status-text::before {
   content: '';
+  display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background-color: var(--success);
+  margin-right: 8px;
+  vertical-align: middle;
 }
 
-.status-bar.disabled #status-text::before {
+.status.disabled #status-text::before {
   background-color: var(--muted-foreground);
 }
 
 #mode-badge {
-  padding: 3px 10px;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  padding: 4px 10px;
   background-color: var(--secondary);
+  color: var(--muted-foreground);
   border-radius: var(--radius-full);
-  border: 1px solid var(--border);
 }
 
 #mode-badge.allowlist {
   color: var(--indigo);
   background-color: var(--indigo-subtle);
-  border-color: rgba(99, 102, 241, 0.2);
 }
 
-/* ============================================
-   Profile Switcher - Enhanced
-   ============================================ */
-
-.profile-section {
-  padding: var(--space-3) var(--space-4);
-  background-color: var(--card);
-  border-bottom: 1px solid var(--border);
-}
-
-.profile-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-2);
-}
-
-.profile-label {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted-foreground);
-}
-
-.profile-dropdown {
-  position: relative;
-}
-
-.profile-current {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
-  font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--foreground);
-  background-color: var(--secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.profile-current:hover {
-  background-color: var(--accent);
-  border-color: var(--indigo);
-}
-
-.profile-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  color: var(--indigo);
-}
-
-.profile-icon svg {
-  width: 18px;
-  height: 18px;
-}
-
-.profile-name {
-  flex: 1;
-  text-align: left;
-}
-
-.profile-arrow {
-  font-size: 0.625rem;
-  color: var(--muted-foreground);
-  transition: transform var(--transition-fast);
-}
-
-.profile-dropdown.open .profile-arrow {
-  transform: rotate(180deg);
-}
-
-.profile-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  z-index: 50;
-  padding: var(--space-1);
-  background-color: var(--popover);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 10px 38px -10px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+/* Profile select */
+.profile-row {
   display: none;
 }
 
-.profile-dropdown.open .profile-menu {
+.profile-row.visible {
   display: block;
 }
 
-.profile-option {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+.profile-select {
   width: 100%;
   padding: var(--space-2) var(--space-3);
-  font-size: 0.875rem;
-  color: var(--popover-foreground);
-  background: none;
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.profile-option:hover {
-  background-color: var(--accent);
-}
-
-.profile-option.active {
-  background-color: var(--indigo-subtle);
-  color: var(--indigo);
-}
-
-.profile-option-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  color: var(--muted-foreground);
-}
-
-.profile-option.active .profile-option-icon {
-  color: var(--indigo);
-}
-
-.profile-option-name {
-  flex: 1;
-  text-align: left;
-}
-
-.profile-option-meta {
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-}
-
-/* ============================================
-   Status Alerts - Schedule & Daily Limit
-   ============================================ */
-
-.status-alerts {
-  padding: 0 var(--space-4);
-}
-
-.status-alert {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.status-alert-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-lg);
+  font-size: 0.9375rem;
   background-color: var(--secondary);
-  color: var(--muted-foreground);
-  flex-shrink: 0;
-}
-
-.status-alert-icon svg {
-  width: 16px;
-  height: 16px;
-}
-
-.status-alert-icon.locked {
-  background-color: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-}
-
-.status-alert-icon.available {
-  background-color: rgba(34, 197, 94, 0.1);
-  color: #22c55e;
-}
-
-.status-alert-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.status-alert-title {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   color: var(--foreground);
 }
 
-.status-alert-detail {
-  display: block;
-  font-size: 0.75rem;
+/* Alerts */
+.alerts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.alert-item {
+  font-size: 0.875rem;
   color: var(--muted-foreground);
-  margin-top: 2px;
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--secondary);
+  border-radius: var(--radius-md);
 }
 
-/* ============================================
-   Current Site Section
-   ============================================ */
-
-.current-site-section {
-  padding: var(--space-2) var(--space-4);
-  background-color: var(--card);
-  border-bottom: 1px solid var(--border);
+.alert-item.locked {
+  color: var(--destructive);
+  background-color: var(--destructive-subtle);
 }
 
-.current-site-header {
+/* Current site */
+.current-site {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.site-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--space-2);
 }
 
-.current-site-label {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.site-label {
+  font-size: 0.8125rem;
   color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
-.current-site-domain {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  background-color: var(--secondary);
-  border-radius: var(--radius-lg);
-  font-size: 0.8125rem;
+.site-domain {
+  font-size: 0.9375rem;
   font-weight: 500;
   color: var(--foreground);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.current-site-domain::before {
+.site-domain.blocked::before {
   content: '';
+  display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--success);
-}
-
-.current-site-domain.blocked::before {
-  background-color: #ef4444;
+  background-color: var(--destructive);
+  margin-right: 8px;
+  vertical-align: middle;
 }
 
 .site-actions {
@@ -518,309 +168,65 @@ input:focus-visible + .toggle-slider {
 
 .site-actions .btn {
   flex: 1;
+  font-size: 0.875rem;
+  padding: var(--space-2) var(--space-3);
 }
 
-/* ============================================
-   Quick Stats - Redesigned Grid
-   ============================================ */
-
-.stats-section {
-  padding: var(--space-4);
-  background-color: var(--background);
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-3);
-}
-
-.stat-card {
+/* Active sessions */
+.sessions-row {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: var(--space-1);
+  justify-content: space-between;
   padding: var(--space-3);
-  background-color: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  text-align: center;
-  transition: all var(--transition-fast);
+  background-color: var(--secondary);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
 }
 
-.stat-card:hover {
-  border-color: var(--indigo);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+.sessions-label {
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--foreground);
-  line-height: 1.2;
+.btn-tiny {
+  padding: 4px 12px;
+  font-size: 0.8125rem;
+  flex-shrink: 0;
 }
 
-.stat-label {
-  font-size: 0.6875rem;
-  font-weight: 500;
+/* Focus / Pomodoro section */
+.focus-section {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.focus-label {
+  font-size: 0.8125rem;
   color: var(--muted-foreground);
   text-transform: uppercase;
   letter-spacing: 0.03em;
-}
-
-.stat-card.streak-card {
-  border-color: rgba(99, 102, 241, 0.3);
-}
-
-.stat-card.streak-card .stat-value {
-  color: var(--indigo);
-}
-
-.stat-fire {
-  font-size: 1rem;
-  margin-left: 2px;
-}
-
-.stat-fire.small {
-  font-size: 0.875rem;
-}
-
-/* ============================================
-   Active Sessions - Compact List
-   ============================================ */
-
-.active-sessions {
-  padding: var(--space-4);
-  background-color: var(--card);
-  border-bottom: 1px solid var(--border);
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-3);
-}
-
-.section-title {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted-foreground);
-}
-
-.session-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.session-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  background-color: var(--secondary);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-}
-
-.session-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background-color: var(--card);
-  border-radius: var(--radius-md);
-  color: var(--muted-foreground);
-  flex-shrink: 0;
-}
-
-.session-icon svg {
-  width: 16px;
-  height: 16px;
-}
-
-.session-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.session-domain {
-  font-weight: 500;
-  color: var(--foreground);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.875rem;
-}
-
-.session-time {
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-  margin-top: 2px;
-}
-
-.session-time.danger {
-  color: #ef4444;
-  font-weight: 500;
-}
-
-.session-time.warning {
-  color: #f97316;
-  font-weight: 500;
-}
-
-.session-end {
-  padding: var(--space-1) var(--space-2);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: #ef4444;
-  background-color: rgba(239, 68, 68, 0.1);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  flex-shrink: 0;
-}
-
-.session-end:hover {
-  background-color: #ef4444;
-  color: white;
-}
-
-/* ============================================
-   Focus Session - Modern Timer Design
-   ============================================ */
-
-.focus-section {
-  padding: var(--space-3);
-  background-color: var(--card);
-  border-bottom: 1px solid var(--border);
-}
-
-.focus-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-4);
-}
-
-.focus-title {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted-foreground);
-}
-
-/* Active Focus Session */
-.focus-active {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.focus-timer-display {
-  text-align: center;
-}
-
-.focus-phase-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 4px 12px;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--indigo);
-  background-color: var(--indigo-subtle);
-  border-radius: var(--radius-full);
   margin-bottom: var(--space-2);
-}
-
-.focus-phase-badge.break {
-  color: #22c55e;
-  background-color: rgba(34, 197, 94, 0.1);
-}
-
-.focus-phase-badge.longBreak {
-  color: #8b5cf6;
-  background-color: rgba(139, 92, 246, 0.1);
-}
-
-.focus-time {
-  font-size: 3rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--foreground);
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
-
-.focus-progress-ring {
-  width: 100%;
-  max-width: 200px;
-  margin: 0 auto;
-}
-
-.focus-progress-bar {
-  height: 6px;
-  background-color: var(--secondary);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
-
-.focus-progress-fill {
-  height: 100%;
-  background-color: var(--indigo);
-  border-radius: var(--radius-full);
-  transition: width var(--transition-slow);
-}
-
-.focus-meta {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-}
-
-.focus-actions {
-  display: flex;
-  gap: var(--space-2);
-  width: 100%;
-}
-
-.focus-actions .btn {
-  flex: 1;
-}
-
-/* Focus Start Options */
-.focus-start {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
 }
 
 .focus-presets {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-2);
+  margin-bottom: var(--space-2);
 }
 
 .focus-preset-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-2);
+  gap: 2px;
+  padding: var(--space-3);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
   background-color: var(--secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -833,186 +239,148 @@ input:focus-visible + .toggle-slider {
   border-color: var(--indigo);
 }
 
-.preset-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  background-color: var(--card);
-  border-radius: var(--radius-full);
+.focus-preset-btn.selected {
+  background-color: var(--indigo-subtle);
+  border-color: var(--indigo);
   color: var(--indigo);
 }
 
-.preset-icon svg {
-  width: 20px;
-  height: 20px;
-}
-
 .preset-time {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 600;
-  color: var(--foreground);
-  line-height: 1;
+  line-height: 1.2;
 }
 
 .preset-label {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--muted-foreground);
 }
 
-.focus-today-stats {
-  text-align: center;
+.focus-preset-btn.selected .preset-label {
+  color: var(--indigo);
 }
 
-.focus-today-stats span {
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-}
-
-/* ============================================
-   Actions - Footer Buttons
-   ============================================ */
-
-.actions {
+.focus-start-row {
   display: flex;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  background-color: var(--background);
+  gap: var(--space-2);
+  align-items: center;
 }
 
-.actions .btn {
+.focus-start-row .btn {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-}
-
-.btn-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-}
-
-.btn-icon svg {
-  width: 16px;
-  height: 16px;
-}
-
-/* ============================================
-   Footer - Connection Status
-   ============================================ */
-
-.footer {
-  margin-top: auto;
-  padding: var(--space-3) var(--space-4);
-  background-color: var(--card);
-  border-top: 1px solid var(--border);
-}
-
-.connection-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-6);
-}
-
-.status-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--muted-foreground);
-  transition: color var(--transition-fast);
-}
-
-.status-item.connected {
-  color: var(--foreground);
-}
-
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.dot.connected {
-  background-color: var(--success);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
-}
-
-.dot.disconnected {
-  background-color: var(--border);
-}
-
-/* ============================================
-   Buttons - Unified Styles
-   ============================================ */
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
+  font-size: 0.9375rem;
   padding: var(--space-2) var(--space-4);
-  font-family: inherit;
+}
+
+/* Active focus session */
+.focus-active {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.focus-timer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.focus-phase-badge {
   font-size: 0.8125rem;
   font-weight: 600;
-  border: none;
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  transition: all var(--transition-fast);
+  padding: 4px 10px;
+  background-color: var(--indigo-subtle);
+  color: var(--indigo);
+  border-radius: var(--radius-full);
 }
 
-.btn-primary {
-  color: white;
-  background-color: var(--indigo);
+.focus-phase-badge.break {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: var(--success);
 }
 
-.btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+.focus-phase-badge.longBreak {
+  background-color: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
 }
 
-.btn-secondary {
+.focus-time {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--foreground);
-  background-color: var(--secondary);
-  border: 1px solid var(--border);
 }
 
-.btn-secondary:hover {
-  background-color: var(--accent);
+.focus-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.focus-actions .btn {
+  flex: 1;
+  font-size: 0.875rem;
+}
+
+/* Footer links */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+
+.footer-link {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.footer-link:hover {
+  color: var(--indigo);
+}
+
+.footer-sep {
+  font-size: 0.875rem;
+  color: var(--border);
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--indigo);
+  color: white;
   border-color: var(--indigo);
 }
 
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--indigo-hover);
+}
+
+.btn-secondary {
+  background-color: var(--secondary);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--accent);
+}
+
 .btn-danger {
-  color: #ef4444;
-  background-color: rgba(239, 68, 68, 0.1);
+  background-color: var(--destructive-subtle);
+  color: var(--destructive);
+  border-color: transparent;
 }
 
-.btn-danger:hover {
-  color: white;
-  background-color: #ef4444;
-}
-
-.btn-small {
-  padding: var(--space-1) var(--space-3);
-  font-size: 0.75rem;
-}
-
-/* ============================================
-   Utility Classes
-   ============================================ */
-
-.hidden {
-  display: none !important;
-}
-
-.broken {
-  opacity: 0.7;
+.btn-danger:hover:not(:disabled) {
+  background-color: var(--destructive);
+  color: var(--destructive-foreground);
 }

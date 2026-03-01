@@ -3,203 +3,79 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Focus Extension</title>
+  <title>Focus</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="popup">
-    <!-- Header -->
     <header class="header">
       <h1>Focus</h1>
-      <div class="header-right">
-        <div class="achievements-badge" id="achievements-badge" title="Achievements">
-          <span class="achievement-icon" id="achievement-icon"></span>
-          <span class="achievement-count" id="achievement-count">0/15</span>
-        </div>
-        <div class="level-badge" id="level-badge" title="Your level">
-          <span class="level-label">Lv.</span>
-          <span class="level-number" id="level-number">1</span>
-        </div>
-        <label class="toggle" id="main-toggle">
-          <input type="checkbox" id="enabled-toggle" checked>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
+      <label class="toggle" id="main-toggle">
+        <input type="checkbox" id="enabled-toggle" checked>
+        <span class="toggle-slider"></span>
+      </label>
     </header>
 
-    <!-- XP Progress -->
-    <div class="xp-bar-container" id="xp-bar-container">
-      <div class="xp-bar">
-        <div class="xp-fill" id="xp-fill" style="width: 0%"></div>
-      </div>
-      <div class="xp-text">
-        <span><span id="xp-current">0</span> / <span id="xp-next">100</span> XP</span>
-        <span class="level-name" id="level-name">Novice</span>
-      </div>
-    </div>
-
-    <!-- Status Bar -->
-    <div class="status-bar">
+    <div class="status" id="status">
       <span id="status-text">Blocking enabled</span>
       <span id="mode-badge" class="badge">Blocklist</span>
     </div>
 
-    <!-- Profile Switcher -->
-    <div class="profile-section" id="profile-switcher">
-      <div class="profile-header">
-        <span class="profile-label">Active Profile</span>
-      </div>
-      <div class="profile-dropdown" id="profile-dropdown">
-        <button class="profile-current" id="profile-current">
-          <span class="profile-icon" id="profile-icon">*</span>
-          <span class="profile-name" id="profile-name">Default</span>
-          <span class="profile-arrow">&#9660;</span>
-        </button>
-        <div class="profile-menu" id="profile-menu">
-          <!-- Profiles will be loaded dynamically -->
-        </div>
-      </div>
+    <div class="profile-row" id="profile-switcher">
+      <select id="profile-select" class="profile-select">
+        <!-- Profiles loaded dynamically -->
+      </select>
     </div>
 
-    <!-- Status Alerts (Schedule & Daily Limit) -->
-    <div class="status-alerts">
-      <!-- Schedule Status -->
-      <div class="status-alert" id="schedule-status" style="display: none;">
-        <div class="status-alert-icon" id="schedule-icon-wrapper">
-          <span id="schedule-icon"></span>
-        </div>
-        <div class="status-alert-content">
-          <span class="status-alert-title" id="schedule-text">Schedule active</span>
-          <span class="status-alert-detail" id="schedule-detail"></span>
-        </div>
-      </div>
-
-      <!-- Daily Limit Status -->
-      <div class="status-alert" id="daily-limit-status" style="display: none;">
-        <div class="status-alert-icon" id="daily-limit-icon-wrapper">
-          <span id="daily-limit-icon"></span>
-        </div>
-        <div class="status-alert-content">
-          <span class="status-alert-title" id="daily-limit-text">Daily limit</span>
-          <span class="status-alert-detail" id="daily-limit-detail"></span>
-        </div>
-      </div>
+    <div class="alerts" id="alerts">
+      <!-- Schedule / daily limit alerts shown when relevant -->
     </div>
 
-    <!-- Current Site -->
-    <div class="current-site-section" id="current-site-section">
-      <div class="current-site-header">
-        <span class="current-site-label">Current Site</span>
-        <span class="current-site-domain" id="current-domain">-</span>
+    <div class="current-site" id="current-site-section">
+      <div class="site-row">
+        <span class="site-label">Current site</span>
+        <span class="site-domain" id="current-domain">-</span>
       </div>
       <div class="site-actions">
-        <button id="block-site-btn" class="btn btn-danger btn-small" style="display: none;">Block Site</button>
-        <button id="unblock-site-btn" class="btn btn-primary btn-small" style="display: none;">Unblock Site</button>
+        <button id="block-site-btn" class="btn btn-small btn-danger" style="display: none;">Block</button>
+        <button id="unblock-site-btn" class="btn btn-small btn-primary" style="display: none;">Unblock</button>
       </div>
     </div>
 
-    <!-- Quick Stats -->
-    <div class="stats-section">
-      <div class="stats-grid">
-        <div class="stat-card">
-          <span class="stat-value" id="blocked-count">0</span>
-          <span class="stat-label">Blocked</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-value" id="allowed-count">0</span>
-          <span class="stat-label">Allowed</span>
-        </div>
-        <div class="stat-card streak-card">
-          <span class="stat-value" id="streak-count">0</span>
-          <span class="stat-label">Day Streak</span>
-        </div>
-      </div>
+    <div class="sessions-row" id="active-sessions" style="display: none;">
+      <span class="sessions-label" id="sessions-summary"></span>
+      <button id="end-session-btn" class="btn btn-tiny">End</button>
     </div>
 
-    <!-- Active Sessions -->
-    <div class="active-sessions" id="active-sessions" style="display: none;">
-      <div class="section-header">
-        <span class="section-title">Active Sessions</span>
-      </div>
-      <ul class="session-list" id="session-list"></ul>
-    </div>
-
-    <!-- Focus Session -->
-    <div class="focus-section" id="focus-session-section">
-      <div class="focus-header">
-        <span class="focus-title">Focus Session</span>
-      </div>
-      
-      <!-- Active Session Display -->
-      <div class="focus-active" id="focus-session-active" style="display: none;">
-        <div class="focus-timer-display">
-          <span class="focus-phase-badge" id="focus-phase">Work</span>
+    <div class="focus-section" id="focus-section">
+      <div class="focus-label">Focus session</div>
+      <div class="focus-active" id="focus-active" style="display: none;">
+        <div class="focus-timer-row">
+          <span class="focus-phase-badge" id="focus-phase">Focus</span>
           <span class="focus-time" id="focus-time">25:00</span>
         </div>
-        <div class="focus-progress-ring">
-          <div class="focus-progress-bar">
-            <div class="focus-progress-fill" id="focus-progress-fill" style="width: 0%"></div>
-          </div>
-        </div>
-        <div class="focus-meta">
-          <span id="focus-sessions-count">Session 1/4</span>
-        </div>
         <div class="focus-actions">
-          <button class="btn btn-secondary btn-small" id="skip-phase-btn">Skip</button>
-          <button class="btn btn-danger btn-small" id="stop-session-btn">Stop</button>
+          <button class="btn btn-secondary" id="skip-phase-btn">Skip</button>
+          <button class="btn btn-danger" id="stop-session-btn">Stop</button>
         </div>
       </div>
-      
-      <!-- Start Session Buttons -->
-      <div class="focus-start" id="focus-session-start">
-        <div class="focus-presets">
-          <button class="focus-preset-btn" data-type="pomodoro" title="25 min work / 5 min break">
-            <span class="preset-time">25</span>
-            <span class="preset-label">Pomodoro</span>
-          </button>
-          <button class="focus-preset-btn" data-type="short" title="15 min work / 3 min break">
-            <span class="preset-time">15</span>
-            <span class="preset-label">Short</span>
-          </button>
-          <button class="focus-preset-btn" data-type="long" title="50 min work / 10 min break">
-            <span class="preset-time">50</span>
-            <span class="preset-label">Long</span>
-          </button>
+      <div class="focus-start" id="focus-start">
+        <div class="focus-presets" id="focus-presets">
+          <!-- Preset buttons loaded dynamically -->
         </div>
-        <div class="focus-today-stats" id="focus-today-stats">
-          <span id="focus-today-text">0 sessions today</span>
+        <div class="focus-start-row">
+          <button class="btn btn-primary" id="start-focus-btn">Start</button>
         </div>
       </div>
     </div>
 
-    <!-- Actions -->
-    <div class="actions">
-      <button id="stats-btn" class="btn btn-secondary">
-        <span class="btn-icon" id="stats-btn-icon"></span>
-        Stats
-      </button>
-      <button id="settings-btn" class="btn btn-secondary">
-        <span class="btn-icon" id="settings-btn-icon"></span>
-        Settings
-      </button>
-    </div>
-
-    <!-- Footer -->
     <footer class="footer">
-      <div class="connection-status">
-        <span id="todoist-status" class="status-item">
-          <span class="dot disconnected"></span>
-          Todoist
-        </span>
-        <span id="calendar-status" class="status-item">
-          <span class="dot disconnected"></span>
-          Calendar
-        </span>
-      </div>
+      <button type="button" id="stats-link" class="footer-link">Stats</button>
+      <span class="footer-sep">·</span>
+      <button type="button" id="settings-link" class="footer-link">Settings</button>
     </footer>
   </div>
-  
-  <script src="../lib/icons.js"></script>
+
   <script src="popup.js" type="module"></script>
 </body>
 </html>
