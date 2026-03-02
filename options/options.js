@@ -110,9 +110,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load settings
   settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
   
-  // Store original settings for unsaved changes detection
-  originalSettingsJson = JSON.stringify(settings);
-  
   // Initialize UI
   await checkAuthStatus();
   populateSettings();
@@ -150,6 +147,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupSidebar();
   setupSearch();
   initializeSearchIcons();
+  
+  // Store original settings snapshot AFTER DOM is fully populated,
+  // so it matches the shape returned by gatherCurrentSettings()
+  originalSettingsJson = JSON.stringify(gatherCurrentSettings());
 });
 
 // =============================================================================
@@ -1463,7 +1464,7 @@ async function saveSettings() {
     
     // Reset unsaved changes tracking
     hasUnsavedChanges = false;
-    originalSettingsJson = JSON.stringify(settings);
+    originalSettingsJson = JSON.stringify(gatherCurrentSettings());
     
     // Show success animation
     showSaveSuccess();
