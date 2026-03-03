@@ -4589,7 +4589,7 @@ async function analyzeHistory(days = 7) {
   const startTime = endTime - (days * 24 * 60 * 60 * 1000);
   
   try {
-    // Get history items
+    // Get history items (returns unique URLs visited in the time range)
     const historyItems = await chrome.history.search({
       text: '',
       startTime,
@@ -4604,17 +4604,35 @@ async function analyzeHistory(days = 7) {
     const dailyStats = {};
     let totalVisits = 0;
     
-    for (const item of historyItems) {
-      if (!item.url) continue;
+    // For each URL, get the actual visits within the time range
+    // Process in batches to avoid overwhelming the API
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < historyItems.length; i += BATCH_SIZE) {
+      const batch = historyItems.slice(i, i + BATCH_SIZE);
+      const visitResults = await Promise.all(
+        batch.map(async (item) => {
+          if (!item.url) return null;
+          try {
+            const urlObj = new URL(item.url);
+            const domain = urlObj.hostname.replace(/^www\./, '');
+            if (domain.includes('chrome-extension') || domain.includes('chrome://')) return null;
+            
+            // Get individual visits for this URL, filtered to our time range
+            const visits = await chrome.history.getVisits({ url: item.url });
+            const rangeVisits = visits.filter(v => v.visitTime >= startTime && v.visitTime <= endTime);
+            
+            return { item, domain, visits: rangeVisits };
+          } catch (e) {
+            return null;
+          }
+        })
+      );
       
-      try {
-        const urlObj = new URL(item.url);
-        const domain = urlObj.hostname.replace(/^www\./, '');
+      for (const result of visitResults) {
+        if (!result || result.visits.length === 0) continue;
         
-        // Skip extension pages and chrome pages
-        if (domain.includes('chrome-extension') || domain.includes('chrome://')) continue;
-        
-        const visitCount = item.visitCount || 1;
+        const { domain, visits: rangeVisits } = result;
+        const visitCount = rangeVisits.length;
         totalVisits += visitCount;
         
         // Domain stats
@@ -4627,7 +4645,10 @@ async function analyzeHistory(days = 7) {
           };
         }
         domainStats[domain].visits += visitCount;
-        domainStats[domain].lastVisit = Math.max(domainStats[domain].lastVisit, item.lastVisitTime || 0);
+        domainStats[domain].lastVisit = Math.max(
+          domainStats[domain].lastVisit,
+          ...rangeVisits.map(v => v.visitTime)
+        );
         
         // Category stats
         const category = classifyDomain(domain);
@@ -4644,22 +4665,18 @@ async function analyzeHistory(days = 7) {
           categoryStats[category].uniqueDomains.add(domain);
         }
         
-        // Hourly distribution (based on last visit time)
-        if (item.lastVisitTime) {
-          const visitDate = new Date(item.lastVisitTime);
+        // Hourly and daily distribution using actual visit timestamps
+        for (const visit of rangeVisits) {
+          const visitDate = new Date(visit.visitTime);
           const hour = visitDate.getHours();
-          hourlyStats[hour] += visitCount;
+          hourlyStats[hour] += 1;
           
-          // Daily stats
           const dateKey = visitDate.toISOString().split('T')[0];
           if (!dailyStats[dateKey]) {
             dailyStats[dateKey] = 0;
           }
-          dailyStats[dateKey] += visitCount;
+          dailyStats[dateKey] += 1;
         }
-      } catch (e) {
-        // Skip invalid URLs
-        continue;
       }
     }
     
@@ -4873,28 +4890,45 @@ async function getBrowsingPatterns(days = 30) {
     const distractingCategories = ['socialMedia', 'entertainment', 'gaming', 'forums'];
     const distractingByDay = Array(7).fill(0);
     
-    for (const item of historyItems) {
-      if (!item.url || !item.lastVisitTime) continue;
+    // Process in batches to get accurate time-scoped visit counts
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < historyItems.length; i += BATCH_SIZE) {
+      const batch = historyItems.slice(i, i + BATCH_SIZE);
+      const visitResults = await Promise.all(
+        batch.map(async (item) => {
+          if (!item.url) return null;
+          try {
+            const urlObj = new URL(item.url);
+            const domain = urlObj.hostname.replace(/^www\./, '');
+            if (domain.includes('chrome-extension') || domain.includes('chrome://')) return null;
+            
+            const visits = await chrome.history.getVisits({ url: item.url });
+            const rangeVisits = visits.filter(v => v.visitTime >= startTime && v.visitTime <= endTime);
+            
+            return { domain, visits: rangeVisits };
+          } catch (e) {
+            return null;
+          }
+        })
+      );
       
-      try {
-        const urlObj = new URL(item.url);
-        const domain = urlObj.hostname.replace(/^www\./, '');
+      for (const result of visitResults) {
+        if (!result || result.visits.length === 0) continue;
         
-        if (domain.includes('chrome-extension') || domain.includes('chrome://')) continue;
-        
-        const visitDate = new Date(item.lastVisitTime);
-        const dayOfWeek = visitDate.getDay();
-        const visitCount = item.visitCount || 1;
-        
-        dayOfWeekStats[dayOfWeek].visits += visitCount;
-        dayOfWeekStats[dayOfWeek].domains.add(domain);
-        
+        const { domain, visits: rangeVisits } = result;
         const category = classifyDomain(domain);
-        if (category && distractingCategories.includes(category)) {
-          distractingByDay[dayOfWeek] += visitCount;
+        
+        for (const visit of rangeVisits) {
+          const visitDate = new Date(visit.visitTime);
+          const dayOfWeek = visitDate.getDay();
+          
+          dayOfWeekStats[dayOfWeek].visits += 1;
+          dayOfWeekStats[dayOfWeek].domains.add(domain);
+          
+          if (category && distractingCategories.includes(category)) {
+            distractingByDay[dayOfWeek] += 1;
+          }
         }
-      } catch (e) {
-        continue;
       }
     }
     
