@@ -749,11 +749,10 @@ async function updateBlockingRules() {
             action: {
               type: 'redirect',
               redirect: {
-                extensionPath: blockedPageExtensionPath
+                regexSubstitution: `${blockedPageUrl}?url=\\0`
               }
             },
             condition: {
-              // Match the full URL for this domain
               regexFilter: `^https?://(www\\.)?${escapedDomain}.*`,
               resourceTypes: ['main_frame']
             }
@@ -776,11 +775,10 @@ async function updateBlockingRules() {
               action: {
                 type: 'redirect',
                 redirect: {
-                  extensionPath: blockedPageExtensionPath
+                  regexSubstitution: `${blockedPageUrl}?url=\\0`
                 }
               },
               condition: {
-                // Match URLs containing the keyword (in path, query params, etc.)
                 regexFilter: `^https?://.*${escapedKeyword}.*`,
                 isUrlFilterCaseSensitive: keywordObj.caseSensitive || false,
                 resourceTypes: ['main_frame']
@@ -803,13 +801,12 @@ async function updateBlockingRules() {
           action: {
             type: 'redirect',
             redirect: {
-              extensionPath: blockedPageExtensionPath
+              regexSubstitution: `${blockedPageUrl}?url=\\0`
             }
           },
           condition: {
-            urlFilter: '|http',
+            regexFilter: '^https?://.*',
             resourceTypes: ['main_frame'],
-            // Exclude extension pages and allowed sites
             excludedInitiatorDomains: ['chrome-extension']
           }
         });
