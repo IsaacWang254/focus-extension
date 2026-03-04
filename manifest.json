@@ -3,6 +3,7 @@
   "name": "Focus Extension",
   "version": "1.0.0",
   "description": "Block distracting websites and display your Todoist todos instead. Stay focused and productive.",
+  "incognito": "split",
   
   "permissions": [
     "declarativeNetRequest",
@@ -68,7 +69,7 @@
   
   "web_accessible_resources": [
     {
-      "resources": ["blocked/blocked.html", "blocked/blocked.css", "blocked/blocked.js", "lib/todoist.js", "stats/stats.html", "stats/stats.css", "stats/stats.js", "newtab/newtab.html", "newtab/newtab.css", "newtab/newtab.js", "newtab/quotes.js"],
+      "resources": ["blocked/blocked.html", "blocked/blocked.css", "blocked/blocked.js", "lib/todoist.js", "lib/icons.js", "lib/common.css", "stats/stats.html", "stats/stats.css", "stats/stats.js", "newtab/newtab.html", "newtab/newtab.css", "newtab/newtab.js", "newtab/quotes.js"],
       "matches": ["<all_urls>"]
     }
   ]

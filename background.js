@@ -649,6 +649,9 @@ async function updateBlockingRules() {
   
   try {
     const settings = await getSettings();
+    const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
+    const blockedPageExtensionPath = '/blocked/blocked.html';
+    const escapedBlockedPageUrl = blockedPageUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     
     // Get temporary unblocks to exclude from blocking
     const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
@@ -683,8 +686,18 @@ async function updateBlockingRules() {
     // Note: Schedule controls whether unblock methods are available on the blocked page,
     // not whether blocking happens. Sites are always blocked when schedule is enabled.
     if (settings.enabled && !onBreak) {
-      // Get the blocked page URL
-      const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
+      // Always allow our own blocked page to avoid self-blocking loops
+      newRules.push({
+        id: ruleId++,
+        priority: 100,
+        action: {
+          type: 'allow'
+        },
+        condition: {
+          regexFilter: `^${escapedBlockedPageUrl}(\\?.*)?$`,
+          resourceTypes: ['main_frame']
+        }
+      });
       
       if (settings.mode === 'blocklist') {
         // First, add allow rules for whitelisted URLs (higher priority)
@@ -726,7 +739,7 @@ async function updateBlockingRules() {
             continue;
           }
           
-          // Use regexFilter to capture the full URL and pass it to the blocked page
+          // Redirect to blocked page with known blocked domain (safer than full URL substitution)
           // Escape dots in domain for regex
           const escapedDomain = domain.replace(/\./g, '\\.');
           
@@ -736,8 +749,7 @@ async function updateBlockingRules() {
             action: {
               type: 'redirect',
               redirect: {
-                // Use regexSubstitution to pass the full original URL
-                regexSubstitution: `${blockedPageUrl}?url=\\0`
+                extensionPath: blockedPageExtensionPath
               }
             },
             condition: {
@@ -764,7 +776,7 @@ async function updateBlockingRules() {
               action: {
                 type: 'redirect',
                 redirect: {
-                  regexSubstitution: `${blockedPageUrl}?url=\\0&keyword=${encodeURIComponent(keywordObj.keyword)}`
+                  extensionPath: blockedPageExtensionPath
                 }
               },
               condition: {
@@ -791,7 +803,7 @@ async function updateBlockingRules() {
           action: {
             type: 'redirect',
             redirect: {
-              url: `${blockedPageUrl}?url=all`
+              extensionPath: blockedPageExtensionPath
             }
           },
           condition: {

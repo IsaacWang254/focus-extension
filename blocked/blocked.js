@@ -28,6 +28,42 @@ let currentRandomPhrase = '';
 let currentReason = ''; // Store the reason for unblocking
 let earnedTimeInfo = null; // Store earned time info
 
+function getIcon(name, fallback = '') {
+  if (typeof Icons !== 'undefined' && Icons && Icons[name]) {
+    return Icons[name];
+  }
+
+  return fallback;
+}
+
+function showInitializationFallback(error) {
+  console.error('Blocked page initialization failed:', error);
+
+  const domainEl = document.getElementById('blocked-domain');
+  if (domainEl) {
+    domainEl.textContent = blockedDomain || 'this site';
+  }
+
+  const authSection = document.getElementById('auth-required');
+  const authMessage = authSection?.querySelector('.auth-message');
+  if (authSection && authMessage) {
+    authSection.style.display = 'block';
+    authMessage.innerHTML = `
+      <h2>Site blocked in incognito</h2>
+      <p>Focus blocked this site, but the page UI failed to load fully. Please reload this tab or open extension settings.</p>
+      <button id="fallback-open-settings" class="btn btn-primary">Open Settings</button>
+    `;
+    document.getElementById('fallback-open-settings')?.addEventListener('click', () => {
+      chrome.runtime.openOptionsPage();
+    });
+  }
+
+  const unblockButton = document.getElementById('unblock-button');
+  if (unblockButton) {
+    unblockButton.disabled = true;
+  }
+}
+
 // =============================================================================
 // TOAST NOTIFICATIONS
 // =============================================================================
@@ -48,16 +84,16 @@ function showToast(message, type = 'success', duration = 3000) {
   let icon = '';
   switch (type) {
     case 'success':
-      icon = Icons.check;
+      icon = getIcon('check', '✓');
       break;
     case 'warning':
-      icon = Icons.alertTriangle;
+      icon = getIcon('alertTriangle', '!');
       break;
     case 'error':
-      icon = Icons.x;
+      icon = getIcon('x', '✕');
       break;
     default:
-      icon = Icons.info;
+      icon = getIcon('info', 'i');
   }
   
   toast.innerHTML = `
@@ -84,17 +120,17 @@ function initializeIcons() {
   // Theme toggle icons
   const themeIconLight = document.getElementById('theme-icon-light');
   const themeIconDark = document.getElementById('theme-icon-dark');
-  if (themeIconLight) themeIconLight.innerHTML = Icons.sun;
-  if (themeIconDark) themeIconDark.innerHTML = Icons.moon;
+  if (themeIconLight) themeIconLight.innerHTML = getIcon('sun', '☀');
+  if (themeIconDark) themeIconDark.innerHTML = getIcon('moon', '◐');
   
   // Unblock method icons
   const methodIcons = {
-    'method-timer-icon': Icons.timer,
-    'method-todo-icon': Icons.check,
-    'method-phrase-icon': Icons.pencil,
-    'method-math-icon': Icons.plus,
-    'method-password-icon': Icons.lock,
-    'method-reason-icon': Icons.messageCircle
+    'method-timer-icon': getIcon('timer', '⏱'),
+    'method-todo-icon': getIcon('check', '✓'),
+    'method-phrase-icon': getIcon('pencil', '✎'),
+    'method-math-icon': getIcon('plus', '+'),
+    'method-password-icon': getIcon('lock', 'P'),
+    'method-reason-icon': getIcon('messageCircle', 'R')
   };
   
   for (const [id, icon] of Object.entries(methodIcons)) {
@@ -108,71 +144,85 @@ function initializeIcons() {
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Initialize SVG icons first
-  initializeIcons();
-  
-  // Load theme first to avoid flash
-  await loadTheme();
-  
-  // Setup theme toggle
-  setupThemeToggle();
-  
-  // Load and display motivational quote
-  await loadQuote();
-  
-  // Parse the blocked URL from query params
-  const params = new URLSearchParams(window.location.search);
-  originalUrl = params.get('url') || '';
-  
-  // Extract domain from the full URL for display
   try {
-    if (originalUrl.startsWith('http')) {
-      const urlObj = new URL(originalUrl);
-      blockedDomain = urlObj.hostname.replace(/^www\./, '');
-    } else {
-      blockedDomain = originalUrl;
+    // Initialize SVG icons first
+    initializeIcons();
+    
+    // Load theme first to avoid flash
+    await loadTheme();
+    
+    // Setup theme toggle
+    setupThemeToggle();
+    
+    // Load and display motivational quote
+    await loadQuote();
+    
+    // Parse the blocked URL from query params
+    const params = new URLSearchParams(window.location.search);
+    originalUrl = params.get('url') || '';
+    const fallbackDomain = params.get('domain') || '';
+    const referrerUrl = document.referrer || '';
+    
+    // Extract domain from the full URL for display
+    try {
+      if (originalUrl.startsWith('http')) {
+        const urlObj = new URL(originalUrl);
+        blockedDomain = urlObj.hostname.replace(/^www\./, '');
+      } else if (referrerUrl.startsWith('http')) {
+        const referrerObj = new URL(referrerUrl);
+        blockedDomain = referrerObj.hostname.replace(/^www\./, '');
+      } else if (fallbackDomain) {
+        blockedDomain = fallbackDomain;
+      } else {
+        blockedDomain = originalUrl;
+      }
+    } catch {
+      blockedDomain = originalUrl || 'unknown site';
     }
-  } catch {
-    blockedDomain = originalUrl || 'unknown site';
+    
+    // Display blocked domain
+    document.getElementById('blocked-domain').textContent = blockedDomain;
+    
+    // Track this block attempt for achievements
+    try {
+      await chrome.runtime.sendMessage({ type: 'TRACK_BLOCK_ATTEMPT' });
+    } catch (e) {
+      // Silently ignore - non-critical for page functionality
+    }
+    
+    // Load settings
+    settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
+    if (!settings || settings.error) {
+      throw new Error(settings?.error || 'Failed to load settings');
+    }
+    
+    // Update schedule info card
+    updateScheduleInfoCard();
+    
+    // Update daily limit info card
+    await updateDailyLimitInfoCard();
+    
+    // Update earned time info card
+    await updateEarnedTimeInfoCard();
+    
+    // Check authentication and load todos
+    const isAuthenticated = await todoist.isAuthenticated();
+    
+    if (isAuthenticated) {
+      showTodosSection();
+      loadTodos();
+    } else {
+      showAuthSection();
+    }
+    
+    // Setup unblock methods
+    await setupUnblockMethods();
+    
+    // Setup event listeners
+    setupEventListeners();
+  } catch (error) {
+    showInitializationFallback(error);
   }
-  
-  // Display blocked domain
-  document.getElementById('blocked-domain').textContent = blockedDomain;
-  
-  // Track this block attempt for achievements
-  try {
-    await chrome.runtime.sendMessage({ type: 'TRACK_BLOCK_ATTEMPT' });
-  } catch (e) {
-    // Silently ignore - non-critical for page functionality
-  }
-  
-  // Load settings
-  settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
-  
-  // Update schedule info card
-  updateScheduleInfoCard();
-  
-  // Update daily limit info card
-  await updateDailyLimitInfoCard();
-  
-  // Update earned time info card
-  await updateEarnedTimeInfoCard();
-  
-  // Check authentication and load todos
-  const isAuthenticated = await todoist.isAuthenticated();
-  
-  if (isAuthenticated) {
-    showTodosSection();
-    loadTodos();
-  } else {
-    showAuthSection();
-  }
-  
-  // Setup unblock methods
-  await setupUnblockMethods();
-  
-  // Setup event listeners
-  setupEventListeners();
 });
 
 // =============================================================================
@@ -668,7 +718,7 @@ function updateScheduleInfoCard() {
   if (!isActiveDay) {
     // Not an active day - no restrictions, show info card
     container.style.display = 'block';
-    if (iconEl) iconEl.innerHTML = Icons.checkCircle;
+    if (iconEl) iconEl.innerHTML = getIcon('checkCircle', '✓');
     if (statusEl) statusEl.textContent = 'Schedule paused today';
     const nextDayText = getNextActiveDayText(schedule);
     if (detailEl) detailEl.textContent = nextDayText || 'Resumes on next active day';
@@ -681,7 +731,7 @@ function updateScheduleInfoCard() {
   if (canUnblock) {
     // In allowed window - show info card
     container.style.display = 'block';
-    if (iconEl) iconEl.innerHTML = Icons.checkCircle;
+    if (iconEl) iconEl.innerHTML = getIcon('checkCircle', '✓');
     if (statusEl) statusEl.textContent = 'Unblock methods available';
     if (detailEl) detailEl.textContent = getWindowEndText(schedule);
     container.classList.add('allowed');
@@ -787,14 +837,14 @@ async function updateDailyLimitInfoCard() {
   
   if (usageInfo.exceeded) {
     // Daily limit exceeded
-    if (iconEl) iconEl.innerHTML = Icons.clock;
+    if (iconEl) iconEl.innerHTML = getIcon('clock', '⏱');
     if (statusEl) statusEl.textContent = 'Daily limit reached';
     if (detailEl) detailEl.textContent = `${usageInfo.usedMinutes} / ${usageInfo.limitMinutes} min used`;
     container.classList.remove('available');
     container.classList.add('exceeded');
   } else {
     // Daily limit not exceeded, show remaining
-    if (iconEl) iconEl.innerHTML = Icons.clock;
+    if (iconEl) iconEl.innerHTML = getIcon('clock', '⏱');
     if (statusEl) statusEl.textContent = `${usageInfo.remainingMinutes} min remaining today`;
     if (detailEl) detailEl.textContent = `${usageInfo.usedMinutes} / ${usageInfo.limitMinutes} min used`;
     container.classList.remove('exceeded');
@@ -828,21 +878,21 @@ async function updateEarnedTimeInfoCard() {
   
   if (earnedTimeInfo.requireTasksToUnlock && earnedTimeInfo.minutes <= 0) {
     // No earned time and it's required
-    if (iconEl) iconEl.innerHTML = Icons.zap;
+    if (iconEl) iconEl.innerHTML = getIcon('zap', '⚡');
     if (statusEl) statusEl.textContent = 'No earned time';
     if (detailEl) detailEl.textContent = `Complete tasks to earn ${earnedTimeInfo.minutesPerTask} min each`;
     container.classList.remove('available');
     container.classList.add('empty');
   } else if (earnedTimeInfo.minutes > 0) {
     // Has earned time
-    if (iconEl) iconEl.innerHTML = Icons.zap;
+    if (iconEl) iconEl.innerHTML = getIcon('zap', '⚡');
     if (statusEl) statusEl.textContent = `${earnedTimeInfo.minutes} min earned`;
     if (detailEl) detailEl.textContent = `${earnedTimeInfo.tasksCompleted} tasks completed`;
     container.classList.remove('empty');
     container.classList.add('available');
   } else {
     // Earned time enabled but not required, bank is empty
-    if (iconEl) iconEl.innerHTML = Icons.zap;
+    if (iconEl) iconEl.innerHTML = getIcon('zap', '⚡');
     if (statusEl) statusEl.textContent = 'Earn bonus time';
     if (detailEl) detailEl.textContent = `Complete tasks to earn ${earnedTimeInfo.minutesPerTask} min each`;
     container.classList.remove('empty', 'available');

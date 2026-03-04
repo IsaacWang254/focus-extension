@@ -126,9 +126,57 @@ function updateSiteActions() {
 // ALERTS (Schedule & Daily Limit)
 // =============================================================================
 
+async function isIncognitoAccessAllowed() {
+  if (!chrome.extension || typeof chrome.extension.isAllowedIncognitoAccess !== 'function') {
+    return true;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      chrome.extension.isAllowedIncognitoAccess((isAllowedAccess) => {
+        if (chrome.runtime.lastError) {
+          console.warn('Failed to check incognito access:', chrome.runtime.lastError.message);
+          resolve(true);
+          return;
+        }
+
+        resolve(Boolean(isAllowedAccess));
+      });
+    } catch (e) {
+      console.warn('Incognito access check unavailable:', e);
+      resolve(true);
+    }
+  });
+}
+
+function renderIncognitoAlert(container) {
+  const el = document.createElement('div');
+  el.className = 'alert-item incognito-alert';
+  el.innerHTML = `
+    <span class="incognito-alert-text">Enable "Allow in Incognito" so your blocks apply in private windows too.</span>
+    <button type="button" class="btn btn-small btn-secondary incognito-alert-btn">Enable</button>
+  `;
+
+  const button = el.querySelector('.incognito-alert-btn');
+  button?.addEventListener('click', async () => {
+    try {
+      await chrome.tabs.create({ url: `chrome://extensions/?id=${chrome.runtime.id}` });
+    } catch (e) {
+      console.error('Failed to open extension settings:', e);
+    }
+  });
+
+  container.appendChild(el);
+}
+
 async function loadAlerts() {
   const container = document.getElementById('alerts');
   container.innerHTML = '';
+
+  const incognitoAllowed = await isIncognitoAccessAllowed();
+  if (!incognitoAllowed) {
+    renderIncognitoAlert(container);
+  }
 
   // Schedule status
   if (settings.schedule?.enabled) {
