@@ -263,6 +263,7 @@
   font-size: 18px;
 }
 
+
 [data-theme="brutalist"] .btn,
 [data-theme="brutalist"] .btn-primary,
 [data-theme="brutalist"] .btn-secondary,
@@ -494,15 +495,36 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not(.light) ::selection {
+  :root:not([data-theme="light"]):not(.light):not([data-theme="brutalist"]):not([data-theme="brutalist-dark"]) ::selection {
     background-color: rgba(99, 102, 241, 0.4);
     color: var(--foreground);
   }
 
-  :root:not([data-theme="light"]):not(.light) ::-moz-selection {
+  :root:not([data-theme="light"]):not(.light):not([data-theme="brutalist"]):not([data-theme="brutalist-dark"]) ::-moz-selection {
     background-color: rgba(99, 102, 241, 0.4);
     color: var(--foreground);
   }
+}
+
+/* Monospace theme text selection — inverted */
+[data-theme="brutalist"] ::selection {
+  background: #111111;
+  color: #ffffff;
+}
+
+[data-theme="brutalist"] ::-moz-selection {
+  background: #111111;
+  color: #ffffff;
+}
+
+[data-theme="brutalist-dark"] ::selection {
+  background: #ffffff;
+  color: #111111;
+}
+
+[data-theme="brutalist-dark"] ::-moz-selection {
+  background: #ffffff;
+  color: #111111;
 }
 
 /* Firefox */
