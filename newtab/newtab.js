@@ -59,13 +59,15 @@ let completedToday = [];
 // =============================================================================
 
 async function loadTheme() {
-  const result = await chrome.storage.local.get('theme');
-  let theme = result.theme;
-  if (!theme) {
-    theme = 'light';
+  const result = await chrome.storage.local.get(['theme', 'brutalistEnabled']);
+  let base = result.theme;
+  const brutalist = result.brutalistEnabled || false;
+  if (!base) {
+    base = 'light';
     await chrome.storage.local.set({ theme: 'light' });
   }
-  document.documentElement.setAttribute('data-theme', theme);
+  const resolved = brutalist ? (base === 'dark' ? 'brutalist-dark' : 'brutalist') : base;
+  document.documentElement.setAttribute('data-theme', resolved);
 }
 
 function getCurrentTheme() {
@@ -73,17 +75,27 @@ function getCurrentTheme() {
 }
 
 function getBgStorageKey() {
-  return getCurrentTheme() === 'dark' ? 'newtabBgColorDark' : 'newtabBgColorLight';
+  const theme = getCurrentTheme();
+  return (theme === 'dark' || theme === 'brutalist-dark') ? 'newtabBgColorDark' : 'newtabBgColorLight';
 }
 
 function setupThemeToggle() {
   const toggle = document.getElementById('theme-toggle');
   toggle.addEventListener('click', async () => {
     const root = document.documentElement;
-    const currentTheme = root.getAttribute('data-theme') || 'light';
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    root.setAttribute('data-theme', newTheme);
-    await chrome.storage.local.set({ theme: newTheme });
+
+    // Read storage to get base theme and brutalist state
+    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled']);
+    const currentBase = result.theme || 'light';
+    const brutalist = result.brutalistEnabled || false;
+
+    // Toggle the base theme
+    const newBase = currentBase === 'dark' ? 'light' : 'dark';
+
+    // Resolve the actual data-theme value
+    const resolved = brutalist ? (newBase === 'dark' ? 'brutalist-dark' : 'brutalist') : newBase;
+    root.setAttribute('data-theme', resolved);
+    await chrome.storage.local.set({ theme: newBase });
 
     // Refresh background color for the new theme
     await refreshBgColor();
@@ -167,10 +179,10 @@ function loadQuote() {
  */
 function getWeatherInfo(code, isDay) {
   const map = {
-    0:  { icon: isDay ? 'sun' : 'moon', desc: 'Clear' },
-    1:  { icon: isDay ? 'partlyCloudy' : 'moon', desc: 'Mostly clear' },
-    2:  { icon: 'partlyCloudy', desc: 'Partly cloudy' },
-    3:  { icon: 'cloud', desc: 'Overcast' },
+    0: { icon: isDay ? 'sun' : 'moon', desc: 'Clear' },
+    1: { icon: isDay ? 'partlyCloudy' : 'moon', desc: 'Mostly clear' },
+    2: { icon: 'partlyCloudy', desc: 'Partly cloudy' },
+    3: { icon: 'cloud', desc: 'Overcast' },
     45: { icon: 'cloudFog', desc: 'Fog' },
     48: { icon: 'cloudFog', desc: 'Rime fog' },
     51: { icon: 'cloudRain', desc: 'Light drizzle' },
@@ -421,7 +433,8 @@ function applyBgColor(color) {
 function renderSwatches(selectedColor) {
   const container = document.getElementById('color-swatches');
   const theme = getCurrentTheme();
-  const presets = BG_PRESETS[theme] || BG_PRESETS.light;
+  const presetKey = (theme === 'dark' || theme === 'brutalist-dark') ? 'dark' : 'light';
+  const presets = BG_PRESETS[presetKey] || BG_PRESETS.light;
 
   container.innerHTML = '';
 

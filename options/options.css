@@ -262,7 +262,7 @@ input.search-input {
 }
 
 /* Hide shortcut when clear button is visible */
-.search-actions .search-clear:not(.hidden) + .search-shortcut {
+.search-actions .search-clear:not(.hidden)+.search-shortcut {
   display: none;
 }
 
@@ -306,6 +306,7 @@ input.search-input {
 }
 
 @media (prefers-color-scheme: dark) {
+
   :root:not([data-theme="light"]):not(.light) .search-icon,
   :root:not([data-theme="light"]):not(.light) .search-clear {
     color: var(--foreground);
@@ -355,6 +356,7 @@ input.search-input {
 }
 
 @media (prefers-color-scheme: dark) {
+
   :root:not([data-theme="light"]):not(.light) .search-result-item:hover,
   :root:not([data-theme="light"]):not(.light) .search-result-item.selected {
     background-color: rgba(99, 102, 241, 0.25);
@@ -1242,16 +1244,16 @@ input.search-input {
   background-color: var(--accent);
 }
 
-.custom-checkbox input:checked + .checkbox-box {
+.custom-checkbox input:checked+.checkbox-box {
   background-color: var(--indigo);
   border-color: var(--indigo);
 }
 
-.custom-checkbox input:checked + .checkbox-box::after {
+.custom-checkbox input:checked+.checkbox-box::after {
   display: block;
 }
 
-.custom-checkbox input:focus-visible + .checkbox-box {
+.custom-checkbox input:focus-visible+.checkbox-box {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
@@ -1422,7 +1424,7 @@ input.search-input {
   color: var(--secondary-foreground);
 }
 
-.preset-field > span:first-child {
+.preset-field>span:first-child {
   color: var(--secondary-foreground);
   font-weight: 500;
 }
@@ -1748,9 +1750,12 @@ input.search-input {
 }
 
 @keyframes nuclear-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
   }
+
   50% {
     box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
   }
@@ -2553,17 +2558,10 @@ input.search-input {
   background-color: var(--accent);
 }
 
-.calendar-event.event-focus {
-  border-left-color: var(--indigo);
-}
-
-.calendar-event.event-break {
-  border-left-color: var(--success);
-}
+/* Event border colors now come from inline styles (Google Calendar colors) */
 
 .calendar-event.event-current {
   background-color: var(--indigo-subtle);
-  border-left-color: var(--indigo);
 }
 
 .calendar-event-time {
@@ -2727,8 +2725,11 @@ input.search-input {
 }
 
 .calendar-color-dot {
+  display: inline-block;
   width: 12px;
   height: 12px;
+  min-width: 12px;
+  min-height: 12px;
   border-radius: var(--radius-full);
   flex-shrink: 0;
 }
@@ -3085,8 +3086,13 @@ input.search-input {
 }
 
 @keyframes spotlightFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .spotlight-container {
@@ -3106,6 +3112,7 @@ input.search-input {
     opacity: 0;
     transform: scale(0.95) translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
@@ -3188,6 +3195,7 @@ input.search-input {
 }
 
 @media (prefers-color-scheme: dark) {
+
   :root:not([data-theme="light"]):not(.light) .spotlight-result-item:hover,
   :root:not([data-theme="light"]):not(.light) .spotlight-result-item.selected {
     background-color: rgba(99, 102, 241, 0.25);

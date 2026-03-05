@@ -1,18 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Focus Extension - Settings</title>
   <link rel="stylesheet" href="options.css">
 </head>
+
 <body>
   <!-- Sidebar Navigation -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <span class="sidebar-title">Settings</span>
       <button class="sidebar-close" id="sidebar-close" title="Close sidebar">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
@@ -21,10 +24,13 @@
     <nav class="sidebar-nav" id="sidebar-nav">
       <div class="sidebar-group">
         <div class="sidebar-group-label">Blocking</div>
-        <a href="#section-blocking-mode" class="sidebar-link active" data-section="section-blocking-mode">Blocking Mode</a>
+        <a href="#section-blocking-mode" class="sidebar-link active" data-section="section-blocking-mode">Blocking
+          Mode</a>
         <a href="#section-blocked-sites" class="sidebar-link" data-section="section-blocked-sites">Blocked Sites</a>
-        <a href="#section-allowed-sites" class="sidebar-link hidden" data-section="section-allowed-sites">Allowed Sites</a>
-        <a href="#section-unblock-methods" class="sidebar-link" data-section="section-unblock-methods">Unblock Methods</a>
+        <a href="#section-allowed-sites" class="sidebar-link hidden" data-section="section-allowed-sites">Allowed
+          Sites</a>
+        <a href="#section-unblock-methods" class="sidebar-link" data-section="section-unblock-methods">Unblock
+          Methods</a>
       </div>
       <div class="sidebar-group">
         <div class="sidebar-group-label">Filters</div>
@@ -45,6 +51,10 @@
         <a href="#section-calendar" class="sidebar-link" data-section="section-calendar">Google Calendar</a>
       </div>
       <div class="sidebar-group">
+        <div class="sidebar-group-label">Appearance</div>
+        <a href="#section-appearance" class="sidebar-link" data-section="section-appearance">Theme</a>
+      </div>
+      <div class="sidebar-group">
         <div class="sidebar-group-label">Other</div>
         <a href="#section-privacy" class="sidebar-link" data-section="section-privacy">Privacy Settings</a>
         <a href="#section-data-backup" class="sidebar-link" data-section="section-data-backup">Data Backup</a>
@@ -59,7 +69,8 @@
         <div class="header-row">
           <div class="header-left">
             <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
                 <line x1="3" y1="6" x2="21" y2="6"></line>
                 <line x1="3" y1="18" x2="21" y2="18"></line>
@@ -76,7 +87,8 @@
               <input type="text" id="settings-search" class="search-input" placeholder="Search...">
               <div class="search-actions">
                 <button class="search-clear hidden" id="search-clear" title="Clear search">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                   </svg>
@@ -99,1240 +111,1311 @@
       </div>
 
       <!-- Blocking Mode -->
-      <section id="section-blocking-mode" class="section" data-search-keywords="blocking mode blocklist allowlist block allow">
+      <section id="section-blocking-mode" class="section"
+        data-search-keywords="blocking mode blocklist allowlist block allow">
         <h2>Blocking Mode</h2>
-      <div class="mode-toggle">
-        <label class="radio-card">
-          <input type="radio" name="mode" value="blocklist" checked>
-          <div class="radio-content">
-            <span class="radio-title">Blocklist Mode</span>
-            <span class="radio-desc">Only block specific sites you add</span>
+        <div class="mode-toggle">
+          <label class="radio-card">
+            <input type="radio" name="mode" value="blocklist" checked>
+            <div class="radio-content">
+              <span class="radio-title">Blocklist Mode</span>
+              <span class="radio-desc">Only block specific sites you add</span>
+            </div>
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="mode" value="allowlist">
+            <div class="radio-content">
+              <span class="radio-title">Allowlist Mode</span>
+              <span class="radio-desc">Block everything except sites you allow</span>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <!-- Blocked Sites -->
+      <section id="section-blocked-sites" class="section"
+        data-search-keywords="blocked sites domains websites block list">
+        <h2>Blocked Sites</h2>
+        <p class="section-desc">Sites that will show the focus page when visited</p>
+
+        <div class="site-input-group">
+          <input type="text" id="blocked-site-input" class="input"
+            placeholder="Add or search domains (e.g., twitter.com)" autocomplete="off">
+          <button id="add-blocked-btn" class="btn btn-primary">Add Site</button>
+        </div>
+
+        <ul id="blocked-sites-list" class="site-list"></ul>
+      </section>
+
+      <!-- Allowed Sites -->
+      <section id="section-allowed-sites" class="section" style="display: none;"
+        data-search-keywords="allowed sites whitelist allowlist permit">
+        <h2>Allowed Sites</h2>
+        <p class="section-desc">Sites that won't be blocked in allowlist mode</p>
+
+        <div class="site-input-group">
+          <input type="text" id="allowed-site-input" class="input" placeholder="Enter domain (e.g., google.com)">
+          <button id="add-allowed-btn" class="btn btn-primary">Add Site</button>
+        </div>
+
+        <ul id="allowed-sites-list" class="site-list"></ul>
+      </section>
+
+      <!-- Unblock Methods -->
+      <section id="section-unblock-methods" class="section"
+        data-search-keywords="unblock methods timer todo task phrase math password reason challenge unlock access time limit earned">
+        <div class="section-header-row">
+          <div>
+            <h2>Unblock Methods</h2>
+            <p class="section-desc">Configure how users can unblock sites</p>
           </div>
-        </label>
-        <label class="radio-card">
-          <input type="radio" name="mode" value="allowlist">
-          <div class="radio-content">
-            <span class="radio-title">Allowlist Mode</span>
-            <span class="radio-desc">Block everything except sites you allow</span>
-          </div>
-        </label>
-      </div>
-    </section>
+          <span class="profile-indicator" id="unblock-profile-indicator"></span>
+        </div>
 
-    <!-- Blocked Sites -->
-    <section id="section-blocked-sites" class="section" data-search-keywords="blocked sites domains websites block list">
-      <h2>Blocked Sites</h2>
-      <p class="section-desc">Sites that will show the focus page when visited</p>
-      
-      <div class="site-input-group">
-        <input type="text" id="blocked-site-input" class="input" placeholder="Add or search domains (e.g., twitter.com)" autocomplete="off">
-        <button id="add-blocked-btn" class="btn btn-primary">Add Site</button>
-      </div>
-      
-      <ul id="blocked-sites-list" class="site-list"></ul>
-    </section>
-
-    <!-- Allowed Sites -->
-    <section id="section-allowed-sites" class="section" style="display: none;" data-search-keywords="allowed sites whitelist allowlist permit">
-      <h2>Allowed Sites</h2>
-      <p class="section-desc">Sites that won't be blocked in allowlist mode</p>
-      
-      <div class="site-input-group">
-        <input type="text" id="allowed-site-input" class="input" placeholder="Enter domain (e.g., google.com)">
-        <button id="add-allowed-btn" class="btn btn-primary">Add Site</button>
-      </div>
-      
-      <ul id="allowed-sites-list" class="site-list"></ul>
-    </section>
-
-    <!-- Unblock Methods -->
-    <section id="section-unblock-methods" class="section" data-search-keywords="unblock methods timer todo task phrase math password reason challenge unlock access time limit earned">
-      <div class="section-header-row">
-        <div>
-          <h2>Unblock Methods</h2>
-          <p class="section-desc">Configure how users can unblock sites</p>
-        </div>
-        <span class="profile-indicator" id="unblock-profile-indicator"></span>
-      </div>
-      
-      <!-- Require All or Any -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <span class="setting-label">Method Requirement</span>
-          <span class="setting-desc">Choose whether all methods or just one must be completed</span>
-        </div>
-        <select id="require-mode" class="select select-compact">
-          <option value="any">Any one method (easier)</option>
-          <option value="all">All enabled methods (stricter)</option>
-        </select>
-      </div>
-      
-      <hr class="divider">
-      
-      <!-- Allow Unlimited Time -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <span class="setting-label">Allow Unlimited Time</span>
-          <span class="setting-desc">Show an "Unlimited" option when selecting access time</span>
-        </div>
-        <label class="toggle">
-          <input type="checkbox" id="allow-unlimited">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      
-      <hr class="divider">
-      
-      <!-- Inactivity Timeout -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <span class="setting-label">Inactivity Auto-Block</span>
-          <span class="setting-desc">Re-block sites after switching away for this many minutes (0 = disabled)</span>
-        </div>
-        <input type="number" id="inactivity-timeout" class="input input-small" min="0" max="60" value="5">
-      </div>
-      
-      <hr class="divider">
-      
-      <!-- Daily Limit -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <span class="setting-label">Daily Time Limit</span>
-          <span class="setting-desc">Limit total time spent on blocked sites per day</span>
-        </div>
-        <label class="toggle">
-          <input type="checkbox" id="daily-limit-enabled">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      
-      <div id="daily-limit-options" class="sub-options hidden">
-        <div class="setting-row sub-setting">
+        <!-- Require All or Any -->
+        <div class="setting-row">
           <div class="setting-info">
-            <span class="setting-label">Minutes per day</span>
-            <span class="setting-desc">Total allowed time on blocked sites each day</span>
+            <span class="setting-label">Method Requirement</span>
+            <span class="setting-desc">Choose whether all methods or just one must be completed</span>
           </div>
-          <div class="setting-controls">
-            <input type="number" id="daily-limit-minutes" class="input input-small" min="1" max="480" value="30">
-            <span class="input-suffix">min</span>
-          </div>
-        </div>
-        <div class="daily-usage-card">
-          <div class="daily-usage-header">
-            <span class="daily-usage-title">Today's Usage</span>
-          </div>
-          <div class="daily-usage-progress">
-            <div class="daily-usage-bar">
-              <div id="daily-usage-fill" class="daily-usage-fill" style="width: 0%"></div>
-            </div>
-            <div class="daily-usage-stats">
-              <span id="daily-usage-time" class="daily-usage-current">0 min</span>
-              <span class="daily-usage-total">of <span id="daily-usage-limit">30</span> min</span>
-            </div>
-          </div>
-          <p class="daily-usage-hint">Resets automatically at midnight</p>
-        </div>
-      </div>
-      
-      <hr class="divider">
-      
-      <!-- Earned Time -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <span class="setting-label">Earned Time</span>
-          <span class="setting-desc">Earn screen time by completing Todoist tasks</span>
-        </div>
-        <label class="toggle">
-          <input type="checkbox" id="earned-time-enabled">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      
-      <div id="earned-time-options" class="sub-options hidden">
-        <div class="setting-row sub-setting">
-          <div class="setting-info">
-            <span class="setting-label">Minutes per task</span>
-            <span class="setting-desc">Time earned for each completed task</span>
-          </div>
-          <input type="number" id="earned-time-per-task" class="input input-small" min="1" max="60" value="5">
-        </div>
-        <div class="setting-row sub-setting">
-          <div class="setting-info">
-            <span class="setting-label">Maximum bank</span>
-            <span class="setting-desc">Maximum minutes that can be saved up</span>
-          </div>
-          <input type="number" id="earned-time-max-bank" class="input input-small" min="5" max="480" value="60">
-        </div>
-        <div class="setting-row sub-setting">
-          <div class="setting-info">
-            <span class="setting-label">Require earned time to unblock</span>
-            <span class="setting-desc">If enabled, users must have earned time to unblock sites</span>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" id="earned-time-required">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="earned-time-bank-display">
-          <span class="bank-label">Current bank:</span>
-          <span id="earned-time-bank" class="bank-time">0 min</span>
-          <span class="bank-separator">|</span>
-          <span id="earned-time-tasks" class="bank-tasks">0 tasks completed</span>
-          <button type="button" id="reset-earned-time" class="btn btn-small btn-text">Reset</button>
-        </div>
-        
-        <!-- Earned Time Stats -->
-        <details class="earned-time-details">
-          <summary>View Earned Time Stats</summary>
-          <div class="earned-time-stats-content">
-            <div class="earned-time-stats">
-              <div class="earned-time-stat-item">
-                <span class="stat-value" id="earned-time-total-earned">0</span>
-                <span class="stat-label">Total Min Earned</span>
-              </div>
-              <div class="earned-time-stat-item">
-                <span class="stat-value" id="earned-time-total-used">0</span>
-                <span class="stat-label">Total Min Used</span>
-              </div>
-              <div class="earned-time-stat-item">
-                <span class="stat-value" id="earned-time-efficiency">-</span>
-                <span class="stat-label">Efficiency</span>
-              </div>
-            </div>
-            <p class="earned-time-stats-hint">Complete tasks to earn screen time. Your balance can be used to unblock sites.</p>
-          </div>
-        </details>
-      </div>
-      
-      <hr class="divider">
-      
-      <!-- Timer -->
-      <div class="method-setting">
-        <div class="method-header">
-          <label class="toggle">
-            <input type="checkbox" id="timer-enabled">
-            <span class="toggle-slider"></span>
-          </label>
-          <div class="method-info">
-            <span class="method-title">Wait Timer</span>
-            <span class="method-desc">Require waiting before unblock is available</span>
-          </div>
-        </div>
-        <div class="method-options" id="timer-options">
-          <label class="option-label">
-            Wait time (minutes):
-            <input type="number" id="timer-minutes" class="input input-small" min="1" max="60" value="5">
-          </label>
-        </div>
-      </div>
-      
-      <!-- Complete Todo -->
-      <div class="method-setting">
-        <div class="method-header">
-          <label class="toggle">
-            <input type="checkbox" id="todo-enabled">
-            <span class="toggle-slider"></span>
-          </label>
-          <div class="method-info">
-            <span class="method-title">Complete a Task</span>
-            <span class="method-desc">Require completing at least one Todoist task</span>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Type Phrase -->
-      <div class="method-setting">
-        <div class="method-header">
-          <label class="toggle">
-            <input type="checkbox" id="phrase-enabled">
-            <span class="toggle-slider"></span>
-          </label>
-          <div class="method-info">
-            <span class="method-title">Type a Phrase</span>
-            <span class="method-desc">Require typing a specific phrase to unblock</span>
-          </div>
-        </div>
-        <div class="method-options" id="phrase-options">
-          <label class="checkbox-label phrase-mode-toggle">
-            <input type="checkbox" id="phrase-use-random">
-            Use random characters instead
-          </label>
-          <div id="phrase-custom-options">
-            <label class="option-label">
-              Required phrase:
-              <input type="text" id="phrase-text" class="input" value="I want to waste my time" placeholder="Enter phrase">
-            </label>
-          </div>
-          <div id="phrase-random-options" class="hidden">
-            <label class="option-label">
-              Random string length:
-              <input type="number" id="phrase-random-length" class="input input-small" min="10" max="100" value="30">
-            </label>
-            <p class="option-hint">A random string of letters and numbers will be generated each time</p>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Math Problem -->
-      <div class="method-setting">
-        <div class="method-header">
-          <label class="toggle">
-            <input type="checkbox" id="math-enabled">
-            <span class="toggle-slider"></span>
-          </label>
-          <div class="method-info">
-            <span class="method-title">Solve Math Problem</span>
-            <span class="method-desc">Require solving a simple math problem</span>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Password -->
-      <div class="method-setting">
-        <div class="method-header">
-          <label class="toggle">
-            <input type="checkbox" id="password-enabled">
-            <span class="toggle-slider"></span>
-          </label>
-          <div class="method-info">
-            <span class="method-title">Enter Password</span>
-            <span class="method-desc">Require entering a preset password</span>
-          </div>
-        </div>
-        <div class="method-options" id="password-options">
-          <label class="option-label">
-            Password:
-            <input type="password" id="password-value" class="input" placeholder="Set password">
-          </label>
-          <label class="checkbox-label">
-            <input type="checkbox" id="show-password">
-            Show password
-          </label>
-        </div>
-      </div>
-      
-      <!-- Type Reason -->
-      <div class="method-setting">
-        <div class="method-header">
-          <label class="toggle">
-            <input type="checkbox" id="reason-enabled">
-            <span class="toggle-slider"></span>
-          </label>
-          <div class="method-info">
-            <span class="method-title">Explain Your Reason</span>
-            <span class="method-desc">Require typing why you need access (tracked for self-reflection)</span>
-          </div>
-        </div>
-        <div class="method-options" id="reason-options">
-          <label class="option-label">
-            Minimum characters:
-            <input type="number" id="reason-min-length" class="input input-small" min="10" max="500" value="50">
-          </label>
-          <p class="option-hint">Reasons are saved and categorized so you can review your patterns later.</p>
-        </div>
-      </div>
-      
-      <hr class="divider">
-      
-      <!-- Reason History -->
-      <div class="reason-history-section">
-        <div class="reason-history-header">
-          <span class="setting-label">Unblock Reason History</span>
-          <button type="button" id="clear-reasons" class="btn btn-small btn-danger">Clear History</button>
-        </div>
-        <p class="setting-desc">Review why you've unblocked sites to understand your patterns.</p>
-        
-        <div id="reason-stats" class="reason-stats">
-          <div class="reason-stat-item">
-            <span class="stat-value" id="total-reasons">0</span>
-            <span class="stat-label">Total Reasons</span>
-          </div>
-          <div class="reason-stat-item">
-            <span class="stat-value" id="top-category">-</span>
-            <span class="stat-label">Top Category</span>
-          </div>
-          <div class="reason-stat-item">
-            <span class="stat-value" id="top-domain">-</span>
-            <span class="stat-label">Top Site</span>
-          </div>
-        </div>
-        
-        <details class="reason-details">
-          <summary>View Recent Reasons</summary>
-          <ul id="recent-reasons-list" class="recent-reasons-list">
-            <li class="no-reasons">No reasons recorded yet.</li>
-          </ul>
-        </details>
-        
-        <details class="reason-details">
-          <summary>Reasons by Category</summary>
-          <div id="reasons-by-category" class="reasons-by-category">
-            <p class="no-reasons">No reasons recorded yet.</p>
-          </div>
-        </details>
-      </div>
-    </section>
-
-    <!-- Site Categories -->
-    <section id="section-categories" class="section" data-search-keywords="categories groups social media entertainment gaming news organize">
-      <h2>Site Categories</h2>
-      <p class="section-desc">Group sites into categories to block them together. Enable a category to block all sites in it.</p>
-      
-      <div class="categories-header">
-        <button id="add-category-btn" class="btn btn-secondary">+ New Category</button>
-        <div class="dropdown" id="template-dropdown">
-          <button id="template-btn" class="btn btn-secondary">Add from Template</button>
-          <div class="dropdown-menu" id="template-menu">
-            <!-- Templates will be loaded dynamically -->
-          </div>
-        </div>
-      </div>
-      
-      <div id="categories-list" class="categories-list">
-        <!-- Categories will be rendered dynamically -->
-      </div>
-      
-      <!-- Category Edit Modal -->
-      <div id="category-modal" class="modal hidden">
-        <div class="modal-backdrop"></div>
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3 id="modal-title">Edit Category</h3>
-            <button class="modal-close" id="modal-close">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div class="form-group">
-              <label for="category-name">Category Name</label>
-              <input type="text" id="category-name" class="input" placeholder="e.g., Social Media">
-            </div>
-            <div class="form-group">
-              <label for="category-icon">Icon</label>
-              <div class="icon-picker-wrapper">
-                <input type="hidden" id="category-icon" value="folder">
-                <button type="button" id="category-icon-btn" class="icon-picker-btn">
-                  <span id="category-icon-preview"></span>
-                </button>
-                <div id="category-icon-picker-dropdown" class="icon-picker-dropdown">
-                  <!-- Icons will be populated by JS -->
-                </div>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Sites in Category</label>
-              <div class="category-sites-input">
-                <input type="text" id="category-site-input" class="input" placeholder="Add site (e.g., twitter.com)">
-                <button id="add-category-site-btn" class="btn btn-primary">Add</button>
-              </div>
-              <ul id="category-sites-list" class="site-list category-modal-sites">
-                <!-- Sites will be rendered dynamically -->
-              </ul>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button id="delete-category-btn" class="btn btn-danger">Delete Category</button>
-            <button id="save-category-btn" class="btn btn-primary">Save Changes</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Keyword Blocking -->
-    <section id="section-keywords" class="section" data-search-keywords="keyword blocking url filter content words">
-      <h2>Keyword Blocking</h2>
-      <p class="section-desc">Block any URL that contains specific keywords in the address, path, or query parameters.</p>
-      
-      <div class="setting-row">
-        <div class="setting-info">
-          <span class="setting-label">Enable Keyword Blocking</span>
-          <span class="setting-desc">Block URLs containing any of the keywords below</span>
-        </div>
-        <label class="toggle">
-          <input type="checkbox" id="keyword-blocking-enabled">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      
-      <div id="keyword-options" class="keyword-options">
-        <hr class="divider">
-        
-        <div class="keyword-input-group">
-          <input type="text" id="keyword-input" class="input" placeholder="Enter keyword (e.g., games, funny, memes)">
-          <button id="add-keyword-btn" class="btn btn-primary">Add Keyword</button>
-        </div>
-        
-        <label class="custom-checkbox keyword-case-toggle">
-          <input type="checkbox" id="keyword-case-sensitive">
-          <span class="checkbox-box"></span>
-          <span class="checkbox-text">Case sensitive</span>
-        </label>
-        
-        <ul id="keywords-list" class="keywords-list">
-          <!-- Keywords will be rendered dynamically -->
-        </ul>
-        
-        <p class="keyword-hint">Examples: "games" will block example.com/games, "video" will block sites with video in URL</p>
-      </div>
-    </section>
-
-    <!-- URL Whitelist -->
-    <section id="section-whitelist" class="section" data-search-keywords="url whitelist allow specific pages videos articles exceptions">
-      <h2>URL Whitelist</h2>
-      <p class="section-desc">Allow specific URLs even on blocked domains. Useful for allowing specific videos, articles, or pages you need.</p>
-      
-      <div class="url-whitelist-input">
-        <input type="text" id="whitelist-url-input" class="input" placeholder="Enter full URL (e.g., https://youtube.com/watch?v=abc123)">
-        <button id="add-whitelist-url-btn" class="btn btn-primary">Add URL</button>
-      </div>
-      
-      <ul id="whitelist-urls-list" class="whitelist-urls-list">
-        <!-- Whitelisted URLs will be rendered dynamically -->
-      </ul>
-      
-      <p class="whitelist-hint">Tip: Copy the full URL from your browser's address bar and paste it here.</p>
-    </section>
-
-    <!-- Focus Session Presets -->
-    <section id="section-focus-presets" class="section" data-search-keywords="focus session pomodoro timer work break long short custom minutes preset">
-      <h2>Focus Sessions</h2>
-      <p class="section-desc">Customize your pomodoro timer durations</p>
-
-      <div class="focus-presets-grid">
-        <!-- Pomodoro -->
-        <div class="preset-card">
-          <div class="preset-card-header">
-            <span class="preset-card-icon">25</span>
-            <span class="preset-card-name">Pomodoro</span>
-          </div>
-          <div class="preset-card-fields">
-            <label class="preset-field">
-              <span>Work</span>
-              <div class="preset-input-group">
-                <input type="number" id="preset-pomodoro-work" class="input input-small" min="1" max="120" value="25">
-                <span class="input-suffix">min</span>
-              </div>
-            </label>
-            <label class="preset-field">
-              <span>Break</span>
-              <div class="preset-input-group">
-                <input type="number" id="preset-pomodoro-break" class="input input-small" min="1" max="60" value="5">
-                <span class="input-suffix">min</span>
-              </div>
-            </label>
-            <label class="preset-field">
-              <span>Long Break</span>
-              <div class="preset-input-group">
-                <input type="number" id="preset-pomodoro-long-break" class="input input-small" min="1" max="60" value="15">
-                <span class="input-suffix">min</span>
-              </div>
-            </label>
-            <label class="preset-field">
-              <span>Sessions before long break</span>
-              <div class="preset-input-group">
-                <input type="number" id="preset-pomodoro-sessions" class="input input-small" min="1" max="10" value="4">
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <!-- Short -->
-        <div class="preset-card">
-          <div class="preset-card-header">
-            <span class="preset-card-icon">15</span>
-            <span class="preset-card-name">Short</span>
-          </div>
-          <div class="preset-card-fields">
-            <label class="preset-field">
-              <span>Work</span>
-              <div class="preset-input-group">
-                <input type="number" id="preset-short-work" class="input input-small" min="1" max="120" value="15">
-                <span class="input-suffix">min</span>
-              </div>
-            </label>
-            <label class="preset-field">
-              <span>Break</span>
-              <div class="preset-input-group">
-                <input type="number" id="preset-short-break" class="input input-small" min="1" max="60" value="3">
-                <span class="input-suffix">min</span>
-              </div>
-            </label>
-            <label class="preset-field">
-              <span>Long Break</span>
-              <div class="preset-input-group">
-                <input type="number" id="preset-short-long-break" class="input input-small" min="1" max="60" value="10">
-                <span class="input-suffix">min</span>
-              </div>
-            </label>
-            <label class="preset-field">
-              <span>Sessions before long break</span>
-              <div class="preset-input-group">
-                <input type="number" id="preset-short-sessions" class="input input-small" min="1" max="10" value="4">
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <!-- Long -->
-        <div class="preset-card">
-          <div class="preset-card-header">
-            <span class="preset-card-icon">50</span>
-            <span class="preset-card-name">Long</span>
-          </div>
-          <div class="preset-card-fields">
-            <label class="preset-field">
-              <span>Work</span>
-              <div class="preset-input-group">
-                <input type="number" id="preset-long-work" class="input input-small" min="1" max="120" value="50">
-                <span class="input-suffix">min</span>
-              </div>
-            </label>
-            <label class="preset-field">
-              <span>Break</span>
-              <div class="preset-input-group">
-                <input type="number" id="preset-long-break" class="input input-small" min="1" max="60" value="10">
-                <span class="input-suffix">min</span>
-              </div>
-            </label>
-            <label class="preset-field">
-              <span>Long Break</span>
-              <div class="preset-input-group">
-                <input type="number" id="preset-long-long-break" class="input input-small" min="1" max="60" value="20">
-                <span class="input-suffix">min</span>
-              </div>
-            </label>
-            <label class="preset-field">
-              <span>Sessions before long break</span>
-              <div class="preset-input-group">
-                <input type="number" id="preset-long-sessions" class="input input-small" min="1" max="10" value="3">
-              </div>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <p class="section-hint">Changes are saved automatically. During breaks, all blocked sites are temporarily unblocked as a reward.</p>
-    </section>
-
-    <!-- Schedule -->
-    <section id="section-schedule" class="section" data-search-keywords="schedule time windows days hours automatic work focus">
-      <h2>Block Schedule</h2>
-      <p class="section-desc">Set times when sites are automatically blocked (outside allowed times)</p>
-      
-      <div class="setting-row">
-        <div class="setting-info">
-          <span class="setting-label">Enable Schedule</span>
-          <span class="setting-desc">When enabled, sites are blocked except during allowed time windows</span>
-        </div>
-        <label class="toggle">
-          <input type="checkbox" id="schedule-enabled">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      
-      <div id="schedule-options" class="schedule-options hidden">
-        <hr class="divider">
-        
-        <!-- Active Days -->
-        <div class="schedule-days">
-          <span class="setting-label">Active Days</span>
-          <div class="days-selector">
-            <label class="day-checkbox">
-              <input type="checkbox" value="0" class="schedule-day">
-              <span>Sun</span>
-            </label>
-            <label class="day-checkbox">
-              <input type="checkbox" value="1" class="schedule-day" checked>
-              <span>Mon</span>
-            </label>
-            <label class="day-checkbox">
-              <input type="checkbox" value="2" class="schedule-day" checked>
-              <span>Tue</span>
-            </label>
-            <label class="day-checkbox">
-              <input type="checkbox" value="3" class="schedule-day" checked>
-              <span>Wed</span>
-            </label>
-            <label class="day-checkbox">
-              <input type="checkbox" value="4" class="schedule-day" checked>
-              <span>Thu</span>
-            </label>
-            <label class="day-checkbox">
-              <input type="checkbox" value="5" class="schedule-day" checked>
-              <span>Fri</span>
-            </label>
-            <label class="day-checkbox">
-              <input type="checkbox" value="6" class="schedule-day">
-              <span>Sat</span>
-            </label>
-          </div>
-        </div>
-        
-        <hr class="divider">
-        
-        <!-- Allowed Time Windows -->
-        <div class="schedule-times">
-          <div class="schedule-times-header">
-            <span class="setting-label">Allowed Time Windows</span>
-            <button type="button" id="add-time-window" class="btn btn-small">+ Add Window</button>
-          </div>
-          <p class="setting-desc">Sites will be UNBLOCKED during these times (blocked outside)</p>
-          
-          <div id="time-windows-list" class="time-windows-list">
-            <!-- Time windows will be added here dynamically -->
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Nuclear Mode -->
-    <section id="section-nuclear" class="section nuclear-section" data-search-keywords="nuclear mode lockdown strict focus emergency disable">
-      <h2>Nuclear Mode</h2>
-      <p class="section-desc">When activated, ALL unblock methods are disabled until the timer expires.</p>
-      
-      <div id="nuclear-inactive" class="nuclear-controls">
-        <div class="nuclear-setting">
-          <span class="nuclear-setting-label">Duration</span>
-          <select id="nuclear-duration" class="select nuclear-select">
-            <option value="15">15 minutes</option>
-            <option value="30">30 minutes</option>
-            <option value="60" selected>1 hour</option>
-            <option value="120">2 hours</option>
-            <option value="180">3 hours</option>
-            <option value="240">4 hours</option>
-            <option value="480">8 hours</option>
+          <select id="require-mode" class="select select-compact">
+            <option value="any">Any one method (easier)</option>
+            <option value="all">All enabled methods (stricter)</option>
           </select>
         </div>
-        <div class="nuclear-action">
-          <button id="activate-nuclear" class="btn btn-nuclear">Activate Nuclear Mode</button>
-          <span class="nuclear-warning">Cannot be cancelled once activated</span>
-        </div>
-      </div>
-      
-      <div id="nuclear-active" class="nuclear-active-display" style="display: none;">
-        <div class="nuclear-active-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <circle cx="12" cy="12" r="4"></circle>
-            <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line>
-            <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line>
-            <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line>
-            <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line>
-          </svg>
-        </div>
-        <h3>Nuclear Mode Active</h3>
-        <div class="nuclear-timer">
-          <span id="nuclear-time-remaining">--:--:--</span>
-        </div>
-        <p class="nuclear-active-hint">All unblock methods are disabled. Stay focused!</p>
-      </div>
-    </section>
 
-    <!-- Profiles -->
-    <section id="section-profiles" class="section" data-search-keywords="profiles work study relaxed preset configurations switch">
-      <h2>Profiles</h2>
-      <p class="section-desc">Create different blocking profiles for work, study, or relaxation. Each profile has its own blocked sites, categories, and unblock settings.</p>
-      
-      <div class="profiles-header">
-        <div class="profiles-actions">
-          <button id="add-profile-btn" class="btn btn-secondary">+ New Profile</button>
-          <div class="dropdown" id="profile-template-dropdown">
-            <button id="profile-template-btn" class="btn btn-secondary">Create from Template</button>
-            <div class="dropdown-menu" id="profile-template-menu">
-              <button class="dropdown-item" data-template="work">
-                <span class="template-icon">W</span>
-                <span class="template-info">
-                  <span class="template-name">Work</span>
-                  <span class="template-desc">Strict blocking for productivity</span>
-                </span>
-              </button>
-              <button class="dropdown-item" data-template="study">
-                <span class="template-icon">S</span>
-                <span class="template-info">
-                  <span class="template-name">Study</span>
-                  <span class="template-desc">Very strict with multiple challenges</span>
-                </span>
-              </button>
-              <button class="dropdown-item" data-template="relaxed">
-                <span class="template-icon">R</span>
-                <span class="template-info">
-                  <span class="template-name">Relaxed</span>
-                  <span class="template-desc">Minimal blocking for downtime</span>
-                </span>
-              </button>
+        <hr class="divider">
+
+        <!-- Allow Unlimited Time -->
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Allow Unlimited Time</span>
+            <span class="setting-desc">Show an "Unlimited" option when selecting access time</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="allow-unlimited">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Inactivity Timeout -->
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Inactivity Auto-Block</span>
+            <span class="setting-desc">Re-block sites after switching away for this many minutes (0 = disabled)</span>
+          </div>
+          <input type="number" id="inactivity-timeout" class="input input-small" min="0" max="60" value="5">
+        </div>
+
+        <hr class="divider">
+
+        <!-- Daily Limit -->
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Daily Time Limit</span>
+            <span class="setting-desc">Limit total time spent on blocked sites per day</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="daily-limit-enabled">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div id="daily-limit-options" class="sub-options hidden">
+          <div class="setting-row sub-setting">
+            <div class="setting-info">
+              <span class="setting-label">Minutes per day</span>
+              <span class="setting-desc">Total allowed time on blocked sites each day</span>
+            </div>
+            <div class="setting-controls">
+              <input type="number" id="daily-limit-minutes" class="input input-small" min="1" max="480" value="30">
+              <span class="input-suffix">min</span>
+            </div>
+          </div>
+          <div class="daily-usage-card">
+            <div class="daily-usage-header">
+              <span class="daily-usage-title">Today's Usage</span>
+            </div>
+            <div class="daily-usage-progress">
+              <div class="daily-usage-bar">
+                <div id="daily-usage-fill" class="daily-usage-fill" style="width: 0%"></div>
+              </div>
+              <div class="daily-usage-stats">
+                <span id="daily-usage-time" class="daily-usage-current">0 min</span>
+                <span class="daily-usage-total">of <span id="daily-usage-limit">30</span> min</span>
+              </div>
+            </div>
+            <p class="daily-usage-hint">Resets automatically at midnight</p>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Earned Time -->
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Earned Time</span>
+            <span class="setting-desc">Earn screen time by completing Todoist tasks</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="earned-time-enabled">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div id="earned-time-options" class="sub-options hidden">
+          <div class="setting-row sub-setting">
+            <div class="setting-info">
+              <span class="setting-label">Minutes per task</span>
+              <span class="setting-desc">Time earned for each completed task</span>
+            </div>
+            <input type="number" id="earned-time-per-task" class="input input-small" min="1" max="60" value="5">
+          </div>
+          <div class="setting-row sub-setting">
+            <div class="setting-info">
+              <span class="setting-label">Maximum bank</span>
+              <span class="setting-desc">Maximum minutes that can be saved up</span>
+            </div>
+            <input type="number" id="earned-time-max-bank" class="input input-small" min="5" max="480" value="60">
+          </div>
+          <div class="setting-row sub-setting">
+            <div class="setting-info">
+              <span class="setting-label">Require earned time to unblock</span>
+              <span class="setting-desc">If enabled, users must have earned time to unblock sites</span>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="earned-time-required">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="earned-time-bank-display">
+            <span class="bank-label">Current bank:</span>
+            <span id="earned-time-bank" class="bank-time">0 min</span>
+            <span class="bank-separator">|</span>
+            <span id="earned-time-tasks" class="bank-tasks">0 tasks completed</span>
+            <button type="button" id="reset-earned-time" class="btn btn-small btn-text">Reset</button>
+          </div>
+
+          <!-- Earned Time Stats -->
+          <details class="earned-time-details">
+            <summary>View Earned Time Stats</summary>
+            <div class="earned-time-stats-content">
+              <div class="earned-time-stats">
+                <div class="earned-time-stat-item">
+                  <span class="stat-value" id="earned-time-total-earned">0</span>
+                  <span class="stat-label">Total Min Earned</span>
+                </div>
+                <div class="earned-time-stat-item">
+                  <span class="stat-value" id="earned-time-total-used">0</span>
+                  <span class="stat-label">Total Min Used</span>
+                </div>
+                <div class="earned-time-stat-item">
+                  <span class="stat-value" id="earned-time-efficiency">-</span>
+                  <span class="stat-label">Efficiency</span>
+                </div>
+              </div>
+              <p class="earned-time-stats-hint">Complete tasks to earn screen time. Your balance can be used to unblock
+                sites.</p>
+            </div>
+          </details>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Timer -->
+        <div class="method-setting">
+          <div class="method-header">
+            <label class="toggle">
+              <input type="checkbox" id="timer-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <div class="method-info">
+              <span class="method-title">Wait Timer</span>
+              <span class="method-desc">Require waiting before unblock is available</span>
+            </div>
+          </div>
+          <div class="method-options" id="timer-options">
+            <label class="option-label">
+              Wait time (minutes):
+              <input type="number" id="timer-minutes" class="input input-small" min="1" max="60" value="5">
+            </label>
+          </div>
+        </div>
+
+        <!-- Complete Todo -->
+        <div class="method-setting">
+          <div class="method-header">
+            <label class="toggle">
+              <input type="checkbox" id="todo-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <div class="method-info">
+              <span class="method-title">Complete a Task</span>
+              <span class="method-desc">Require completing at least one Todoist task</span>
             </div>
           </div>
         </div>
-      </div>
-      
-      <div id="profiles-list" class="profiles-list">
-        <!-- Profiles will be rendered dynamically -->
-      </div>
-      
-      <!-- Profile Edit Modal -->
-      <div id="profile-modal" class="modal hidden">
-        <div class="modal-backdrop"></div>
-        <div class="modal-content profile-modal-content">
-          <div class="modal-header">
-            <h3 id="profile-modal-title">Edit Profile</h3>
-            <button class="modal-close" id="profile-modal-close">&times;</button>
+
+        <!-- Type Phrase -->
+        <div class="method-setting">
+          <div class="method-header">
+            <label class="toggle">
+              <input type="checkbox" id="phrase-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <div class="method-info">
+              <span class="method-title">Type a Phrase</span>
+              <span class="method-desc">Require typing a specific phrase to unblock</span>
+            </div>
           </div>
-          <div class="modal-body">
-            <div class="profile-modal-row">
+          <div class="method-options" id="phrase-options">
+            <label class="checkbox-label phrase-mode-toggle">
+              <input type="checkbox" id="phrase-use-random">
+              Use random characters instead
+            </label>
+            <div id="phrase-custom-options">
+              <label class="option-label">
+                Required phrase:
+                <input type="text" id="phrase-text" class="input" value="I want to waste my time"
+                  placeholder="Enter phrase">
+              </label>
+            </div>
+            <div id="phrase-random-options" class="hidden">
+              <label class="option-label">
+                Random string length:
+                <input type="number" id="phrase-random-length" class="input input-small" min="10" max="100" value="30">
+              </label>
+              <p class="option-hint">A random string of letters and numbers will be generated each time</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Math Problem -->
+        <div class="method-setting">
+          <div class="method-header">
+            <label class="toggle">
+              <input type="checkbox" id="math-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <div class="method-info">
+              <span class="method-title">Solve Math Problem</span>
+              <span class="method-desc">Require solving a simple math problem</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="method-setting">
+          <div class="method-header">
+            <label class="toggle">
+              <input type="checkbox" id="password-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <div class="method-info">
+              <span class="method-title">Enter Password</span>
+              <span class="method-desc">Require entering a preset password</span>
+            </div>
+          </div>
+          <div class="method-options" id="password-options">
+            <label class="option-label">
+              Password:
+              <input type="password" id="password-value" class="input" placeholder="Set password">
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="show-password">
+              Show password
+            </label>
+          </div>
+        </div>
+
+        <!-- Type Reason -->
+        <div class="method-setting">
+          <div class="method-header">
+            <label class="toggle">
+              <input type="checkbox" id="reason-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <div class="method-info">
+              <span class="method-title">Explain Your Reason</span>
+              <span class="method-desc">Require typing why you need access (tracked for self-reflection)</span>
+            </div>
+          </div>
+          <div class="method-options" id="reason-options">
+            <label class="option-label">
+              Minimum characters:
+              <input type="number" id="reason-min-length" class="input input-small" min="10" max="500" value="50">
+            </label>
+            <p class="option-hint">Reasons are saved and categorized so you can review your patterns later.</p>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Reason History -->
+        <div class="reason-history-section">
+          <div class="reason-history-header">
+            <span class="setting-label">Unblock Reason History</span>
+            <button type="button" id="clear-reasons" class="btn btn-small btn-danger">Clear History</button>
+          </div>
+          <p class="setting-desc">Review why you've unblocked sites to understand your patterns.</p>
+
+          <div id="reason-stats" class="reason-stats">
+            <div class="reason-stat-item">
+              <span class="stat-value" id="total-reasons">0</span>
+              <span class="stat-label">Total Reasons</span>
+            </div>
+            <div class="reason-stat-item">
+              <span class="stat-value" id="top-category">-</span>
+              <span class="stat-label">Top Category</span>
+            </div>
+            <div class="reason-stat-item">
+              <span class="stat-value" id="top-domain">-</span>
+              <span class="stat-label">Top Site</span>
+            </div>
+          </div>
+
+          <details class="reason-details">
+            <summary>View Recent Reasons</summary>
+            <ul id="recent-reasons-list" class="recent-reasons-list">
+              <li class="no-reasons">No reasons recorded yet.</li>
+            </ul>
+          </details>
+
+          <details class="reason-details">
+            <summary>Reasons by Category</summary>
+            <div id="reasons-by-category" class="reasons-by-category">
+              <p class="no-reasons">No reasons recorded yet.</p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- Site Categories -->
+      <section id="section-categories" class="section"
+        data-search-keywords="categories groups social media entertainment gaming news organize">
+        <h2>Site Categories</h2>
+        <p class="section-desc">Group sites into categories to block them together. Enable a category to block all sites
+          in it.</p>
+
+        <div class="categories-header">
+          <button id="add-category-btn" class="btn btn-secondary">+ New Category</button>
+          <div class="dropdown" id="template-dropdown">
+            <button id="template-btn" class="btn btn-secondary">Add from Template</button>
+            <div class="dropdown-menu" id="template-menu">
+              <!-- Templates will be loaded dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <div id="categories-list" class="categories-list">
+          <!-- Categories will be rendered dynamically -->
+        </div>
+
+        <!-- Category Edit Modal -->
+        <div id="category-modal" class="modal hidden">
+          <div class="modal-backdrop"></div>
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 id="modal-title">Edit Category</h3>
+              <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
               <div class="form-group">
-                <label for="profile-name">Profile Name</label>
-                <input type="text" id="profile-name" class="input" placeholder="e.g., Work Mode">
+                <label for="category-name">Category Name</label>
+                <input type="text" id="category-name" class="input" placeholder="e.g., Social Media">
               </div>
-              <div class="form-group form-group-small">
-                <label for="profile-icon">Icon</label>
+              <div class="form-group">
+                <label for="category-icon">Icon</label>
                 <div class="icon-picker-wrapper">
-                  <button type="button" id="profile-icon-btn" class="icon-picker-btn" title="Select icon">
-                    <span id="profile-icon-preview">*</span>
+                  <input type="hidden" id="category-icon" value="folder">
+                  <button type="button" id="category-icon-btn" class="icon-picker-btn">
+                    <span id="category-icon-preview"></span>
                   </button>
-                  <input type="hidden" id="profile-icon" value="*">
-                  <div class="icon-picker-dropdown" id="icon-picker-dropdown">
-                    <!-- Icons will be rendered by JS -->
+                  <div id="category-icon-picker-dropdown" class="icon-picker-dropdown">
+                    <!-- Icons will be populated by JS -->
                   </div>
                 </div>
               </div>
-              <div class="form-group form-group-small">
-                <label for="profile-color">Color</label>
-                <input type="color" id="profile-color" class="input input-color" value="#6366f1">
-              </div>
-            </div>
-            
-            <div class="profile-modal-section">
-              <h4>Blocked Sites</h4>
-              <div class="profile-sites-input">
-                <input type="text" id="profile-site-input" class="input" placeholder="Add site (e.g., twitter.com)">
-                <button id="add-profile-site-btn" class="btn btn-primary">Add</button>
-              </div>
-              <ul id="profile-sites-list" class="site-list profile-modal-sites">
-                <!-- Sites will be rendered dynamically -->
-              </ul>
-            </div>
-            
-            <div class="profile-modal-section">
-              <h4>Unblock Methods</h4>
-              <p class="section-desc-small">Configure which challenges are required to unblock sites in this profile.</p>
-              
-              <div class="profile-unblock-methods">
-                <div class="setting-row compact">
-                  <div class="setting-info">
-                    <span class="setting-label">Wait Timer</span>
-                  </div>
-                  <div class="setting-controls">
-                    <input type="number" id="profile-timer-minutes" class="input input-small" min="1" max="60" value="5">
-                    <span class="input-suffix">min</span>
-                    <label class="toggle">
-                      <input type="checkbox" id="profile-timer-enabled" checked>
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
+              <div class="form-group">
+                <label>Sites in Category</label>
+                <div class="category-sites-input">
+                  <input type="text" id="category-site-input" class="input" placeholder="Add site (e.g., twitter.com)">
+                  <button id="add-category-site-btn" class="btn btn-primary">Add</button>
                 </div>
-                
-                <div class="setting-row compact">
-                  <div class="setting-info">
-                    <span class="setting-label">Type Phrase</span>
-                  </div>
-                  <div class="setting-controls">
-                    <label class="toggle">
-                      <input type="checkbox" id="profile-phrase-enabled">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                </div>
-                
-                <div class="setting-row compact">
-                  <div class="setting-info">
-                    <span class="setting-label">Math Problem</span>
-                  </div>
-                  <div class="setting-controls">
-                    <label class="toggle">
-                      <input type="checkbox" id="profile-math-enabled">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                </div>
-                
-                <div class="setting-row compact">
-                  <div class="setting-info">
-                    <span class="setting-label">Complete Todo</span>
-                  </div>
-                  <div class="setting-controls">
-                    <label class="toggle">
-                      <input type="checkbox" id="profile-todo-enabled">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                </div>
-                
-                <div class="setting-row compact">
-                  <div class="setting-info">
-                    <span class="setting-label">Type Reason</span>
-                  </div>
-                  <div class="setting-controls">
-                    <label class="toggle">
-                      <input type="checkbox" id="profile-reason-enabled">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                </div>
-                
-                <div class="setting-row compact">
-                  <div class="setting-info">
-                    <span class="setting-label">Require ALL Methods</span>
-                    <span class="setting-desc">If enabled, all active methods must be completed</span>
-                  </div>
-                  <div class="setting-controls">
-                    <label class="toggle">
-                      <input type="checkbox" id="profile-require-all">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                </div>
+                <ul id="category-sites-list" class="site-list category-modal-sites">
+                  <!-- Sites will be rendered dynamically -->
+                </ul>
               </div>
             </div>
-          </div>
-          <div class="modal-footer">
-            <button id="delete-profile-btn" class="btn btn-danger">Delete Profile</button>
-            <div class="modal-footer-right">
-              <button id="duplicate-profile-btn" class="btn btn-secondary">Duplicate</button>
-              <button id="save-profile-btn" class="btn btn-primary">Save Changes</button>
+            <div class="modal-footer">
+              <button id="delete-category-btn" class="btn btn-danger">Delete Category</button>
+              <button id="save-category-btn" class="btn btn-primary">Save Changes</button>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Todoist Connection -->
-    <section id="section-todoist" class="section" data-search-keywords="todoist connection api tasks todo integration sync">
-      <h2>Todoist</h2>
-      <p class="section-desc">Connect to show tasks on blocked pages</p>
-      
-      <!-- Connection Status -->
-      <div id="auth-status" class="auth-status">
-        <div id="not-connected" class="status-card status-card-disconnected">
-          <div class="status-icon status-icon-disconnected">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="15" y1="9" x2="9" y2="15"></line>
-              <line x1="9" y1="9" x2="15" y2="15"></line>
-            </svg>
-          </div>
-          <div class="status-info">
-            <span class="status-label">Not Connected</span>
-            <span class="status-desc">Connect your Todoist account to see tasks on blocked pages</span>
-          </div>
-          <button id="connect-btn" class="btn btn-todoist">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
-              <polyline points="10 17 15 12 10 7"></polyline>
-              <line x1="15" y1="12" x2="3" y2="12"></line>
-            </svg>
-            Connect Todoist
-          </button>
-        </div>
-        <div id="connected" class="status-card status-card-connected" style="display: none;">
-          <div class="status-icon status-icon-connected">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </div>
-          <div class="status-info">
-            <span class="status-label status-label-connected">Connected to Todoist</span>
-            <span class="status-desc">Your tasks will appear on blocked pages</span>
-          </div>
-          <button id="disconnect-btn" class="btn btn-secondary btn-disconnect">Disconnect</button>
-        </div>
-      </div>
-    </section>
+      <!-- Keyword Blocking -->
+      <section id="section-keywords" class="section" data-search-keywords="keyword blocking url filter content words">
+        <h2>Keyword Blocking</h2>
+        <p class="section-desc">Block any URL that contains specific keywords in the address, path, or query parameters.
+        </p>
 
-    <!-- Google Calendar Integration -->
-    <section id="section-calendar" class="section" data-search-keywords="google calendar integration events schedule sync automatic">
-      <h2>Google Calendar</h2>
-      <p class="section-desc">Auto-switch profiles based on your schedule</p>
-      
-      <!-- Connection Status -->
-      <div id="calendar-status" class="calendar-status">
-        <div id="calendar-not-connected" class="status-card status-card-disconnected">
-          <div class="status-icon status-icon-disconnected">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Enable Keyword Blocking</span>
+            <span class="setting-desc">Block URLs containing any of the keywords below</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="keyword-blocking-enabled">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div id="keyword-options" class="keyword-options">
+          <hr class="divider">
+
+          <div class="keyword-input-group">
+            <input type="text" id="keyword-input" class="input" placeholder="Enter keyword (e.g., games, funny, memes)">
+            <button id="add-keyword-btn" class="btn btn-primary">Add Keyword</button>
+          </div>
+
+          <label class="custom-checkbox keyword-case-toggle">
+            <input type="checkbox" id="keyword-case-sensitive">
+            <span class="checkbox-box"></span>
+            <span class="checkbox-text">Case sensitive</span>
+          </label>
+
+          <ul id="keywords-list" class="keywords-list">
+            <!-- Keywords will be rendered dynamically -->
+          </ul>
+
+          <p class="keyword-hint">Examples: "games" will block example.com/games, "video" will block sites with video in
+            URL</p>
+        </div>
+      </section>
+
+      <!-- URL Whitelist -->
+      <section id="section-whitelist" class="section"
+        data-search-keywords="url whitelist allow specific pages videos articles exceptions">
+        <h2>URL Whitelist</h2>
+        <p class="section-desc">Allow specific URLs even on blocked domains. Useful for allowing specific videos,
+          articles, or pages you need.</p>
+
+        <div class="url-whitelist-input">
+          <input type="text" id="whitelist-url-input" class="input"
+            placeholder="Enter full URL (e.g., https://youtube.com/watch?v=abc123)">
+          <button id="add-whitelist-url-btn" class="btn btn-primary">Add URL</button>
+        </div>
+
+        <ul id="whitelist-urls-list" class="whitelist-urls-list">
+          <!-- Whitelisted URLs will be rendered dynamically -->
+        </ul>
+
+        <p class="whitelist-hint">Tip: Copy the full URL from your browser's address bar and paste it here.</p>
+      </section>
+
+      <!-- Focus Session Presets -->
+      <section id="section-focus-presets" class="section"
+        data-search-keywords="focus session pomodoro timer work break long short custom minutes preset">
+        <h2>Focus Sessions</h2>
+        <p class="section-desc">Customize your pomodoro timer durations</p>
+
+        <div class="focus-presets-grid">
+          <!-- Pomodoro -->
+          <div class="preset-card">
+            <div class="preset-card-header">
+              <span class="preset-card-icon">25</span>
+              <span class="preset-card-name">Pomodoro</span>
+            </div>
+            <div class="preset-card-fields">
+              <label class="preset-field">
+                <span>Work</span>
+                <div class="preset-input-group">
+                  <input type="number" id="preset-pomodoro-work" class="input input-small" min="1" max="120" value="25">
+                  <span class="input-suffix">min</span>
+                </div>
+              </label>
+              <label class="preset-field">
+                <span>Break</span>
+                <div class="preset-input-group">
+                  <input type="number" id="preset-pomodoro-break" class="input input-small" min="1" max="60" value="5">
+                  <span class="input-suffix">min</span>
+                </div>
+              </label>
+              <label class="preset-field">
+                <span>Long Break</span>
+                <div class="preset-input-group">
+                  <input type="number" id="preset-pomodoro-long-break" class="input input-small" min="1" max="60"
+                    value="15">
+                  <span class="input-suffix">min</span>
+                </div>
+              </label>
+              <label class="preset-field">
+                <span>Sessions before long break</span>
+                <div class="preset-input-group">
+                  <input type="number" id="preset-pomodoro-sessions" class="input input-small" min="1" max="10"
+                    value="4">
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Short -->
+          <div class="preset-card">
+            <div class="preset-card-header">
+              <span class="preset-card-icon">15</span>
+              <span class="preset-card-name">Short</span>
+            </div>
+            <div class="preset-card-fields">
+              <label class="preset-field">
+                <span>Work</span>
+                <div class="preset-input-group">
+                  <input type="number" id="preset-short-work" class="input input-small" min="1" max="120" value="15">
+                  <span class="input-suffix">min</span>
+                </div>
+              </label>
+              <label class="preset-field">
+                <span>Break</span>
+                <div class="preset-input-group">
+                  <input type="number" id="preset-short-break" class="input input-small" min="1" max="60" value="3">
+                  <span class="input-suffix">min</span>
+                </div>
+              </label>
+              <label class="preset-field">
+                <span>Long Break</span>
+                <div class="preset-input-group">
+                  <input type="number" id="preset-short-long-break" class="input input-small" min="1" max="60"
+                    value="10">
+                  <span class="input-suffix">min</span>
+                </div>
+              </label>
+              <label class="preset-field">
+                <span>Sessions before long break</span>
+                <div class="preset-input-group">
+                  <input type="number" id="preset-short-sessions" class="input input-small" min="1" max="10" value="4">
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Long -->
+          <div class="preset-card">
+            <div class="preset-card-header">
+              <span class="preset-card-icon">50</span>
+              <span class="preset-card-name">Long</span>
+            </div>
+            <div class="preset-card-fields">
+              <label class="preset-field">
+                <span>Work</span>
+                <div class="preset-input-group">
+                  <input type="number" id="preset-long-work" class="input input-small" min="1" max="120" value="50">
+                  <span class="input-suffix">min</span>
+                </div>
+              </label>
+              <label class="preset-field">
+                <span>Break</span>
+                <div class="preset-input-group">
+                  <input type="number" id="preset-long-break" class="input input-small" min="1" max="60" value="10">
+                  <span class="input-suffix">min</span>
+                </div>
+              </label>
+              <label class="preset-field">
+                <span>Long Break</span>
+                <div class="preset-input-group">
+                  <input type="number" id="preset-long-long-break" class="input input-small" min="1" max="60"
+                    value="20">
+                  <span class="input-suffix">min</span>
+                </div>
+              </label>
+              <label class="preset-field">
+                <span>Sessions before long break</span>
+                <div class="preset-input-group">
+                  <input type="number" id="preset-long-sessions" class="input input-small" min="1" max="10" value="3">
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <p class="section-hint">Changes are saved automatically. During breaks, all blocked sites are temporarily
+          unblocked as a reward.</p>
+      </section>
+
+      <!-- Schedule -->
+      <section id="section-schedule" class="section"
+        data-search-keywords="schedule time windows days hours automatic work focus">
+        <h2>Block Schedule</h2>
+        <p class="section-desc">Set times when sites are automatically blocked (outside allowed times)</p>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Enable Schedule</span>
+            <span class="setting-desc">When enabled, sites are blocked except during allowed time windows</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="schedule-enabled">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div id="schedule-options" class="schedule-options hidden">
+          <hr class="divider">
+
+          <!-- Active Days -->
+          <div class="schedule-days">
+            <span class="setting-label">Active Days</span>
+            <div class="days-selector">
+              <label class="day-checkbox">
+                <input type="checkbox" value="0" class="schedule-day">
+                <span>Sun</span>
+              </label>
+              <label class="day-checkbox">
+                <input type="checkbox" value="1" class="schedule-day" checked>
+                <span>Mon</span>
+              </label>
+              <label class="day-checkbox">
+                <input type="checkbox" value="2" class="schedule-day" checked>
+                <span>Tue</span>
+              </label>
+              <label class="day-checkbox">
+                <input type="checkbox" value="3" class="schedule-day" checked>
+                <span>Wed</span>
+              </label>
+              <label class="day-checkbox">
+                <input type="checkbox" value="4" class="schedule-day" checked>
+                <span>Thu</span>
+              </label>
+              <label class="day-checkbox">
+                <input type="checkbox" value="5" class="schedule-day" checked>
+                <span>Fri</span>
+              </label>
+              <label class="day-checkbox">
+                <input type="checkbox" value="6" class="schedule-day">
+                <span>Sat</span>
+              </label>
+            </div>
+          </div>
+
+          <hr class="divider">
+
+          <!-- Allowed Time Windows -->
+          <div class="schedule-times">
+            <div class="schedule-times-header">
+              <span class="setting-label">Allowed Time Windows</span>
+              <button type="button" id="add-time-window" class="btn btn-small">+ Add Window</button>
+            </div>
+            <p class="setting-desc">Sites will be UNBLOCKED during these times (blocked outside)</p>
+
+            <div id="time-windows-list" class="time-windows-list">
+              <!-- Time windows will be added here dynamically -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Nuclear Mode -->
+      <section id="section-nuclear" class="section nuclear-section"
+        data-search-keywords="nuclear mode lockdown strict focus emergency disable">
+        <h2>Nuclear Mode</h2>
+        <p class="section-desc">When activated, ALL unblock methods are disabled until the timer expires.</p>
+
+        <div id="nuclear-inactive" class="nuclear-controls">
+          <div class="nuclear-setting">
+            <span class="nuclear-setting-label">Duration</span>
+            <select id="nuclear-duration" class="select nuclear-select">
+              <option value="15">15 minutes</option>
+              <option value="30">30 minutes</option>
+              <option value="60" selected>1 hour</option>
+              <option value="120">2 hours</option>
+              <option value="180">3 hours</option>
+              <option value="240">4 hours</option>
+              <option value="480">8 hours</option>
+            </select>
+          </div>
+          <div class="nuclear-action">
+            <button id="activate-nuclear" class="btn btn-nuclear">Activate Nuclear Mode</button>
+            <span class="nuclear-warning">Cannot be cancelled once activated</span>
+          </div>
+        </div>
+
+        <div id="nuclear-active" class="nuclear-active-display" style="display: none;">
+          <div class="nuclear-active-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
-              <line x1="15" y1="9" x2="9" y2="15"></line>
-              <line x1="9" y1="9" x2="15" y2="15"></line>
+              <circle cx="12" cy="12" r="4"></circle>
+              <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line>
+              <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line>
+              <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line>
+              <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line>
             </svg>
           </div>
-          <div class="status-info">
-            <span class="status-label">Not Connected</span>
-            <span class="status-desc">Connect Google Calendar to sync your schedule</span>
+          <h3>Nuclear Mode Active</h3>
+          <div class="nuclear-timer">
+            <span id="nuclear-time-remaining">--:--:--</span>
           </div>
-          <button id="connect-calendar-btn" class="btn btn-google">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
-              <polyline points="10 17 15 12 10 7"></polyline>
-              <line x1="15" y1="12" x2="3" y2="12"></line>
-            </svg>
-            Connect Google Calendar
-          </button>
+          <p class="nuclear-active-hint">All unblock methods are disabled. Stay focused!</p>
         </div>
-        <div id="calendar-connected" class="status-card status-card-connected" style="display: none;">
-          <div class="status-icon status-icon-connected">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
+      </section>
+
+      <!-- Profiles -->
+      <section id="section-profiles" class="section"
+        data-search-keywords="profiles work study relaxed preset configurations switch">
+        <h2>Profiles</h2>
+        <p class="section-desc">Create different blocking profiles for work, study, or relaxation. Each profile has its
+          own blocked sites, categories, and unblock settings.</p>
+
+        <div class="profiles-header">
+          <div class="profiles-actions">
+            <button id="add-profile-btn" class="btn btn-secondary">+ New Profile</button>
+            <div class="dropdown" id="profile-template-dropdown">
+              <button id="profile-template-btn" class="btn btn-secondary">Create from Template</button>
+              <div class="dropdown-menu" id="profile-template-menu">
+                <button class="dropdown-item" data-template="work">
+                  <span class="template-icon">W</span>
+                  <span class="template-info">
+                    <span class="template-name">Work</span>
+                    <span class="template-desc">Strict blocking for productivity</span>
+                  </span>
+                </button>
+                <button class="dropdown-item" data-template="study">
+                  <span class="template-icon">S</span>
+                  <span class="template-info">
+                    <span class="template-name">Study</span>
+                    <span class="template-desc">Very strict with multiple challenges</span>
+                  </span>
+                </button>
+                <button class="dropdown-item" data-template="relaxed">
+                  <span class="template-icon">R</span>
+                  <span class="template-info">
+                    <span class="template-name">Relaxed</span>
+                    <span class="template-desc">Minimal blocking for downtime</span>
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
-          <div class="status-info">
-            <span class="status-label status-label-connected">Connected to Google Calendar</span>
-            <span class="status-desc" id="calendar-email">-</span>
-          </div>
-          <button id="disconnect-calendar-btn" class="btn btn-secondary btn-disconnect">Disconnect</button>
         </div>
-      </div>
-      
-      <!-- Setup Help (shown when not connected) -->
-      <details class="setup-help" id="calendar-setup-help">
-        <summary>Setup Instructions (for developers)</summary>
-        <ol class="setup-steps">
-          <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console - Credentials</a></li>
-          <li>Create or select an OAuth 2.0 Client ID (type: Chrome Extension)</li>
-          <li>Add this Extension ID: <code id="calendar-extension-id">Loading...</code></li>
-          <li>Add this Redirect URI to "Authorized redirect URIs": <code id="calendar-redirect-url">Loading...</code></li>
-          <li>Make sure the Google Calendar API is enabled in your project</li>
-          <li>Copy the Client ID to manifest.json under oauth2.client_id</li>
-        </ol>
-      </details>
-      
-      <!-- Calendar Settings (shown when connected) -->
-      <div id="calendar-settings" class="calendar-settings hidden">
-        <hr class="divider">
-        
-        <!-- Today's Events Preview - Calendar Style -->
-        <div class="calendar-option-section">
-          <div class="calendar-section-header">
-            <div class="calendar-date-display">
-              <span class="calendar-day-name" id="calendar-day-name">Wednesday</span>
-              <span class="calendar-date" id="calendar-date">Feb 4</span>
+
+        <div id="profiles-list" class="profiles-list">
+          <!-- Profiles will be rendered dynamically -->
+        </div>
+
+        <!-- Profile Edit Modal -->
+        <div id="profile-modal" class="modal hidden">
+          <div class="modal-backdrop"></div>
+          <div class="modal-content profile-modal-content">
+            <div class="modal-header">
+              <h3 id="profile-modal-title">Edit Profile</h3>
+              <button class="modal-close" id="profile-modal-close">&times;</button>
             </div>
-            <div class="calendar-header-actions">
-              <span id="calendar-last-sync" class="calendar-sync-time">Never synced</span>
-              <button id="refresh-events-btn" class="btn btn-small btn-secondary">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="23 4 23 10 17 10"></polyline>
-                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                </svg>
-                Refresh
-              </button>
+            <div class="modal-body">
+              <div class="profile-modal-row">
+                <div class="form-group">
+                  <label for="profile-name">Profile Name</label>
+                  <input type="text" id="profile-name" class="input" placeholder="e.g., Work Mode">
+                </div>
+                <div class="form-group form-group-small">
+                  <label for="profile-icon">Icon</label>
+                  <div class="icon-picker-wrapper">
+                    <button type="button" id="profile-icon-btn" class="icon-picker-btn" title="Select icon">
+                      <span id="profile-icon-preview">*</span>
+                    </button>
+                    <input type="hidden" id="profile-icon" value="*">
+                    <div class="icon-picker-dropdown" id="icon-picker-dropdown">
+                      <!-- Icons will be rendered by JS -->
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group form-group-small">
+                  <label for="profile-color">Color</label>
+                  <input type="color" id="profile-color" class="input input-color" value="#6366f1">
+                </div>
+              </div>
+
+              <div class="profile-modal-section">
+                <h4>Blocked Sites</h4>
+                <div class="profile-sites-input">
+                  <input type="text" id="profile-site-input" class="input" placeholder="Add site (e.g., twitter.com)">
+                  <button id="add-profile-site-btn" class="btn btn-primary">Add</button>
+                </div>
+                <ul id="profile-sites-list" class="site-list profile-modal-sites">
+                  <!-- Sites will be rendered dynamically -->
+                </ul>
+              </div>
+
+              <div class="profile-modal-section">
+                <h4>Unblock Methods</h4>
+                <p class="section-desc-small">Configure which challenges are required to unblock sites in this profile.
+                </p>
+
+                <div class="profile-unblock-methods">
+                  <div class="setting-row compact">
+                    <div class="setting-info">
+                      <span class="setting-label">Wait Timer</span>
+                    </div>
+                    <div class="setting-controls">
+                      <input type="number" id="profile-timer-minutes" class="input input-small" min="1" max="60"
+                        value="5">
+                      <span class="input-suffix">min</span>
+                      <label class="toggle">
+                        <input type="checkbox" id="profile-timer-enabled" checked>
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="setting-row compact">
+                    <div class="setting-info">
+                      <span class="setting-label">Type Phrase</span>
+                    </div>
+                    <div class="setting-controls">
+                      <label class="toggle">
+                        <input type="checkbox" id="profile-phrase-enabled">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="setting-row compact">
+                    <div class="setting-info">
+                      <span class="setting-label">Math Problem</span>
+                    </div>
+                    <div class="setting-controls">
+                      <label class="toggle">
+                        <input type="checkbox" id="profile-math-enabled">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="setting-row compact">
+                    <div class="setting-info">
+                      <span class="setting-label">Complete Todo</span>
+                    </div>
+                    <div class="setting-controls">
+                      <label class="toggle">
+                        <input type="checkbox" id="profile-todo-enabled">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="setting-row compact">
+                    <div class="setting-info">
+                      <span class="setting-label">Type Reason</span>
+                    </div>
+                    <div class="setting-controls">
+                      <label class="toggle">
+                        <input type="checkbox" id="profile-reason-enabled">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="setting-row compact">
+                    <div class="setting-info">
+                      <span class="setting-label">Require ALL Methods</span>
+                      <span class="setting-desc">If enabled, all active methods must be completed</span>
+                    </div>
+                    <div class="setting-controls">
+                      <label class="toggle">
+                        <input type="checkbox" id="profile-require-all">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button id="delete-profile-btn" class="btn btn-danger">Delete Profile</button>
+              <div class="modal-footer-right">
+                <button id="duplicate-profile-btn" class="btn btn-secondary">Duplicate</button>
+                <button id="save-profile-btn" class="btn btn-primary">Save Changes</button>
+              </div>
             </div>
           </div>
-          
-          <div id="today-events" class="calendar-timeline">
-            <div class="calendar-empty-state">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-              <span>No events for today</span>
-            </div>
-          </div>
-          
-          <!-- Current Suggestion -->
-          <div id="calendar-suggestion" class="calendar-suggestion hidden">
-            <div class="suggestion-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        </div>
+      </section>
+
+      <!-- Todoist Connection -->
+      <section id="section-todoist" class="section"
+        data-search-keywords="todoist connection api tasks todo integration sync">
+        <h2>Todoist</h2>
+        <p class="section-desc">Connect to show tasks on blocked pages</p>
+
+        <!-- Connection Status -->
+        <div id="auth-status" class="auth-status">
+          <div id="not-connected" class="status-card status-card-disconnected">
+            <div class="status-icon status-icon-disconnected">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
               </svg>
             </div>
-            <div class="suggestion-content">
-              <span class="suggestion-title">Profile Suggestion</span>
-              <span class="suggestion-text" id="suggestion-text">Based on your current event</span>
+            <div class="status-info">
+              <span class="status-label">Not Connected</span>
+              <span class="status-desc">Connect your Todoist account to see tasks on blocked pages</span>
             </div>
-            <button id="apply-suggestion-btn" class="btn btn-primary btn-small">Apply</button>
+            <button id="connect-btn" class="btn btn-todoist">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                <polyline points="10 17 15 12 10 7"></polyline>
+                <line x1="15" y1="12" x2="3" y2="12"></line>
+              </svg>
+              Connect Todoist
+            </button>
+          </div>
+          <div id="connected" class="status-card status-card-connected" style="display: none;">
+            <div class="status-icon status-icon-connected">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <div class="status-info">
+              <span class="status-label status-label-connected">Connected to Todoist</span>
+              <span class="status-desc">Your tasks will appear on blocked pages</span>
+            </div>
+            <button id="disconnect-btn" class="btn btn-secondary btn-disconnect">Disconnect</button>
           </div>
         </div>
-        
-        <hr class="divider">
-        
-        <!-- Sync Settings -->
-        <div class="calendar-option-section">
-          <h3 class="option-section-title">Sync Settings</h3>
-          
-          <div class="setting-row">
-            <div class="setting-info">
-              <span class="setting-label">Enable Calendar Sync</span>
-              <span class="setting-desc">Automatically sync events every 5 minutes</span>
+      </section>
+
+      <!-- Google Calendar Integration -->
+      <section id="section-calendar" class="section"
+        data-search-keywords="google calendar integration events schedule sync automatic">
+        <h2>Google Calendar</h2>
+        <p class="section-desc">Auto-switch profiles based on your schedule</p>
+
+        <!-- Connection Status -->
+        <div id="calendar-status" class="calendar-status">
+          <div id="calendar-not-connected" class="status-card status-card-disconnected">
+            <div class="status-icon status-icon-disconnected">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
             </div>
-            <label class="toggle">
-              <input type="checkbox" id="calendar-sync-enabled">
-              <span class="toggle-slider"></span>
-            </label>
+            <div class="status-info">
+              <span class="status-label">Not Connected</span>
+              <span class="status-desc">Connect Google Calendar to sync your schedule</span>
+            </div>
+            <button id="connect-calendar-btn" class="btn btn-google">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                <polyline points="10 17 15 12 10 7"></polyline>
+                <line x1="15" y1="12" x2="3" y2="12"></line>
+              </svg>
+              Connect Google Calendar
+            </button>
           </div>
-          
-          <div class="setting-row">
-            <div class="setting-info">
-              <span class="setting-label">Auto-Switch Profiles</span>
-              <span class="setting-desc">Automatically switch profiles based on calendar events</span>
+          <div id="calendar-connected" class="status-card status-card-connected" style="display: none;">
+            <div class="status-icon status-icon-connected">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
             </div>
-            <label class="toggle">
-              <input type="checkbox" id="calendar-auto-switch">
-              <span class="toggle-slider"></span>
-            </label>
+            <div class="status-info">
+              <span class="status-label status-label-connected">Connected to Google Calendar</span>
+              <span class="status-desc" id="calendar-email">-</span>
+            </div>
+            <button id="disconnect-calendar-btn" class="btn btn-secondary btn-disconnect">Disconnect</button>
           </div>
         </div>
-        
-        <hr class="divider">
-        
-        <!-- Calendar Selection -->
-        <div class="calendar-option-section">
-          <h3 class="option-section-title">Calendars to Monitor</h3>
-          <p class="section-desc-small">Select which calendars to check for events.</p>
-          <div id="calendar-list" class="calendar-checkbox-list">
-            <div class="calendar-loading">
-              <div class="spinner"></div>
-              <span>Loading calendars...</span>
-            </div>
-          </div>
-        </div>
-        
-        <hr class="divider">
-        
-        <!-- Focus/Break Keywords with Tags -->
-        <div class="calendar-option-section">
-          <h3 class="option-section-title">Event Keywords</h3>
-          <p class="section-desc-small">Events containing these keywords will trigger profile suggestions.</p>
-          
-          <div class="keyword-tags-section">
-            <div class="keyword-tags-group">
-              <div class="keyword-tags-header">
-                <span class="keyword-tags-label">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
+
+        <!-- Setup Help (shown when not connected) -->
+        <details class="setup-help" id="calendar-setup-help">
+          <summary>Setup Instructions (for developers)</summary>
+          <ol class="setup-steps">
+            <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console -
+                Credentials</a></li>
+            <li>Create or select an OAuth 2.0 Client ID (type: Chrome Extension)</li>
+            <li>Add this Extension ID: <code id="calendar-extension-id">Loading...</code></li>
+            <li>Add this Redirect URI to "Authorized redirect URIs": <code id="calendar-redirect-url">Loading...</code>
+            </li>
+            <li>Make sure the Google Calendar API is enabled in your project</li>
+            <li>Copy the Client ID to manifest.json under oauth2.client_id</li>
+          </ol>
+        </details>
+
+        <!-- Calendar Settings (shown when connected) -->
+        <div id="calendar-settings" class="calendar-settings hidden">
+          <hr class="divider">
+
+          <!-- Today's Events Preview - Calendar Style -->
+          <div class="calendar-option-section">
+            <div class="calendar-section-header">
+              <div class="calendar-date-display">
+                <span class="calendar-day-name" id="calendar-day-name">Wednesday</span>
+                <span class="calendar-date" id="calendar-date">Feb 4</span>
+              </div>
+              <div class="calendar-header-actions">
+                <span id="calendar-last-sync" class="calendar-sync-time">Never synced</span>
+                <button id="refresh-events-btn" class="btn btn-small btn-secondary">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                   </svg>
-                  Focus Keywords
-                </span>
-                <span class="keyword-tags-hint">Strict blocking</span>
+                  Refresh
+                </button>
               </div>
-              <div class="keyword-tags-input-wrapper">
-                <input type="text" id="focus-keyword-input" class="input keyword-tag-input" placeholder="Add keyword...">
-                <button type="button" id="add-focus-keyword" class="btn btn-small btn-secondary">Add</button>
-              </div>
-              <div id="focus-keywords-tags" class="keyword-tags focus-tags">
-                <!-- Tags rendered dynamically -->
-              </div>
-              <input type="hidden" id="focus-keywords" value="">
             </div>
-            
-            <div class="keyword-tags-group">
-              <div class="keyword-tags-header">
-                <span class="keyword-tags-label">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M17 8h1a4 4 0 1 1 0 8h-1"></path>
-                    <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"></path>
-                    <line x1="6" y1="2" x2="6" y2="4"></line>
-                    <line x1="10" y1="2" x2="10" y2="4"></line>
-                  </svg>
-                  Break Keywords
-                </span>
-                <span class="keyword-tags-hint">Relaxed blocking</span>
+
+            <div id="today-events" class="calendar-timeline">
+              <div class="calendar-empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span>No events for today</span>
               </div>
-              <div class="keyword-tags-input-wrapper">
-                <input type="text" id="break-keyword-input" class="input keyword-tag-input" placeholder="Add keyword...">
-                <button type="button" id="add-break-keyword" class="btn btn-small btn-secondary">Add</button>
-              </div>
-              <div id="break-keywords-tags" class="keyword-tags break-tags">
-                <!-- Tags rendered dynamically -->
-              </div>
-              <input type="hidden" id="break-keywords" value="">
             </div>
+
+            <!-- Current Suggestion -->
+            <div id="calendar-suggestion" class="calendar-suggestion hidden">
+              <div class="suggestion-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+              </div>
+              <div class="suggestion-content">
+                <span class="suggestion-title">Profile Suggestion</span>
+                <span class="suggestion-text" id="suggestion-text">Based on your current event</span>
+              </div>
+              <button id="apply-suggestion-btn" class="btn btn-primary btn-small">Apply</button>
+            </div>
+          </div>
+
+          <hr class="divider">
+
+          <!-- Sync Settings -->
+          <div class="calendar-option-section">
+            <h3 class="option-section-title">Sync Settings</h3>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-label">Enable Calendar Sync</span>
+                <span class="setting-desc">Automatically sync events every 5 minutes</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="calendar-sync-enabled">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-label">Auto-Switch Profiles</span>
+                <span class="setting-desc">Automatically switch profiles based on calendar events</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="calendar-auto-switch">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <hr class="divider">
+
+          <!-- Calendar Selection -->
+          <div class="calendar-option-section">
+            <h3 class="option-section-title">Calendars to Monitor</h3>
+            <p class="section-desc-small">Select which calendars to check for events.</p>
+            <div id="calendar-list" class="calendar-checkbox-list">
+              <div class="calendar-loading">
+                <div class="spinner"></div>
+                <span>Loading calendars...</span>
+              </div>
+            </div>
+          </div>
+
+          <hr class="divider">
+
+          <!-- Focus/Break Keywords with Tags -->
+          <div class="calendar-option-section">
+            <h3 class="option-section-title">Event Keywords</h3>
+            <p class="section-desc-small">Events containing these keywords will trigger profile suggestions.</p>
+
+            <div class="keyword-tags-section">
+              <div class="keyword-tags-group">
+                <div class="keyword-tags-header">
+                  <span class="keyword-tags-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Focus Keywords
+                  </span>
+                  <span class="keyword-tags-hint">Strict blocking</span>
+                </div>
+                <div class="keyword-tags-input-wrapper">
+                  <input type="text" id="focus-keyword-input" class="input keyword-tag-input"
+                    placeholder="Add keyword...">
+                  <button type="button" id="add-focus-keyword" class="btn btn-small btn-secondary">Add</button>
+                </div>
+                <div id="focus-keywords-tags" class="keyword-tags focus-tags">
+                  <!-- Tags rendered dynamically -->
+                </div>
+                <input type="hidden" id="focus-keywords" value="">
+              </div>
+
+              <div class="keyword-tags-group">
+                <div class="keyword-tags-header">
+                  <span class="keyword-tags-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round">
+                      <path d="M17 8h1a4 4 0 1 1 0 8h-1"></path>
+                      <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"></path>
+                      <line x1="6" y1="2" x2="6" y2="4"></line>
+                      <line x1="10" y1="2" x2="10" y2="4"></line>
+                    </svg>
+                    Break Keywords
+                  </span>
+                  <span class="keyword-tags-hint">Relaxed blocking</span>
+                </div>
+                <div class="keyword-tags-input-wrapper">
+                  <input type="text" id="break-keyword-input" class="input keyword-tag-input"
+                    placeholder="Add keyword...">
+                  <button type="button" id="add-break-keyword" class="btn btn-small btn-secondary">Add</button>
+                </div>
+                <div id="break-keywords-tags" class="keyword-tags break-tags">
+                  <!-- Tags rendered dynamically -->
+                </div>
+                <input type="hidden" id="break-keywords" value="">
+              </div>
+            </div>
+          </div>
+
+          <hr class="divider">
+
+          <!-- Profile Mapping -->
+          <div id="profile-mapping-section" class="calendar-option-section">
+            <h3 class="option-section-title">Event-to-Profile Mapping</h3>
+            <p class="section-desc-small">Map specific event keywords to profiles for automatic switching.</p>
+
+            <div id="profile-mappings" class="profile-mappings-list">
+              <!-- Mappings will be rendered dynamically -->
+            </div>
+
+            <button id="add-mapping-btn" class="btn btn-secondary btn-small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Add Mapping
+            </button>
           </div>
         </div>
-        
-        <hr class="divider">
-        
-        <!-- Profile Mapping -->
-        <div id="profile-mapping-section" class="calendar-option-section">
-          <h3 class="option-section-title">Event-to-Profile Mapping</h3>
-          <p class="section-desc-small">Map specific event keywords to profiles for automatic switching.</p>
-          
-          <div id="profile-mappings" class="profile-mappings-list">
-            <!-- Mappings will be rendered dynamically -->
+      </section>
+
+      <!-- Appearance -->
+      <section id="section-appearance" class="section"
+        data-search-keywords="appearance theme monospace dark light mode style">
+        <h2>Appearance</h2>
+        <p class="section-desc">Customize how Focus looks and feels.</p>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Monospace</span>
+            <span class="setting-desc">Clean, typographic interface — monospace font, sharp edges, no shadows or
+              animations. Works with both light and dark themes.</span>
           </div>
-          
-          <button id="add-mapping-btn" class="btn btn-secondary btn-small">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            Add Mapping
+          <label class="toggle">
+            <input type="checkbox" id="brutalist-enabled">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Privacy Settings -->
+      <section id="section-privacy" class="section"
+        data-search-keywords="privacy settings history analysis data browser">
+        <h2>Privacy Settings</h2>
+        <p class="section-desc">Control what data the extension can access and analyze.</p>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Browser History Analysis</span>
+            <span class="setting-desc">Allow the extension to analyze your browsing history for productivity insights
+              and site suggestions</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="history-analysis-enabled" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <p class="privacy-note">Note: Your browsing history is analyzed locally and never sent to any server. Disabling
+          this will hide the History Analysis section in Stats.</p>
+
+      </section>
+
+      <!-- Data Backup -->
+      <section id="section-data-backup" class="section"
+        data-search-keywords="backup export import settings data transfer sync">
+        <h2>Data Backup</h2>
+        <p class="section-desc">Export or import your settings to preserve them across updates or transfer to another
+          device.</p>
+
+        <div class="backup-actions">
+          <button id="export-data-btn" class="btn btn-secondary">
+            <span class="btn-icon-inline" id="export-icon"></span>
+            Export Settings
           </button>
+          <button id="import-data-btn" class="btn btn-secondary">
+            <span class="btn-icon-inline" id="import-icon"></span>
+            Import Settings
+          </button>
+          <input type="file" id="import-file-input" accept=".json" style="display: none;">
         </div>
-      </div>
-    </section>
+        <p class="privacy-note">Your settings are automatically saved in Chrome's local storage, but exporting creates a
+          backup file you can keep safe.</p>
+      </section>
 
-    <!-- Privacy Settings -->
-    <section id="section-privacy" class="section" data-search-keywords="privacy settings history analysis data browser">
-      <h2>Privacy Settings</h2>
-      <p class="section-desc">Control what data the extension can access and analyze.</p>
-      
-      <div class="setting-row">
-        <div class="setting-info">
-          <span class="setting-label">Browser History Analysis</span>
-          <span class="setting-desc">Allow the extension to analyze your browsing history for productivity insights and site suggestions</span>
-        </div>
-        <label class="toggle">
-          <input type="checkbox" id="history-analysis-enabled" checked>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      
-      <p class="privacy-note">Note: Your browsing history is analyzed locally and never sent to any server. Disabling this will hide the History Analysis section in Stats.</p>
-      
-    </section>
-
-    <!-- Data Backup -->
-    <section id="section-data-backup" class="section" data-search-keywords="backup export import settings data transfer sync">
-      <h2>Data Backup</h2>
-      <p class="section-desc">Export or import your settings to preserve them across updates or transfer to another device.</p>
-      
-      <div class="backup-actions">
-        <button id="export-data-btn" class="btn btn-secondary">
-          <span class="btn-icon-inline" id="export-icon"></span>
-          Export Settings
+      <!-- Save Button -->
+      <div class="save-bar hidden" id="save-bar">
+        <span id="save-status" class="save-status"></span>
+        <button id="save-btn" class="btn btn-primary btn-large">
+          <span class="btn-text">Save Settings</span>
+          <span class="btn-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+              <polyline class="checkmark-path" points="20 6 9 17 4 12" />
+            </svg>
+          </span>
         </button>
-        <button id="import-data-btn" class="btn btn-secondary">
-          <span class="btn-icon-inline" id="import-icon"></span>
-          Import Settings
-        </button>
-        <input type="file" id="import-file-input" accept=".json" style="display: none;">
       </div>
-      <p class="privacy-note">Your settings are automatically saved in Chrome's local storage, but exporting creates a backup file you can keep safe.</p>
-    </section>
-
-    <!-- Save Button -->
-    <div class="save-bar hidden" id="save-bar">
-      <span id="save-status" class="save-status"></span>
-      <button id="save-btn" class="btn btn-primary btn-large">
-        <span class="btn-text">Save Settings</span>
-        <span class="btn-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-            <polyline class="checkmark-path" points="20 6 9 17 4 12"/>
-          </svg>
-        </span>
-      </button>
     </div>
   </div>
-  </div>
-  
+
   <!-- Spotlight Search Modal -->
   <div id="spotlight-modal" class="spotlight-modal hidden">
     <div class="spotlight-backdrop"></div>
     <div class="spotlight-container">
       <div class="spotlight-search-box">
         <span class="spotlight-icon" id="spotlight-icon"></span>
-        <input type="text" id="spotlight-input" class="spotlight-input" placeholder="Search settings..." autocomplete="off">
+        <input type="text" id="spotlight-input" class="spotlight-input" placeholder="Search settings..."
+          autocomplete="off">
         <kbd class="spotlight-shortcut">ESC</kbd>
       </div>
       <div id="spotlight-results" class="spotlight-results"></div>
@@ -1345,4 +1428,5 @@
   <script src="../lib/icons.js"></script>
   <script src="options.js" type="module"></script>
 </body>
+
 </html>

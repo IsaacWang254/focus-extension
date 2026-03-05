@@ -76,10 +76,10 @@ function showInitializationFallback(error) {
  */
 function showToast(message, type = 'success', duration = 3000) {
   const container = document.getElementById('toast-container');
-  
+
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  
+
   // Icon based on type (using SVG icons)
   let icon = '';
   switch (type) {
@@ -95,14 +95,14 @@ function showToast(message, type = 'success', duration = 3000) {
     default:
       icon = getIcon('info', 'i');
   }
-  
+
   toast.innerHTML = `
     <span class="toast-icon">${icon}</span>
     <span class="toast-message">${message}</span>
   `;
-  
+
   container.appendChild(toast);
-  
+
   // Remove toast after duration
   setTimeout(() => {
     toast.remove();
@@ -122,7 +122,7 @@ function initializeIcons() {
   const themeIconDark = document.getElementById('theme-icon-dark');
   if (themeIconLight) themeIconLight.innerHTML = getIcon('sun', '☀');
   if (themeIconDark) themeIconDark.innerHTML = getIcon('moon', '◐');
-  
+
   // Unblock method icons
   const methodIcons = {
     'method-timer-icon': getIcon('timer', '⏱'),
@@ -132,7 +132,7 @@ function initializeIcons() {
     'method-password-icon': getIcon('lock', 'P'),
     'method-reason-icon': getIcon('messageCircle', 'R')
   };
-  
+
   for (const [id, icon] of Object.entries(methodIcons)) {
     const el = document.getElementById(id);
     if (el) el.innerHTML = icon;
@@ -147,22 +147,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     // Initialize SVG icons first
     initializeIcons();
-    
+
     // Load theme first to avoid flash
     await loadTheme();
-    
+
     // Setup theme toggle
     setupThemeToggle();
-    
+
     // Load and display motivational quote
     await loadQuote();
-    
+
     // Parse the blocked URL from query params
     const params = new URLSearchParams(window.location.search);
     originalUrl = params.get('url') || '';
     const fallbackDomain = params.get('domain') || '';
     const referrerUrl = document.referrer || '';
-    
+
     // Extract domain from the full URL for display
     try {
       if (originalUrl.startsWith('http')) {
@@ -179,45 +179,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch {
       blockedDomain = originalUrl || 'unknown site';
     }
-    
+
     // Display blocked domain
     document.getElementById('blocked-domain').textContent = blockedDomain;
-    
+
     // Track this block attempt for achievements
     try {
       await chrome.runtime.sendMessage({ type: 'TRACK_BLOCK_ATTEMPT' });
     } catch (e) {
       // Silently ignore - non-critical for page functionality
     }
-    
+
     // Load settings
     settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
     if (!settings || settings.error) {
       throw new Error(settings?.error || 'Failed to load settings');
     }
-    
+
     // Update schedule info card
     updateScheduleInfoCard();
-    
+
     // Update daily limit info card
     await updateDailyLimitInfoCard();
-    
+
     // Update earned time info card
     await updateEarnedTimeInfoCard();
-    
+
     // Check authentication and load todos
     const isAuthenticated = await todoist.isAuthenticated();
-    
+
     if (isAuthenticated) {
       showTodosSection();
       loadTodos();
     } else {
       showAuthSection();
     }
-    
+
     // Setup unblock methods
     await setupUnblockMethods();
-    
+
     // Setup event listeners
     setupEventListeners();
   } catch (error) {
@@ -233,7 +233,7 @@ async function loadQuote() {
   try {
     // Get the quote of the day for consistency
     const quote = await chrome.runtime.sendMessage({ type: 'GET_QUOTE_OF_DAY' });
-    
+
     if (quote) {
       document.getElementById('quote-text').textContent = `"${quote.text}"`;
       document.getElementById('quote-author').textContent = `— ${quote.author}`;
@@ -252,16 +252,18 @@ async function loadQuote() {
 
 async function loadTheme() {
   try {
-    const result = await chrome.storage.local.get('theme');
-    let theme = result.theme;
-    
+    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled']);
+    let base = result.theme;
+    const brutalist = result.brutalistEnabled || false;
+
     // If no theme is saved, default to light
-    if (!theme) {
-      theme = 'light';
+    if (!base) {
+      base = 'light';
       await chrome.storage.local.set({ theme: 'light' });
     }
-    
-    document.documentElement.setAttribute('data-theme', theme);
+
+    const resolved = brutalist ? (base === 'dark' ? 'brutalist-dark' : 'brutalist') : base;
+    document.documentElement.setAttribute('data-theme', resolved);
   } catch (e) {
     console.error('Failed to load theme:', e);
   }
@@ -271,16 +273,22 @@ function setupThemeToggle() {
   const toggle = document.getElementById('theme-toggle');
   toggle.addEventListener('click', async () => {
     const root = document.documentElement;
-    const currentTheme = root.getAttribute('data-theme') || 'light';
-    
-    // Simple toggle between light and dark
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    
-    root.setAttribute('data-theme', newTheme);
-    
-    // Save to chrome.storage
+
+    // Read storage to get base theme and brutalist state
+    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled']);
+    const currentBase = result.theme || 'light';
+    const brutalist = result.brutalistEnabled || false;
+
+    // Toggle the base theme
+    const newBase = currentBase === 'dark' ? 'light' : 'dark';
+
+    // Resolve the actual data-theme value
+    const resolved = brutalist ? (newBase === 'dark' ? 'brutalist-dark' : 'brutalist') : newBase;
+    root.setAttribute('data-theme', resolved);
+
+    // Save the base theme
     try {
-      await chrome.storage.local.set({ theme: newTheme });
+      await chrome.storage.local.set({ theme: newBase });
     } catch (e) {
       console.error('Failed to save theme:', e);
     }
@@ -317,34 +325,34 @@ async function loadTodos() {
   const errorEl = document.getElementById('todos-error');
   const listEl = document.getElementById('todos-list');
   const noTodosEl = document.getElementById('no-todos');
-  
+
   loadingEl.style.display = 'flex';
   errorEl.style.display = 'none';
   listEl.innerHTML = '';
   noTodosEl.style.display = 'none';
   showingAllTasks = false;
-  
+
   // Remove existing show more button if present
   const existingShowMore = document.getElementById('show-more-tasks');
   if (existingShowMore) existingShowMore.remove();
-  
+
   try {
     // Fetch tasks and labels in parallel
     const [tasks, labels] = await Promise.all([
       todoist.getTasksWithSubtasks(),
       todoist.getLabelsMap()
     ]);
-    
+
     allTasks = tasks;
     labelsMap = labels;
-    
+
     loadingEl.style.display = 'none';
-    
+
     if (allTasks.length === 0) {
       noTodosEl.style.display = 'block';
       return;
     }
-    
+
     // Sort by priority (highest first) then by due date
     allTasks.sort((a, b) => {
       // Priority: 4 is highest in Todoist API
@@ -359,17 +367,17 @@ async function loadTodos() {
       if (b.due) return 1;
       return 0;
     });
-    
+
     // Update task count badge
     const countBadge = document.getElementById('task-count-badge');
     if (countBadge) {
       countBadge.textContent = allTasks.length;
       countBadge.title = `${allTasks.length} task${allTasks.length !== 1 ? 's' : ''} total`;
     }
-    
+
     // Render initial tasks
     renderTasks(INITIAL_TASK_COUNT);
-    
+
   } catch (error) {
     loadingEl.style.display = 'none';
     errorEl.style.display = 'block';
@@ -380,26 +388,26 @@ async function loadTodos() {
 function renderTasks(count) {
   const listEl = document.getElementById('todos-list');
   const todosSection = document.getElementById('todos-section');
-  
+
   // Clear existing tasks
   listEl.innerHTML = '';
-  
+
   // Remove existing show more button
   const existingShowMore = document.getElementById('show-more-tasks');
   if (existingShowMore) existingShowMore.remove();
-  
+
   // Render tasks up to count
   const displayTasks = allTasks.slice(0, count);
   displayTasks.forEach(task => {
     listEl.appendChild(createTodoElement(task));
   });
-  
+
   // Add show more/less button if there are more tasks
   if (allTasks.length > INITIAL_TASK_COUNT) {
     const showMoreBtn = document.createElement('button');
     showMoreBtn.id = 'show-more-tasks';
     showMoreBtn.className = 'btn btn-ghost show-more-btn';
-    
+
     if (count < allTasks.length && count === INITIAL_TASK_COUNT) {
       const remaining = Math.min(allTasks.length - INITIAL_TASK_COUNT, EXPANDED_TASK_COUNT - INITIAL_TASK_COUNT);
       showMoreBtn.innerHTML = `Show ${remaining} more task${remaining > 1 ? 's' : ''} <span class="show-more-icon">↓</span>`;
@@ -416,7 +424,7 @@ function renderTasks(count) {
         todosSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
     }
-    
+
     // Insert after the list
     listEl.after(showMoreBtn);
   }
@@ -426,7 +434,7 @@ function createTodoElement(task, isSubtask = false) {
   const li = document.createElement('li');
   li.className = `todo-item ${todoist.getPriorityClass(task.priority)}${isSubtask ? ' subtask' : ''}`;
   li.dataset.taskId = task.id;
-  
+
   // Checkbox - circular Todoist style
   const checkbox = document.createElement('div');
   checkbox.className = 'todo-checkbox';
@@ -434,13 +442,13 @@ function createTodoElement(task, isSubtask = false) {
   checkbox.setAttribute('aria-checked', 'false');
   checkbox.setAttribute('tabindex', '0');
   checkbox.title = 'Complete task';
-  
+
   // Handle click
   checkbox.addEventListener('click', (e) => {
     e.stopPropagation();
     completeTask(task.id, li, checkbox);
   });
-  
+
   // Handle keyboard
   checkbox.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -448,17 +456,17 @@ function createTodoElement(task, isSubtask = false) {
       completeTask(task.id, li, checkbox);
     }
   });
-  
+
   // Content
   const content = document.createElement('div');
   content.className = 'todo-content';
-  
+
   const text = document.createElement('div');
   text.className = 'todo-text';
   text.textContent = task.content;
-  
+
   content.appendChild(text);
-  
+
   // Description (if present)
   if (task.description && task.description.trim()) {
     const description = document.createElement('div');
@@ -466,52 +474,52 @@ function createTodoElement(task, isSubtask = false) {
     description.textContent = task.description;
     content.appendChild(description);
   }
-  
+
   // Meta info container
   const meta = document.createElement('div');
   meta.className = 'todo-meta';
   let hasMeta = false;
-  
+
   // Due date badge
   if (task.due) {
     const due = document.createElement('span');
     due.className = 'todo-due';
     const dueText = todoist.formatDueDate(task);
     due.textContent = dueText;
-    
+
     if (dueText === 'Overdue') {
       due.classList.add('overdue');
     } else if (dueText === 'Today' || dueText.startsWith('Today')) {
       due.classList.add('today');
     }
-    
+
     meta.appendChild(due);
     hasMeta = true;
   }
-  
+
   // Labels/tags
   if (task.labels && task.labels.length > 0) {
     const labelsContainer = document.createElement('div');
     labelsContainer.className = 'todo-labels';
-    
+
     for (const labelName of task.labels) {
       const labelEl = document.createElement('span');
       labelEl.className = 'todo-label';
       labelEl.textContent = labelName;
-      
+
       // Get label color from cache
       const labelInfo = labelsMap.get(labelName.toLowerCase());
       if (labelInfo && labelInfo.color) {
         labelEl.setAttribute('data-color', labelInfo.color);
       }
-      
+
       labelsContainer.appendChild(labelEl);
     }
-    
+
     meta.appendChild(labelsContainer);
     hasMeta = true;
   }
-  
+
   // Subtask count indicator (for parent tasks with subtasks)
   if (!isSubtask && task.subtasks && task.subtasks.length > 0) {
     const subtaskCount = document.createElement('span');
@@ -520,50 +528,50 @@ function createTodoElement(task, isSubtask = false) {
     meta.appendChild(subtaskCount);
     hasMeta = true;
   }
-  
+
   if (hasMeta) {
     content.appendChild(meta);
   }
-  
+
   // Subtasks (if present and not already a subtask) - nested inside content
   if (!isSubtask && task.subtasks && task.subtasks.length > 0) {
     const subtasksList = document.createElement('ul');
     subtasksList.className = 'subtasks-list';
-    
+
     task.subtasks.forEach(subtask => {
       subtasksList.appendChild(createTodoElement(subtask, true));
     });
-    
+
     content.appendChild(subtasksList);
   }
-  
+
   li.appendChild(checkbox);
   li.appendChild(content);
-  
+
   return li;
 }
 
 async function completeTask(taskId, listItem, checkbox) {
   // Prevent double-clicks
   if (checkbox.classList.contains('completed')) return;
-  
+
   // Optimistic UI update with animation
   checkbox.classList.add('completed');
   checkbox.setAttribute('aria-checked', 'true');
   listItem.classList.add('completed');
-  
+
   // Add a satisfying haptic-like visual feedback
   checkbox.style.transform = 'scale(1.1)';
   setTimeout(() => {
     checkbox.style.transform = 'scale(1)';
   }, 150);
-  
+
   try {
     await todoist.completeTask(taskId);
-    
+
     // Increment completed count
     completedTodosCount++;
-    
+
     // Award earned time if feature is enabled
     if (earnedTimeInfo && earnedTimeInfo.enabled) {
       const result = await chrome.runtime.sendMessage({ type: 'ADD_EARNED_TIME', taskCount: 1 });
@@ -571,13 +579,13 @@ async function completeTask(taskId, listItem, checkbox) {
         // Update local earned time info
         earnedTimeInfo.minutes = result.minutes;
         earnedTimeInfo.tasksCompleted = result.tasksCompleted;
-        
+
         // Show toast notification with earned time
         showToast(`<strong>+${result.added} min</strong> earned! Bank: ${result.minutes} min`, 'success');
-        
+
         // Update the earned time info card
         await updateEarnedTimeInfoCard();
-        
+
         // If we were showing insufficient earned time, check if we can now show normal methods
         const insufficientSection = document.getElementById('insufficient-earned-time');
         if (insufficientSection && insufficientSection.style.display === 'block' && earnedTimeInfo.minutes > 0) {
@@ -589,31 +597,31 @@ async function completeTask(taskId, listItem, checkbox) {
       // Show simple completion toast when earned time is not enabled
       showToast('Task completed!', 'success', 2000);
     }
-    
+
     // Check if completeTodo method is satisfied
     if (settings.unblockMethods.completeTodo.enabled && !completedMethods.completeTodo) {
       completedMethods.completeTodo = true;
       updateMethodStatus('method-todo', 'todo-status', true);
       checkUnblockReady();
     }
-    
+
     // Remove the item after animation completes
     setTimeout(() => {
       listItem.style.opacity = '0';
       listItem.style.transform = 'translateX(20px) scale(0.95)';
       listItem.style.transition = 'all 0.3s ease';
       listItem.style.maxHeight = listItem.offsetHeight + 'px';
-      
+
       setTimeout(() => {
         listItem.style.maxHeight = '0';
         listItem.style.padding = '0';
         listItem.style.margin = '0';
         listItem.style.borderWidth = '0';
-        
+
         setTimeout(() => listItem.remove(), 200);
       }, 150);
     }, 600);
-    
+
   } catch (error) {
     // Revert on error
     checkbox.classList.remove('completed');
@@ -637,30 +645,30 @@ function isInAllowedTimeWindow(schedule) {
   if (!schedule || !schedule.enabled) {
     return true; // Schedule not enabled, always allow unblocking
   }
-  
+
   const now = new Date();
   const currentDay = now.getDay(); // 0 = Sunday, 6 = Saturday
-  
+
   // Check if today is an active day for the schedule
   if (!schedule.activeDays.includes(currentDay)) {
     return true; // Schedule doesn't apply today, allow unblocking
   }
-  
+
   // If no time windows defined, nothing is allowed
   if (!schedule.allowedTimes || schedule.allowedTimes.length === 0) {
     return false;
   }
-  
+
   // Get current time in HH:MM format
   const currentTime = now.toTimeString().slice(0, 5); // "HH:MM"
-  
+
   // Check each allowed time window
   for (const window of schedule.allowedTimes) {
     if (isTimeInRange(currentTime, window.start, window.end)) {
       return true; // Currently in an allowed window
     }
   }
-  
+
   return false; // Not in any allowed window
 }
 
@@ -687,34 +695,34 @@ function isTimeInRange(time, start, end) {
  */
 function updateScheduleInfoCard() {
   const container = document.getElementById('schedule-info');
-  
+
   if (!container) {
     return;
   }
-  
+
   const iconEl = document.getElementById('schedule-info-icon');
   const statusEl = document.getElementById('schedule-info-status');
   const detailEl = document.getElementById('schedule-info-detail');
-  
+
   const schedule = settings.schedule;
-  
+
   // Only show if schedule is enabled
   if (!schedule || !schedule.enabled) {
     container.style.display = 'none';
     return;
   }
-  
+
   // Check if there are any time windows configured
   if (!schedule.allowedTimes || schedule.allowedTimes.length === 0) {
     container.style.display = 'none';
     return;
   }
-  
+
   const now = new Date();
   const currentDay = now.getDay();
   const activeDays = schedule.activeDays || [];
   const isActiveDay = activeDays.includes(currentDay);
-  
+
   if (!isActiveDay) {
     // Not an active day - no restrictions, show info card
     container.style.display = 'block';
@@ -725,9 +733,9 @@ function updateScheduleInfoCard() {
     container.classList.add('allowed');
     return;
   }
-  
+
   const canUnblock = isInAllowedTimeWindow(schedule);
-  
+
   if (canUnblock) {
     // In allowed window - show info card
     container.style.display = 'block';
@@ -747,7 +755,7 @@ function updateScheduleInfoCard() {
 function getWindowEndText(schedule) {
   const now = new Date();
   const currentTime = now.toTimeString().slice(0, 5);
-  
+
   for (const window of schedule.allowedTimes) {
     if (isTimeInRange(currentTime, window.start, window.end)) {
       const [h, m] = window.end.split(':').map(Number);
@@ -762,13 +770,13 @@ function getWindowEndText(schedule) {
  */
 function getNextWindowTextForCard(schedule) {
   const nextWindow = getNextAllowedWindow(schedule);
-  
+
   if (!nextWindow) {
     return 'No upcoming windows';
   }
-  
+
   const [h, m] = nextWindow.start.split(':').map(Number);
-  
+
   if (nextWindow.dayLabel === 'Today') {
     return `Opens at ${formatTime12Hour(h, m)}`;
   } else {
@@ -783,10 +791,10 @@ function getNextActiveDayText(schedule) {
   const now = new Date();
   const currentDay = now.getDay();
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  
+
   // Sort windows by start time
   const sortedWindows = [...schedule.allowedTimes].sort((a, b) => a.start.localeCompare(b.start));
-  
+
   for (let i = 1; i <= 7; i++) {
     const nextDay = (currentDay + i) % 7;
     if (schedule.activeDays && schedule.activeDays.includes(nextDay)) {
@@ -816,25 +824,25 @@ function formatTime12Hour(hours, minutes) {
  */
 async function updateDailyLimitInfoCard() {
   const container = document.getElementById('daily-limit-info');
-  
+
   if (!container) {
     return;
   }
-  
+
   // Get daily usage info from background
   const usageInfo = await chrome.runtime.sendMessage({ type: 'GET_DAILY_USAGE' });
-  
+
   if (!usageInfo || !usageInfo.enabled) {
     container.style.display = 'none';
     return;
   }
-  
+
   const iconEl = document.getElementById('daily-limit-info-icon');
   const statusEl = document.getElementById('daily-limit-info-status');
   const detailEl = document.getElementById('daily-limit-info-detail');
-  
+
   container.style.display = 'block';
-  
+
   if (usageInfo.exceeded) {
     // Daily limit exceeded
     if (iconEl) iconEl.innerHTML = getIcon('clock', '⏱');
@@ -857,25 +865,25 @@ async function updateDailyLimitInfoCard() {
  */
 async function updateEarnedTimeInfoCard() {
   const container = document.getElementById('earned-time-info');
-  
+
   if (!container) {
     return;
   }
-  
+
   // Get earned time info from background
   earnedTimeInfo = await chrome.runtime.sendMessage({ type: 'GET_EARNED_TIME' });
-  
+
   if (!earnedTimeInfo || !earnedTimeInfo.enabled) {
     container.style.display = 'none';
     return;
   }
-  
+
   const iconEl = document.getElementById('earned-time-info-icon');
   const statusEl = document.getElementById('earned-time-info-status');
   const detailEl = document.getElementById('earned-time-info-detail');
-  
+
   container.style.display = 'block';
-  
+
   if (earnedTimeInfo.requireTasksToUnlock && earnedTimeInfo.minutes <= 0) {
     // No earned time and it's required
     if (iconEl) iconEl.innerHTML = getIcon('zap', '⚡');
@@ -897,7 +905,7 @@ async function updateEarnedTimeInfoCard() {
     if (detailEl) detailEl.textContent = `Complete tasks to earn ${earnedTimeInfo.minutesPerTask} min each`;
     container.classList.remove('empty', 'available');
   }
-  
+
   // Update time button availability indicators
   updateTimeButtonsAvailability();
 }
@@ -910,19 +918,19 @@ function updateTimeButtonsAvailability() {
   if (!earnedTimeInfo || !earnedTimeInfo.enabled) {
     return;
   }
-  
+
   const availableMinutes = earnedTimeInfo.minutes;
   const buttons = document.querySelectorAll('.time-btn:not(.time-btn-unlimited)');
-  
+
   buttons.forEach(btn => {
     const minutes = parseFloat(btn.dataset.minutes);
     const availabilityIndicator = btn.querySelector('.time-btn-availability');
-    
+
     // Remove existing indicator
     if (availabilityIndicator) {
       availabilityIndicator.remove();
     }
-    
+
     // Only show indicators when earned time is required or has a balance
     if (earnedTimeInfo.requireTasksToUnlock || availableMinutes > 0) {
       // Add availability indicator
@@ -937,7 +945,7 @@ function updateTimeButtonsAvailability() {
       btn.classList.remove('insufficient-time', 'sufficient-time');
     }
   });
-  
+
   // Also update the custom time input visual state
   updateCustomTimeAvailability();
 }
@@ -950,10 +958,10 @@ function updateCustomTimeAvailability() {
   if (!customInput || !earnedTimeInfo || !earnedTimeInfo.enabled) {
     return;
   }
-  
+
   const customMinutes = parseFloat(customInput.value) || 0;
   const availableMinutes = earnedTimeInfo.minutes;
-  
+
   if (earnedTimeInfo.requireTasksToUnlock || availableMinutes > 0) {
     if (customMinutes > 0 && customMinutes <= availableMinutes) {
       customInput.classList.remove('insufficient-time');
@@ -975,27 +983,27 @@ function updateCustomTimeAvailability() {
 async function showDailyLimitExceeded() {
   // Get daily usage info
   const usageInfo = await chrome.runtime.sendMessage({ type: 'GET_DAILY_USAGE' });
-  
+
   // Hide the section header
   document.querySelector('#unblock-section .section-header').style.display = 'none';
-  
+
   // Hide individual unblock methods
   document.querySelectorAll('.unblock-methods .method').forEach(el => el.style.display = 'none');
   document.getElementById('no-methods').style.display = 'none';
   document.getElementById('schedule-locked').style.display = 'none';
   document.querySelector('.time-limit-section').style.display = 'none';
   document.querySelector('.unblock-action').style.display = 'none';
-  
+
   // Show daily limit exceeded section
   const exceededSection = document.getElementById('daily-limit-exceeded');
   exceededSection.style.display = 'block';
-  
+
   // Update usage display
   if (usageInfo) {
     document.getElementById('daily-limit-used').textContent = usageInfo.usedMinutes;
     document.getElementById('daily-limit-total').textContent = usageInfo.limitMinutes;
   }
-  
+
   // Setup link to settings
   const settingsLink = document.getElementById('open-options-daily-limit');
   if (settingsLink) {
@@ -1015,7 +1023,7 @@ async function showDailyLimitExceeded() {
 async function showNuclearModeActive(nuclearStatus) {
   // Hide the section header
   document.querySelector('#unblock-section .section-header').style.display = 'none';
-  
+
   // Hide individual unblock methods
   document.querySelectorAll('.unblock-methods .method').forEach(el => el.style.display = 'none');
   document.getElementById('no-methods').style.display = 'none';
@@ -1024,11 +1032,11 @@ async function showNuclearModeActive(nuclearStatus) {
   document.getElementById('insufficient-earned-time').style.display = 'none';
   document.querySelector('.time-limit-section').style.display = 'none';
   document.querySelector('.unblock-action').style.display = 'none';
-  
+
   // Show nuclear mode section
   const nuclearSection = document.getElementById('nuclear-mode-active');
   nuclearSection.style.display = 'block';
-  
+
   // Start countdown timer
   if (nuclearStatus.expiresAt) {
     startNuclearCountdown(nuclearStatus.expiresAt);
@@ -1045,28 +1053,28 @@ function startNuclearCountdown(expiresAt) {
   if (nuclearCountdownInterval) {
     clearInterval(nuclearCountdownInterval);
   }
-  
+
   function updateCountdown() {
     const now = Date.now();
     const remaining = Math.max(0, expiresAt - now);
-    
+
     if (remaining <= 0) {
       // Nuclear mode ended! Reload the page
       clearInterval(nuclearCountdownInterval);
       location.reload();
       return;
     }
-    
+
     const totalSeconds = Math.floor(remaining / 1000);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
-    
+
     document.getElementById('nuclear-hours').textContent = hours.toString().padStart(2, '0');
     document.getElementById('nuclear-minutes').textContent = minutes.toString().padStart(2, '0');
     document.getElementById('nuclear-seconds').textContent = seconds.toString().padStart(2, '0');
   }
-  
+
   // Update immediately, then every second
   updateCountdown();
   nuclearCountdownInterval = setInterval(updateCountdown, 1000);
@@ -1078,10 +1086,10 @@ function startNuclearCountdown(expiresAt) {
 async function showInsufficientEarnedTime() {
   // Get earned time info
   const earnedInfo = earnedTimeInfo || await chrome.runtime.sendMessage({ type: 'GET_EARNED_TIME' });
-  
+
   // Hide the section header
   document.querySelector('#unblock-section .section-header').style.display = 'none';
-  
+
   // Hide individual unblock methods (but keep Complete Todo visible so user can earn time)
   document.querySelectorAll('.unblock-methods .method').forEach(el => {
     // Keep the todo method visible so users can complete tasks
@@ -1094,17 +1102,17 @@ async function showInsufficientEarnedTime() {
   document.getElementById('daily-limit-exceeded').style.display = 'none';
   document.querySelector('.time-limit-section').style.display = 'none';
   document.querySelector('.unblock-action').style.display = 'none';
-  
+
   // Show insufficient earned time section
   const insufficientSection = document.getElementById('insufficient-earned-time');
   insufficientSection.style.display = 'block';
-  
+
   // Update earned time display
   if (earnedInfo) {
     document.getElementById('earned-time-bank-minutes').textContent = earnedInfo.minutes;
     document.getElementById('earned-time-per-task').textContent = earnedInfo.minutesPerTask;
   }
-  
+
   // Setup link to settings
   const settingsLink = document.getElementById('open-options-earned-time');
   if (settingsLink) {
@@ -1118,21 +1126,21 @@ async function showInsufficientEarnedTime() {
 async function setupUnblockMethods() {
   const methods = settings.unblockMethods;
   const schedule = settings.schedule;
-  
+
   // Check if nuclear mode is active
   const nuclearStatus = await chrome.runtime.sendMessage({ type: 'GET_NUCLEAR_STATUS' });
   if (nuclearStatus && nuclearStatus.active) {
     await showNuclearModeActive(nuclearStatus);
     return;
   }
-  
+
   // Check if daily limit is exceeded
   const usageInfo = await chrome.runtime.sendMessage({ type: 'GET_DAILY_USAGE' });
   if (usageInfo && usageInfo.enabled && usageInfo.exceeded) {
     await showDailyLimitExceeded();
     return;
   }
-  
+
   // Check if earned time is required but user has none
   const earnedInfo = await chrome.runtime.sendMessage({ type: 'GET_EARNED_TIME' });
   earnedTimeInfo = earnedInfo;
@@ -1140,44 +1148,44 @@ async function setupUnblockMethods() {
     await showInsufficientEarnedTime();
     return;
   }
-  
+
   // Check if we're in an allowed time window
   const canUnblock = isInAllowedTimeWindow(schedule);
-  
+
   // If schedule is enabled and we're outside allowed times, show locked message
   if (schedule && schedule.enabled && !canUnblock) {
     showScheduleLocked(schedule);
     return;
   }
-  
+
   let anyMethodEnabled = false;
-  
+
   // Update require mode badge
   const requireBadge = document.getElementById('require-mode');
   requireBadge.textContent = settings.requireAllMethods ? 'Complete all' : 'Complete any one';
-  
+
   // Show unlimited button if allowed in settings
   if (settings.allowUnlimitedTime) {
     document.querySelector('.time-btn-unlimited').style.display = 'inline-block';
   }
-  
+
   // Timer method
   if (methods.timer.enabled) {
     document.getElementById('method-timer').style.display = 'block';
     anyMethodEnabled = true;
     startTimer(methods.timer.minutes);
   }
-  
+
   // Complete todo method
   if (methods.completeTodo.enabled) {
     document.getElementById('method-todo').style.display = 'block';
     anyMethodEnabled = true;
   }
-  
+
   // Type phrase method
   if (methods.typePhrase.enabled) {
     document.getElementById('method-phrase').style.display = 'block';
-    
+
     if (methods.typePhrase.useRandomString) {
       // Generate random string
       generateRandomPhrase(methods.typePhrase.randomLength || 30);
@@ -1188,20 +1196,20 @@ async function setupUnblockMethods() {
     }
     anyMethodEnabled = true;
   }
-  
+
   // Math problem method
   if (methods.mathProblem.enabled) {
     document.getElementById('method-math').style.display = 'block';
     anyMethodEnabled = true;
     generateMathProblem();
   }
-  
+
   // Password method
   if (methods.password.enabled) {
     document.getElementById('method-password').style.display = 'block';
     anyMethodEnabled = true;
   }
-  
+
   // Type reason method
   if (methods.typeReason?.enabled) {
     document.getElementById('method-reason').style.display = 'block';
@@ -1209,7 +1217,7 @@ async function setupUnblockMethods() {
     document.getElementById('reason-min-chars').textContent = minLength;
     anyMethodEnabled = true;
   }
-  
+
   // Show "no methods" message if none enabled
   if (!anyMethodEnabled) {
     document.getElementById('no-methods').style.display = 'block';
@@ -1225,24 +1233,24 @@ async function setupUnblockMethods() {
 function showScheduleLocked(schedule) {
   // Hide the entire section header (including "Unblock This Site")
   document.querySelector('#unblock-section .section-header').style.display = 'none';
-  
+
   // Hide individual unblock methods instead of the whole container
   document.querySelectorAll('.unblock-methods .method').forEach(el => el.style.display = 'none');
   document.getElementById('no-methods').style.display = 'none';
   document.querySelector('.time-limit-section').style.display = 'none';
   document.querySelector('.unblock-action').style.display = 'none';
-  
+
   // Show schedule locked section
   const lockedSection = document.getElementById('schedule-locked');
   lockedSection.style.display = 'block';
-  
+
   // Calculate and display countdown to next allowed window
   const nextWindow = getNextAllowedWindow(schedule);
   if (nextWindow) {
     // Show when the next window starts
-    document.getElementById('schedule-next-window').textContent = 
+    document.getElementById('schedule-next-window').textContent =
       `Next window: ${nextWindow.dayLabel} at ${formatTime(nextWindow.start)}`;
-    
+
     // Start countdown timer
     startScheduleCountdown(nextWindow.timestamp);
   } else {
@@ -1250,7 +1258,7 @@ function showScheduleLocked(schedule) {
     document.getElementById('schedule-countdown-timer').textContent = '--:--:--';
     document.getElementById('schedule-next-window').textContent = 'No upcoming windows scheduled';
   }
-  
+
   // Setup link to settings
   document.getElementById('open-options-schedule').addEventListener('click', (e) => {
     e.preventDefault();
@@ -1265,39 +1273,39 @@ function getNextAllowedWindow(schedule) {
   if (!schedule.allowedTimes || schedule.allowedTimes.length === 0) {
     return null;
   }
-  
+
   const now = new Date();
   const currentDay = now.getDay();
   const currentTime = now.toTimeString().slice(0, 5);
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  
+
   // Sort time windows by start time to ensure we find the actual next window
   const sortedWindows = [...schedule.allowedTimes].sort((a, b) => {
     return a.start.localeCompare(b.start);
   });
-  
+
   // Check up to 7 days ahead
   for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
     const checkDay = (currentDay + dayOffset) % 7;
-    
+
     // Skip if this day is not in active days
     if (!schedule.activeDays.includes(checkDay)) {
       continue;
     }
-    
+
     // Check all time windows for this day (now sorted)
     for (const window of sortedWindows) {
       // If it's today, only consider windows that haven't started yet
       if (dayOffset === 0 && window.start <= currentTime) {
         continue;
       }
-      
+
       // Calculate the timestamp for this window
       const targetDate = new Date(now);
       targetDate.setDate(targetDate.getDate() + dayOffset);
       const [hours, minutes] = window.start.split(':').map(Number);
       targetDate.setHours(hours, minutes, 0, 0);
-      
+
       return {
         start: window.start,
         end: window.end,
@@ -1307,7 +1315,7 @@ function getNextAllowedWindow(schedule) {
       };
     }
   }
-  
+
   return null;
 }
 
@@ -1321,28 +1329,28 @@ function startScheduleCountdown(targetTimestamp) {
   if (scheduleCountdownInterval) {
     clearInterval(scheduleCountdownInterval);
   }
-  
+
   function updateCountdown() {
     const now = Date.now();
     const remaining = Math.max(0, targetTimestamp - now);
-    
+
     if (remaining <= 0) {
       // Time's up! Reload the page to show unblock methods
       clearInterval(scheduleCountdownInterval);
       location.reload();
       return;
     }
-    
+
     const totalSeconds = Math.floor(remaining / 1000);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
-    
+
     document.getElementById('countdown-hours').textContent = hours.toString().padStart(2, '0');
     document.getElementById('countdown-minutes').textContent = minutes.toString().padStart(2, '0');
     document.getElementById('countdown-seconds').textContent = seconds.toString().padStart(2, '0');
   }
-  
+
   // Update immediately, then every second
   updateCountdown();
   scheduleCountdownInterval = setInterval(updateCountdown, 1000);
@@ -1366,27 +1374,27 @@ let isPageVisible = !document.hidden && document.hasFocus();
 function startTimer(minutes) {
   timerTotalSeconds = minutes * 60;
   timerRemainingSeconds = timerTotalSeconds;
-  
+
   // Initialize progress bar to 0% width (shows empty track)
   document.getElementById('timer-progress').style.width = '0%';
-  
+
   // Listen for visibility changes (tab switches)
   document.addEventListener('visibilitychange', handleVisibilityChange);
   // Listen for window focus/blur (app switches, minimizing, etc.)
   window.addEventListener('blur', handleWindowBlur);
   window.addEventListener('focus', handleWindowFocus);
-  
+
   updateTimerDisplay();
   timerInterval = setInterval(timerTick, 1000);
 }
 
 function updatePageVisible(visible) {
   isPageVisible = visible;
-  
+
   // Update the timer hint when visibility changes
   const timerMethod = document.getElementById('method-timer');
   const existingPausedHint = timerMethod.querySelector('.timer-paused-hint');
-  
+
   if (!isPageVisible && !completedMethods.timer) {
     // Show paused indicator
     if (!existingPausedHint) {
@@ -1429,15 +1437,15 @@ function timerTick() {
 function updateTimerDisplay() {
   const mins = Math.floor(timerRemainingSeconds / 60);
   const secs = timerRemainingSeconds % 60;
-  
+
   document.getElementById('timer-minutes').textContent = mins.toString().padStart(2, '0');
   document.getElementById('timer-seconds').textContent = secs.toString().padStart(2, '0');
-  
+
   // Update progress bar
   const elapsed = timerTotalSeconds - timerRemainingSeconds;
   const progress = (elapsed / timerTotalSeconds) * 100;
   document.getElementById('timer-progress').style.width = `${progress}%`;
-  
+
   // Check if timer completed
   if (timerRemainingSeconds <= 0) {
     clearInterval(timerInterval);
@@ -1454,9 +1462,9 @@ function updateTimerDisplay() {
 function generateMathProblem() {
   const operations = ['+', '-', '*'];
   const op = operations[Math.floor(Math.random() * operations.length)];
-  
+
   let a, b, answer;
-  
+
   switch (op) {
     case '+':
       a = Math.floor(Math.random() * 50) + 10;
@@ -1474,7 +1482,7 @@ function generateMathProblem() {
       answer = a * b;
       break;
   }
-  
+
   mathProblem = { a, b, op, answer };
   document.getElementById('math-problem').textContent = `${a} ${op} ${b} = ?`;
   document.getElementById('math-input').value = '';
@@ -1485,16 +1493,16 @@ function generateMathProblem() {
 function generateRandomPhrase(length) {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = '';
-  
+
   for (let i = 0; i < length; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  
+
   currentRandomPhrase = result;
   document.getElementById('required-phrase').textContent = result;
   document.getElementById('phrase-input').value = '';
   document.getElementById('phrase-input').classList.remove('success', 'error');
-  
+
   // Reset completion state
   completedMethods.typePhrase = false;
   updateMethodStatus('method-phrase', 'phrase-status', false);
@@ -1505,7 +1513,7 @@ function generateRandomPhrase(length) {
 function updateMethodStatus(methodId, statusId, isComplete) {
   const methodEl = document.getElementById(methodId);
   const statusEl = document.getElementById(statusId);
-  
+
   if (isComplete) {
     methodEl.classList.add('completed');
     statusEl.textContent = 'Completed';
@@ -1526,25 +1534,25 @@ function checkUnblockReady() {
   if (unblockEnabled) {
     return;
   }
-  
+
   const methods = settings.unblockMethods;
   const enabledMethods = [];
-  
+
   if (methods.timer.enabled) enabledMethods.push('timer');
   if (methods.completeTodo.enabled) enabledMethods.push('completeTodo');
   if (methods.typePhrase.enabled) enabledMethods.push('typePhrase');
   if (methods.typeReason?.enabled) enabledMethods.push('typeReason');
   if (methods.mathProblem.enabled) enabledMethods.push('mathProblem');
   if (methods.password.enabled) enabledMethods.push('password');
-  
+
   // If no methods enabled, allow unblock
   if (enabledMethods.length === 0) {
     enableUnblock();
     return;
   }
-  
+
   let isReady;
-  
+
   if (settings.requireAllMethods) {
     // ALL methods must be completed
     isReady = enabledMethods.every(method => completedMethods[method]);
@@ -1552,7 +1560,7 @@ function checkUnblockReady() {
     // ANY method can unlock
     isReady = enabledMethods.some(method => completedMethods[method]);
   }
-  
+
   if (isReady) {
     enableUnblock();
   }
@@ -1561,7 +1569,7 @@ function checkUnblockReady() {
 function enableUnblock() {
   const button = document.getElementById('unblock-button');
   const hint = document.getElementById('unblock-hint');
-  
+
   unblockEnabled = true;
   button.disabled = false;
   hint.textContent = 'Select your time limit and click to continue';
@@ -1571,15 +1579,15 @@ function enableUnblock() {
 function getSelectedTimeLimit() {
   const selectedBtn = document.querySelector('.time-btn.selected');
   const customInput = document.getElementById('custom-time');
-  
+
   if (customInput.value && parseFloat(customInput.value) > 0) {
     return parseFloat(customInput.value);
   }
-  
+
   if (selectedBtn) {
     return parseFloat(selectedBtn.dataset.minutes);
   }
-  
+
   return 30; // Default 30 minutes
 }
 
@@ -1598,35 +1606,35 @@ function setupEventListeners() {
       console.error('Authentication failed:', error);
     }
   });
-  
+
   // Open options links
   document.getElementById('open-options')?.addEventListener('click', (e) => {
     e.preventDefault();
     chrome.runtime.openOptionsPage();
   });
-  
+
   document.getElementById('open-options-unblock')?.addEventListener('click', (e) => {
     e.preventDefault();
     chrome.runtime.openOptionsPage();
   });
-  
+
   document.getElementById('settings-link').addEventListener('click', (e) => {
     e.preventDefault();
     chrome.runtime.openOptionsPage();
   });
-  
+
   // Refresh todos
   document.getElementById('refresh-todos').addEventListener('click', loadTodos);
-  
+
   // Retry button
   document.getElementById('retry-button').addEventListener('click', loadTodos);
-  
+
   // Go back
   document.getElementById('go-back').addEventListener('click', (e) => {
     e.preventDefault();
     history.back();
   });
-  
+
   // Time limit buttons
   document.querySelectorAll('.time-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1638,7 +1646,7 @@ function setupEventListeners() {
       document.getElementById('custom-time').value = '';
     });
   });
-  
+
   // Custom time input
   document.getElementById('custom-time').addEventListener('input', () => {
     // Deselect preset buttons when custom is being used
@@ -1646,26 +1654,26 @@ function setupEventListeners() {
     // Update availability indicator for custom input
     updateCustomTimeAvailability();
   });
-  
+
   // Type phrase input
   const phraseInput = document.getElementById('phrase-input');
   let lastPhraseLength = 0;
-  
+
   // Prevent paste
   phraseInput.addEventListener('paste', (e) => {
     e.preventDefault();
   });
-  
+
   // Prevent drop (drag and drop text)
   phraseInput.addEventListener('drop', (e) => {
     e.preventDefault();
   });
-  
+
   // Detect bulk input (e.g., autofill, paste workarounds)
   phraseInput.addEventListener('input', () => {
     const currentLength = phraseInput.value.length;
     const lengthDiff = currentLength - lastPhraseLength;
-    
+
     // If more than 2 characters were added at once, it's likely paste/autofill
     if (lengthDiff > 2) {
       phraseInput.value = phraseInput.value.slice(0, lastPhraseLength);
@@ -1673,17 +1681,17 @@ function setupEventListeners() {
       setTimeout(() => phraseInput.classList.remove('error'), 300);
       return;
     }
-    
+
     lastPhraseLength = phraseInput.value.length;
-    
+
     // Get required phrase (either custom phrase or random string)
     const phraseSettings = settings.unblockMethods.typePhrase;
     const useRandomString = phraseSettings.useRandomString;
-    
+
     // For random strings, comparison is case-sensitive; for custom phrases, case-insensitive
     const required = useRandomString ? currentRandomPhrase : phraseSettings.phrase.toLowerCase();
     const typed = useRandomString ? phraseInput.value : phraseInput.value.toLowerCase();
-    
+
     if (typed === required) {
       phraseInput.classList.remove('error');
       phraseInput.classList.add('success');
@@ -1699,12 +1707,12 @@ function setupEventListeners() {
       }
     }
   });
-  
+
   // Math input
   const mathInput = document.getElementById('math-input');
   mathInput.addEventListener('input', () => {
     const answer = parseInt(mathInput.value, 10);
-    
+
     if (answer === mathProblem.answer) {
       mathInput.classList.remove('error');
       mathInput.classList.add('success');
@@ -1722,7 +1730,7 @@ function setupEventListeners() {
       }
     }
   });
-  
+
   // New math problem button
   document.getElementById('new-math').addEventListener('click', () => {
     completedMethods.mathProblem = false;
@@ -1730,20 +1738,20 @@ function setupEventListeners() {
     generateMathProblem();
     checkUnblockReady();
   });
-  
+
   // New random phrase button
   document.getElementById('new-phrase').addEventListener('click', () => {
     const length = settings.unblockMethods.typePhrase.randomLength || 30;
     generateRandomPhrase(length);
     lastPhraseLength = 0; // Reset the paste detection counter
   });
-  
+
   // Password input
   const passwordInput = document.getElementById('password-input');
   passwordInput.addEventListener('input', () => {
     const correct = settings.unblockMethods.password.value;
     const entered = passwordInput.value;
-    
+
     if (entered === correct) {
       passwordInput.classList.remove('error');
       passwordInput.classList.add('success');
@@ -1754,22 +1762,22 @@ function setupEventListeners() {
       passwordInput.classList.remove('success');
     }
   });
-  
+
   // Reason textarea input
   const reasonInput = document.getElementById('reason-input');
   const reasonCharCount = document.getElementById('reason-char-count');
-  
+
   reasonInput.addEventListener('input', () => {
     const text = reasonInput.value;
     const charCount = text.length;
     const minLength = settings.unblockMethods.typeReason?.minLength || 50;
-    
+
     // Update character counter
     reasonCharCount.textContent = charCount;
-    
+
     // Store the reason
     currentReason = text;
-    
+
     // Check if minimum length is met
     if (charCount >= minLength) {
       reasonInput.classList.remove('error');
@@ -1783,7 +1791,7 @@ function setupEventListeners() {
       updateMethodStatus('method-reason', 'reason-status', false);
     }
   });
-  
+
   // Unblock button
   const unblockButton = document.getElementById('unblock-button');
   unblockButton.addEventListener('click', async () => {
@@ -1791,10 +1799,10 @@ function setupEventListeners() {
     if (unblockButton.dataset.navigating === 'true') return;
     unblockButton.dataset.navigating = 'true';
     unblockButton.textContent = 'Redirecting...';
-    
+
     // Get the selected time limit
     const minutes = getSelectedTimeLimit();
-    
+
     try {
       // Save reason if typeReason method is enabled and completed
       if (settings.unblockMethods.typeReason?.enabled && completedMethods.typeReason && currentReason) {
@@ -1804,13 +1812,13 @@ function setupEventListeners() {
           reason: currentReason
         });
       }
-      
+
       const result = await chrome.runtime.sendMessage({
         type: 'TEMPORARY_UNBLOCK',
         site: blockedDomain,
         minutes: minutes
       });
-      
+
       // Check if unblock was rejected due to daily limit
       if (result && result.error === 'daily_limit_exceeded') {
         unblockButton.dataset.navigating = 'false';
@@ -1818,7 +1826,7 @@ function setupEventListeners() {
         await showDailyLimitExceeded();
         return;
       }
-      
+
       // Check if unblock was rejected due to nuclear mode
       if (result && result.error === 'nuclear_mode_active') {
         unblockButton.dataset.navigating = 'false';
@@ -1827,7 +1835,7 @@ function setupEventListeners() {
         await showNuclearModeActive(nuclearStatus);
         return;
       }
-      
+
       // Check if unblock was rejected due to insufficient earned time
       if (result && result.error === 'insufficient_earned_time') {
         unblockButton.dataset.navigating = 'false';
@@ -1835,13 +1843,13 @@ function setupEventListeners() {
         await showInsufficientEarnedTime();
         return;
       }
-      
+
       // Small delay to ensure rules are updated before navigation
       await new Promise(resolve => setTimeout(resolve, 200));
-      
+
       // Navigate to the original URL (full URL if available, otherwise just domain)
-      const targetUrl = originalUrl.startsWith('http') 
-        ? originalUrl 
+      const targetUrl = originalUrl.startsWith('http')
+        ? originalUrl
         : `https://${blockedDomain}`;
       window.location.href = targetUrl;
     } catch (error) {

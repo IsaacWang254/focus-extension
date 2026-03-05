@@ -146,14 +146,261 @@
   --success-subtle: rgba(34, 197, 94, 0.15);
   --destructive-subtle: rgba(239, 68, 68, 0.15);
   --warning-subtle: rgba(245, 158, 11, 0.15);
-  
+
   /* Fix native input icons in dark mode */
   --time-picker-filter: invert(1);
 }
 
+/* Brutalist Mode — Light */
+[data-theme="brutalist"] {
+  --background: #ffffff;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-foreground: #111111;
+  --popover: #ffffff;
+  --popover-foreground: #111111;
+  --primary: #111111;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f2f2;
+  --secondary-foreground: #111111;
+  --muted: #f7f7f7;
+  --muted-foreground: #666666;
+  --accent: #f2f2f2;
+  --accent-foreground: #111111;
+  --destructive: #cc0000;
+  --destructive-foreground: #ffffff;
+  --success: #007700;
+  --success-foreground: #ffffff;
+  --warning: #cc6600;
+  --warning-foreground: #ffffff;
+  --border: #dddddd;
+  --input: #dddddd;
+  --ring: #111111;
+  --indigo: #444444;
+  --indigo-foreground: #ffffff;
+  --indigo-hover: #333333;
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+}
+
+/* Brutalist Mode — Dark */
+[data-theme="brutalist-dark"] {
+  --background: #111111;
+  --foreground: #e0e0e0;
+  --card: #111111;
+  --card-foreground: #e0e0e0;
+  --popover: #1a1a1a;
+  --popover-foreground: #e0e0e0;
+  --primary: #e0e0e0;
+  --primary-foreground: #111111;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #e0e0e0;
+  --muted: #1a1a1a;
+  --muted-foreground: #888888;
+  --accent: #1a1a1a;
+  --accent-foreground: #e0e0e0;
+  --destructive: #ff3333;
+  --destructive-foreground: #111111;
+  --success: #33aa33;
+  --success-foreground: #111111;
+  --warning: #dd8800;
+  --warning-foreground: #111111;
+  --border: #333333;
+  --input: #333333;
+  --ring: #e0e0e0;
+  --indigo: #999999;
+  --indigo-foreground: #111111;
+  --indigo-hover: #bbbbbb;
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --time-picker-filter: invert(1);
+}
+
+/* Brutalist shared overrides — raw, functional, typographic */
+[data-theme="brutalist"] *,
+[data-theme="brutalist-dark"] * {
+  border-radius: 0 !important;
+  transition-duration: 0s !important;
+}
+
+[data-theme="brutalist"],
+[data-theme="brutalist-dark"] {
+  --font-sans: 'SF Mono', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+  --radius-sm: 0;
+  --radius: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-full: 0;
+  --transition-fast: 0s;
+  --transition-normal: 0s;
+  --transition-slow: 0s;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+}
+
+[data-theme="brutalist"] h1,
+[data-theme="brutalist"] h2,
+[data-theme="brutalist"] h3,
+[data-theme="brutalist"] h4,
+[data-theme="brutalist-dark"] h1,
+[data-theme="brutalist-dark"] h2,
+[data-theme="brutalist-dark"] h3,
+[data-theme="brutalist-dark"] h4 {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+[data-theme="brutalist"] h1,
+[data-theme="brutalist-dark"] h1 {
+  font-size: 18px;
+}
+
+[data-theme="brutalist"] .btn,
+[data-theme="brutalist-dark"] .btn {
+  border: 1px solid var(--border) !important;
+  background: var(--secondary) !important;
+  color: var(--foreground) !important;
+  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  box-shadow: none !important;
+  padding: 8px 16px;
+}
+
+[data-theme="brutalist"] .btn:hover,
+[data-theme="brutalist-dark"] .btn:hover {
+  background: var(--muted) !important;
+  transform: none;
+  box-shadow: none !important;
+}
+
+[data-theme="brutalist"] .btn-primary,
+[data-theme="brutalist-dark"] .btn-primary {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  border-color: var(--primary) !important;
+}
+
+[data-theme="brutalist"] .btn-primary:hover,
+[data-theme="brutalist-dark"] .btn-primary:hover {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  opacity: 0.85;
+}
+
+[data-theme="brutalist"] .card,
+[data-theme="brutalist"] .section,
+[data-theme="brutalist-dark"] .card,
+[data-theme="brutalist-dark"] .section {
+  border: 1px solid var(--border) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="brutalist"] input,
+[data-theme="brutalist"] select,
+[data-theme="brutalist"] textarea,
+[data-theme="brutalist-dark"] input,
+[data-theme="brutalist-dark"] select,
+[data-theme="brutalist-dark"] textarea {
+  border: 1px solid var(--border) !important;
+  box-shadow: none !important;
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+[data-theme="brutalist"] .toggle-slider,
+[data-theme="brutalist-dark"] .toggle-slider {
+  border: 1px solid var(--border) !important;
+  background-color: var(--secondary) !important;
+  width: 38px;
+  height: 22px;
+  box-sizing: border-box;
+}
+
+[data-theme="brutalist"] .toggle-slider:before,
+[data-theme="brutalist-dark"] .toggle-slider:before {
+  width: 14px;
+  height: 14px;
+  top: 3px;
+  left: 3px;
+  box-shadow: none;
+  background-color: var(--muted-foreground) !important;
+}
+
+[data-theme="brutalist"] .toggle input:checked+.toggle-slider,
+[data-theme="brutalist-dark"] .toggle input:checked+.toggle-slider {
+  background-color: var(--primary) !important;
+}
+
+[data-theme="brutalist"] .toggle input:checked+.toggle-slider::before,
+[data-theme="brutalist-dark"] .toggle input:checked+.toggle-slider::before {
+  transform: translateX(16px);
+  background-color: var(--primary-foreground) !important;
+}
+
+[data-theme="brutalist"] a,
+[data-theme="brutalist-dark"] a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  color: var(--muted-foreground);
+}
+
+[data-theme="brutalist"] a:hover,
+[data-theme="brutalist-dark"] a:hover {
+  color: var(--foreground);
+}
+
+/* Calendar & event color dots — keep visible in brutalist mode */
+[data-theme="brutalist"] .calendar-color-dot,
+[data-theme="brutalist-dark"] .calendar-color-dot {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  border: 1px solid var(--border) !important;
+}
+
+[data-theme="brutalist"] .event-color-dot,
+[data-theme="brutalist-dark"] .event-color-dot {
+  width: 10px !important;
+  height: 10px !important;
+  min-width: 10px !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* Exclude navigation links from brutalist underlines */
+[data-theme="brutalist"] .sidebar-link,
+[data-theme="brutalist"] .sidebar-link-sub,
+[data-theme="brutalist"] .footer-link,
+[data-theme="brutalist"] nav a,
+[data-theme="brutalist-dark"] .sidebar-link,
+[data-theme="brutalist-dark"] .sidebar-link-sub,
+[data-theme="brutalist-dark"] .footer-link,
+[data-theme="brutalist-dark"] nav a {
+  text-decoration: none;
+  color: var(--foreground);
+}
+
+[data-theme="brutalist"] .sidebar-link:hover,
+[data-theme="brutalist"] .sidebar-link-sub:hover,
+[data-theme="brutalist-dark"] .sidebar-link:hover,
+[data-theme="brutalist-dark"] .sidebar-link-sub:hover {
+  color: var(--foreground);
+}
+
 /* System preference detection */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not(.light) {
+  :root:not([data-theme="light"]):not(.light):not([data-theme="brutalist"]):not([data-theme="brutalist-dark"]) {
     --background: #09090b;
     --foreground: #fafafa;
     --card: #18181b;
@@ -839,22 +1086,24 @@ hr {
 }
 
 [data-theme="dark"] .theme-icon-light,
+[data-theme="brutalist-dark"] .theme-icon-light,
 .dark .theme-icon-light {
   display: none;
 }
 
 [data-theme="dark"] .theme-icon-dark,
+[data-theme="brutalist-dark"] .theme-icon-dark,
 .dark .theme-icon-dark {
   display: flex;
   color: var(--foreground);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not(.light) .theme-icon-light {
+  :root:not([data-theme="light"]):not(.light):not([data-theme="brutalist"]) .theme-icon-light {
     display: none;
   }
 
-  :root:not([data-theme="light"]):not(.light) .theme-icon-dark {
+  :root:not([data-theme="light"]):not(.light):not([data-theme="brutalist"]) .theme-icon-dark {
     display: flex;
     color: var(--foreground);
   }

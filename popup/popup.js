@@ -48,10 +48,12 @@ window.addEventListener('unload', () => {
 
 async function loadTheme() {
   try {
-    const result = await chrome.storage.local.get('theme');
-    const theme = result.theme || 'light';
+    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled']);
+    const base = result.theme || 'light';
+    const brutalist = result.brutalistEnabled || false;
     if (!result.theme) await chrome.storage.local.set({ theme: 'light' });
-    document.documentElement.setAttribute('data-theme', theme);
+    const resolved = brutalist ? (base === 'dark' ? 'brutalist-dark' : 'brutalist') : base;
+    document.documentElement.setAttribute('data-theme', resolved);
   } catch (e) {
     console.error('Failed to load theme:', e);
   }

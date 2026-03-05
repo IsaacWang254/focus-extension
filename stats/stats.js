@@ -15,16 +15,16 @@
 document.addEventListener('DOMContentLoaded', async () => {
   // Load theme
   await loadTheme();
-  
+
   // Initialize icons
   initializeIcons();
-  
+
   // Initialize sidebar
   initializeSidebar();
-  
+
   // Setup event listeners
   setupEventListeners();
-  
+
   // Load all stats
   await loadAllStats();
 });
@@ -42,7 +42,7 @@ function initializeIcons() {
     'icon-distracting': Icons.trendingDown,
     'icon-neutral': Icons.minus,
   };
-  
+
   for (const [id, iconSvg] of Object.entries(iconMappings)) {
     const el = document.getElementById(id);
     if (el) {
@@ -63,14 +63,14 @@ function initializeSidebar() {
     'sidebar-icon-xp': Icons.star,
     'sidebar-icon-history': Icons.eye,
   };
-  
+
   for (const [id, iconSvg] of Object.entries(sidebarIcons)) {
     const el = document.getElementById(id);
     if (el) {
       el.innerHTML = iconSvg;
     }
   }
-  
+
   // Setup smooth scrolling for sidebar links
   const sidebarLinks = document.querySelectorAll('.sidebar-link');
   sidebarLinks.forEach(link => {
@@ -78,26 +78,26 @@ function initializeSidebar() {
       e.preventDefault();
       const targetId = link.getAttribute('href').slice(1);
       const targetEl = document.getElementById(targetId);
-      
+
       if (targetEl) {
         targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        
+
         // Update active state
         sidebarLinks.forEach(l => l.classList.remove('active'));
         link.classList.add('active');
       }
     });
   });
-  
+
   // Track scroll position to highlight active section
   const sections = [
     'overview', 'streak', 'achievements', 'blocking', 'reasons', 'xp',
-    'history-analysis', 'productivity-score', 'categories', 'hourly', 
+    'history-analysis', 'productivity-score', 'categories', 'hourly',
     'weekly', 'top-sites', 'suggestions', 'insights'
   ];
-  
+
   let ticking = false;
-  
+
   window.addEventListener('scroll', () => {
     if (!ticking) {
       window.requestAnimationFrame(() => {
@@ -112,9 +112,9 @@ function initializeSidebar() {
 // Update active section in sidebar based on scroll
 function updateActiveSection(sections, sidebarLinks) {
   const scrollPos = window.scrollY + 100; // Offset for header
-  
+
   let activeSection = sections[0];
-  
+
   for (const sectionId of sections) {
     const section = document.getElementById(sectionId);
     if (section) {
@@ -124,7 +124,7 @@ function updateActiveSection(sections, sidebarLinks) {
       }
     }
   }
-  
+
   sidebarLinks.forEach(link => {
     const linkSection = link.getAttribute('data-section');
     if (linkSection === activeSection) {
@@ -141,9 +141,12 @@ function updateActiveSection(sections, sidebarLinks) {
 
 async function loadTheme() {
   try {
-    const result = await chrome.storage.local.get('theme');
-    if (result.theme && result.theme !== 'auto') {
-      document.documentElement.setAttribute('data-theme', result.theme);
+    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled']);
+    const base = result.theme || 'light';
+    const brutalist = result.brutalistEnabled || false;
+    if (base && base !== 'auto') {
+      const resolved = brutalist ? (base === 'dark' ? 'brutalist-dark' : 'brutalist') : base;
+      document.documentElement.setAttribute('data-theme', resolved);
     }
   } catch (e) {
     console.error('Failed to load theme:', e);
@@ -184,7 +187,7 @@ async function loadOverviewStats() {
       chrome.runtime.sendMessage({ type: 'GET_STREAK_INFO' }),
       chrome.runtime.sendMessage({ type: 'GET_XP_DATA' }),
     ]);
-    
+
     document.getElementById('focus-sessions').textContent = allTimeStats?.totalSessions || 0;
     document.getElementById('focus-minutes').textContent = allTimeStats?.totalMinutes || 0;
     document.getElementById('current-streak').textContent = streakInfo?.currentStreak || 0;
@@ -197,16 +200,16 @@ async function loadOverviewStats() {
 async function loadStreakStats() {
   try {
     const streakInfo = await chrome.runtime.sendMessage({ type: 'GET_STREAK_INFO' });
-    
+
     document.getElementById('longest-streak').textContent = streakInfo?.longestStreak || 0;
-    
+
     if (streakInfo?.streakStartDate) {
       const startDate = new Date(streakInfo.streakStartDate);
       document.getElementById('streak-start').textContent = formatDate(startDate);
     } else {
       document.getElementById('streak-start').textContent = '-';
     }
-    
+
     // Build streak calendar (last 28 days)
     buildStreakCalendar(streakInfo?.history || []);
   } catch (e) {
@@ -217,28 +220,28 @@ async function loadStreakStats() {
 function buildStreakCalendar(history) {
   const graph = document.getElementById('streak-graph');
   graph.innerHTML = '';
-  
+
   // Create a map of dates to focus status
   const focusMap = {};
   for (const day of history) {
     focusMap[day.date] = day.focused;
   }
-  
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   // Calculate how many weeks to show (go back ~52 weeks, aligning to Sunday starts)
   const todayDay = today.getDay(); // 0=Sun
   const totalDays = 52 * 7 + todayDay + 1; // 52 full weeks + partial current week
-  
+
   const startDate = new Date(today);
   startDate.setDate(startDate.getDate() - totalDays + 1);
-  
+
   // Build weeks array
   const weeks = [];
   let currentWeek = [];
   const tempDate = new Date(startDate);
-  
+
   for (let i = 0; i < totalDays; i++) {
     currentWeek.push(new Date(tempDate));
     if (tempDate.getDay() === 6 || i === totalDays - 1) {
@@ -247,39 +250,39 @@ function buildStreakCalendar(history) {
     }
     tempDate.setDate(tempDate.getDate() + 1);
   }
-  
+
   const numWeeks = weeks.length;
-  
+
   // Set grid template: 1 col for day labels + 1 per week; auto row for months, equal rows for days, auto for legend
   graph.style.gridTemplateColumns = `28px repeat(${numWeeks}, 1fr)`;
   graph.style.gridTemplateRows = `auto repeat(7, 1fr) auto`;
-  
+
   // Row 1: month labels
   // Empty corner cell for day-label column
   const corner = document.createElement('span');
   corner.className = 'graph-day-label';
   graph.appendChild(corner);
-  
+
   // One month-label cell per week column
   let prevMonth = -1;
   for (let w = 0; w < numWeeks; w++) {
     const firstDay = weeks[w][0];
     const month = firstDay.getMonth();
-    
+
     const cell = document.createElement('span');
     cell.className = 'graph-month-cell';
-    
+
     if (month !== prevMonth) {
       cell.textContent = firstDay.toLocaleDateString('en-US', { month: 'short' });
       prevMonth = month;
     }
-    
+
     graph.appendChild(cell);
   }
-  
+
   // Rows 2-8: one per day of week (Sun=0 through Sat=6)
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  
+
   for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
     // Day label
     const label = document.createElement('span');
@@ -288,19 +291,19 @@ function buildStreakCalendar(history) {
       label.textContent = dayNames[dayOfWeek];
     }
     graph.appendChild(label);
-    
+
     // One cell per week
     for (let w = 0; w < numWeeks; w++) {
       const cell = document.createElement('span');
-      
+
       const matchingDay = weeks[w].find(d => d.getDay() === dayOfWeek);
-      
+
       if (!matchingDay || matchingDay > today) {
         cell.className = 'graph-cell empty';
       } else {
         const dateStr = matchingDay.toDateString();
         const isToday = matchingDay.getTime() === today.getTime();
-        
+
         if (focusMap[dateStr] === true) {
           cell.className = 'graph-cell focused';
         } else if (focusMap[dateStr] === false) {
@@ -308,19 +311,19 @@ function buildStreakCalendar(history) {
         } else {
           cell.className = 'graph-cell no-data';
         }
-        
+
         if (isToday) {
           cell.classList.add('today');
         }
-        
+
         const status = focusMap[dateStr] === true ? 'Focused' : focusMap[dateStr] === false ? 'Unfocused' : 'No data';
         cell.title = `${formatDate(matchingDay)} - ${status}`;
       }
-      
+
       graph.appendChild(cell);
     }
   }
-  
+
   // Legend (outside the grid)
   const legend = document.createElement('div');
   legend.className = 'graph-legend';
@@ -338,30 +341,30 @@ function buildStreakCalendar(history) {
 async function loadAchievements() {
   try {
     const achievementsData = await chrome.runtime.sendMessage({ type: 'GET_ACHIEVEMENTS' });
-    
+
     if (!achievementsData) return;
-    
+
     // Update progress bar
     const progress = (achievementsData.unlockedCount / achievementsData.totalCount) * 100;
     document.getElementById('achievements-fill').style.width = `${progress}%`;
-    document.getElementById('achievements-text').textContent = 
+    document.getElementById('achievements-text').textContent =
       `${achievementsData.unlockedCount} / ${achievementsData.totalCount} unlocked`;
-    
+
     // Build achievements grid
     const grid = document.getElementById('achievements-grid');
     grid.innerHTML = '';
-    
+
     // Sort: unlocked first, then by name
     const sorted = [...achievementsData.achievements].sort((a, b) => {
       if (a.unlocked && !b.unlocked) return -1;
       if (!a.unlocked && b.unlocked) return 1;
       return a.name.localeCompare(b.name);
     });
-    
+
     for (const achievement of sorted) {
       const item = document.createElement('div');
       item.className = `achievement-item ${achievement.unlocked ? 'unlocked' : 'locked'}`;
-      
+
       item.innerHTML = `
         <div class="achievement-icon">${achievement.icon}</div>
         <div class="achievement-info">
@@ -369,11 +372,11 @@ async function loadAchievements() {
           <div class="achievement-desc">${achievement.description}</div>
         </div>
       `;
-      
+
       if (achievement.unlocked && achievement.unlockedAt) {
         item.title = `Unlocked ${formatDateTime(new Date(achievement.unlockedAt))}`;
       }
-      
+
       grid.appendChild(item);
     }
   } catch (e) {
@@ -385,23 +388,23 @@ async function loadBlockingStats() {
   try {
     const settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
     const unblockReasons = await chrome.runtime.sendMessage({ type: 'GET_UNBLOCK_REASONS' });
-    
+
     document.getElementById('total-blocks').textContent = settings?.blockedSites?.length || 0;
     document.getElementById('unblock-count').textContent = unblockReasons?.totalCount || 0;
-    
+
     // Calculate total unblock minutes (estimate based on typical 5-15 min sessions)
     const estimatedMinutes = (unblockReasons?.totalCount || 0) * 10;
     document.getElementById('unblock-minutes').textContent = estimatedMinutes;
-    
+
     // Top blocked domains
     const topBlocked = document.getElementById('top-blocked');
     const domainStats = unblockReasons?.domainStats || {};
-    
+
     if (Object.keys(domainStats).length > 0) {
       const sorted = Object.entries(domainStats)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5);
-      
+
       topBlocked.innerHTML = `
         <div class="top-blocked-title">Most Unblocked Sites</div>
         ${sorted.map(([domain, count]) => `
@@ -426,11 +429,11 @@ async function loadBlockingStats() {
 async function loadUnblockReasons() {
   try {
     const unblockReasons = await chrome.runtime.sendMessage({ type: 'GET_UNBLOCK_REASONS' });
-    
+
     // Category breakdown
     const chartEl = document.getElementById('reasons-chart');
     const categoryStats = unblockReasons?.categoryStats || {};
-    
+
     const categoryLabels = {
       work: 'Work',
       research: 'Research',
@@ -440,7 +443,7 @@ async function loadUnblockReasons() {
       fomo: 'FOMO',
       other: 'Other'
     };
-    
+
     if (Object.keys(categoryStats).length > 0) {
       chartEl.innerHTML = Object.entries(categoryStats)
         .sort((a, b) => b[1] - a[1])
@@ -453,11 +456,11 @@ async function loadUnblockReasons() {
     } else {
       chartEl.innerHTML = '<div class="empty-state-text">No reasons recorded</div>';
     }
-    
+
     // Recent reasons
     const recentEl = document.getElementById('recent-reasons');
     const recentReasons = unblockReasons?.recentReasons || [];
-    
+
     if (recentReasons.length > 0) {
       const recent = recentReasons.slice(-5).reverse();
       recentEl.innerHTML = `
@@ -484,12 +487,12 @@ async function loadXPHistory() {
   try {
     const xpData = await chrome.runtime.sendMessage({ type: 'GET_XP_DATA' });
     const xpHistory = await chrome.runtime.sendMessage({ type: 'GET_XP_HISTORY' });
-    
+
     document.getElementById('xp-level').textContent = xpData?.level || 1;
     document.getElementById('xp-to-next').textContent = xpData?.xpToNextLevel || 100;
-    
+
     const listEl = document.getElementById('xp-history-list');
-    
+
     if (xpHistory && xpHistory.length > 0) {
       const recent = xpHistory.slice(-20).reverse();
       listEl.innerHTML = recent.map(item => `
@@ -522,8 +525,8 @@ function formatDate(date) {
 }
 
 function formatDateTime(date) {
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit'
@@ -533,16 +536,16 @@ function formatDateTime(date) {
 function formatRelativeTime(timestamp) {
   const now = Date.now();
   const diff = now - timestamp;
-  
+
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
-  
+
   if (minutes < 1) return 'Just now';
   if (minutes < 60) return `${minutes}m ago`;
   if (hours < 24) return `${hours}h ago`;
   if (days < 7) return `${days}d ago`;
-  
+
   return formatDate(new Date(timestamp));
 }
 
@@ -559,13 +562,13 @@ function formatXPReason(reason) {
     'focus_session_50': 'Completed 50min session',
     'focus_session_15': 'Completed 15min session'
   };
-  
+
   // Check for achievement reasons
   if (reason.startsWith('achievement_')) {
     const achievementId = reason.replace('achievement_', '');
     return `Achievement: ${achievementId.replace(/_/g, ' ')}`;
   }
-  
+
   return reasonLabels[reason] || reason.replace(/_/g, ' ');
 }
 
@@ -589,7 +592,7 @@ function initHistoryCardIcons() {
     'title-suggestions': Icons.ban,
     'title-insights': Icons.lightbulb
   };
-  
+
   Object.entries(titleIcons).forEach(([id, icon]) => {
     const el = document.getElementById(id);
     if (el && !el.querySelector('svg')) {
@@ -603,25 +606,25 @@ async function loadHistoryAnalysis() {
   try {
     // Initialize card icons
     initHistoryCardIcons();
-    
+
     // Check if history analysis is enabled in settings
     const settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
     if (settings?.historyAnalysisEnabled === false) {
       hideHistorySection();
       return;
     }
-    
+
     // Check if history permission is available
     const hasPermission = await chrome.permissions.contains({ permissions: ['history'] });
-    
+
     if (!hasPermission) {
       showHistoryPermissionRequest();
       return;
     }
-    
+
     // Show loading state
     showHistoryLoading();
-    
+
     // Load all history data in parallel
     const [
       historyData,
@@ -634,55 +637,55 @@ async function loadHistoryAnalysis() {
       chrome.runtime.sendMessage({ type: 'GET_BROWSING_PATTERNS', days: 7 }),
       chrome.runtime.sendMessage({ type: 'GET_BLOCK_SUGGESTIONS' })
     ]);
-    
+
     // Check for errors in responses
     if (historyData?.error) {
       console.error('History analysis error:', historyData.error);
       showHistoryError(historyData.error);
       return;
     }
-    
+
     if (productivityData?.error) {
       console.error('Productivity score error:', productivityData.error);
     }
-    
+
     if (weeklyPatterns?.error) {
       console.error('Browsing patterns error:', weeklyPatterns.error);
     }
-    
+
     if (suggestions?.error) {
       console.error('Block suggestions error:', suggestions.error);
     }
-    
+
     // Render all components
     if (productivityData && !productivityData.error) {
       renderProductivityScore(productivityData);
     }
-    
+
     if (historyData?.categories) {
       renderCategoryBreakdown(historyData.categories);
     }
-    
+
     if (historyData?.hourlyDistribution) {
       renderHourlyChart(historyData.hourlyDistribution);
     }
-    
+
     if (weeklyPatterns && !weeklyPatterns.error) {
       renderWeeklyChart(weeklyPatterns);
     }
-    
+
     if (historyData?.topDomains) {
       renderTopSites(historyData.topDomains);
     }
-    
+
     if (suggestions && !suggestions.error) {
       renderBlockSuggestions(suggestions);
     }
-    
+
     if (productivityData?.insights && !productivityData.error) {
       renderInsights(productivityData);
     }
-    
+
   } catch (e) {
     console.error('Failed to load history analysis:', e);
     showHistoryError(e.message);
@@ -691,10 +694,10 @@ async function loadHistoryAnalysis() {
 
 function showHistoryLoading() {
   const containers = [
-    'category-bars', 'hourly-chart', 'weekly-chart', 
+    'category-bars', 'hourly-chart', 'weekly-chart',
     'top-sites-list', 'suggestions-list', 'insights-list'
   ];
-  
+
   containers.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -711,7 +714,7 @@ function showHistoryLoading() {
 function showHistoryError(message) {
   const section = document.querySelector('.history-analysis-section');
   if (!section) return;
-  
+
   const content = section.querySelector('.section-desc');
   if (content) {
     content.insertAdjacentHTML('afterend', `
@@ -728,13 +731,13 @@ function hideHistorySection() {
   if (section) {
     section.style.display = 'none';
   }
-  
+
   // Also hide the sidebar items for history analysis
   const historySections = [
-    'history-analysis', 'productivity-score', 'categories', 
+    'history-analysis', 'productivity-score', 'categories',
     'hourly', 'weekly', 'top-sites', 'suggestions', 'insights'
   ];
-  
+
   historySections.forEach(sectionId => {
     const link = document.querySelector(`.sidebar-link[data-section="${sectionId}"]`);
     if (link) {
@@ -744,7 +747,7 @@ function hideHistorySection() {
       }
     }
   });
-  
+
   // Hide the divider before history-analysis
   const historyLink = document.querySelector('.sidebar-link[data-section="history-analysis"]');
   if (historyLink) {
@@ -759,11 +762,11 @@ function hideHistorySection() {
 function showHistoryPermissionRequest() {
   const section = document.querySelector('.history-analysis-section');
   if (!section) return;
-  
+
   // Hide all history cards
   const cards = section.querySelectorAll('.history-card, .productivity-score-card');
   cards.forEach(card => card.style.display = 'none');
-  
+
   // Show permission request
   const desc = section.querySelector('.section-desc');
   if (desc) {
@@ -779,7 +782,7 @@ function showHistoryPermissionRequest() {
         </button>
       </div>
     `);
-    
+
     document.getElementById('grant-history-permission')?.addEventListener('click', async () => {
       try {
         const granted = await chrome.permissions.request({ permissions: ['history'] });
@@ -803,43 +806,43 @@ function renderProductivityScore(data) {
     gradeEl.textContent = data.grade || '-';
     gradeEl.className = 'productivity-grade grade-' + (data.grade || 'f').toLowerCase();
   }
-  
+
   // Update score ring
   const ringFill = document.getElementById('productivity-ring-fill');
   const scoreValue = document.getElementById('productivity-score-value');
-  
+
   if (ringFill && scoreValue) {
     const score = data.score || 0;
     scoreValue.textContent = score;
-    
+
     // Set stroke-dasharray for circular progress
     ringFill.setAttribute('stroke-dasharray', `${score}, 100`);
     // Use setAttribute for SVG elements instead of className
     ringFill.setAttribute('class', 'productivity-ring-fill grade-' + (data.grade || 'f').toLowerCase());
   }
-  
+
   // Update breakdown icons
   const productiveIcon = document.getElementById('icon-productive');
   const distractingIcon = document.getElementById('icon-distracting');
   const neutralIcon = document.getElementById('icon-neutral');
-  
+
   if (productiveIcon) productiveIcon.innerHTML = Icons.trendingUp;
   if (distractingIcon) distractingIcon.innerHTML = Icons.trendingDown;
   if (neutralIcon) neutralIcon.innerHTML = Icons.minus;
-  
+
   // Update breakdown percentages
   const breakdown = data.breakdown || {};
   const productive = breakdown.productiveVisits || breakdown.productive || 0;
   const distracting = breakdown.distractingVisits || breakdown.distracting || 0;
   const neutral = breakdown.neutralVisits || breakdown.neutral || 0;
   const total = productive + distracting + neutral;
-  
+
   if (total > 0) {
-    document.getElementById('productive-percent').textContent = 
+    document.getElementById('productive-percent').textContent =
       Math.round((productive / total) * 100) + '%';
-    document.getElementById('distracting-percent').textContent = 
+    document.getElementById('distracting-percent').textContent =
       Math.round((distracting / total) * 100) + '%';
-    document.getElementById('neutral-percent').textContent = 
+    document.getElementById('neutral-percent').textContent =
       Math.round((neutral / total) * 100) + '%';
   }
 }
@@ -866,16 +869,16 @@ function renderCategoryBreakdown(categories) {
     }
     return;
   }
-  
+
   // Get max visits for scaling
   const maxVisits = Math.max(...categories.map(c => c.visits));
-  
+
   container.innerHTML = categories.slice(0, 8).map(cat => {
     const icon = CATEGORY_ICONS[cat.key] || CATEGORY_ICONS.uncategorized;
     const color = cat.color || '#6b7280';
     // Create a lighter version of the color for gradient
     const colorLight = color + '99'; // Add some transparency
-    
+
     return `
       <div class="category-bar-item">
         <span class="category-bar-icon" style="background-color: ${color}15; color: ${color};">
@@ -894,10 +897,10 @@ function renderCategoryBreakdown(categories) {
 function renderHourlyChart(hourlyData) {
   const container = document.getElementById('hourly-chart');
   if (!container || !hourlyData.length) return;
-  
+
   // Get max for scaling
   const maxVisits = Math.max(...hourlyData, 1);
-  
+
   container.innerHTML = hourlyData.map((visits, hour) => {
     const height = (visits / maxVisits) * 100;
     const formattedHour = hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`;
@@ -908,17 +911,17 @@ function renderHourlyChart(hourlyData) {
 function renderWeeklyChart(patterns) {
   const container = document.getElementById('weekly-chart');
   if (!container || !patterns) return;
-  
+
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const dayData = patterns.dayOfWeek || [];
-  
+
   // Get max visits for scaling
   const maxVisits = Math.max(...dayData.map(d => d.visits || 0), 1);
-  
+
   container.innerHTML = days.map((day, index) => {
     const visits = dayData[index]?.visits || 0;
     const height = (visits / maxVisits) * 100;
-    
+
     return `
       <div class="weekly-day">
         <div class="weekly-day-bar-container">
@@ -939,7 +942,7 @@ function renderTopSites(sites) {
     }
     return;
   }
-  
+
   // Category key to friendly name mapping
   const categoryNames = {
     socialMedia: 'Social Media',
@@ -952,11 +955,11 @@ function renderTopSites(sites) {
     education: 'Education',
     email: 'Email'
   };
-  
+
   container.innerHTML = sites.slice(0, 10).map((site, index) => {
     const rankClass = index < 3 ? ` rank-${index + 1}` : '';
     const categoryName = categoryNames[site.category] || site.category || 'Uncategorized';
-    
+
     return `
       <div class="top-site-item">
         <span class="top-site-rank${rankClass}">${index + 1}</span>
@@ -973,7 +976,7 @@ function renderTopSites(sites) {
 function renderBlockSuggestions(suggestions) {
   const container = document.getElementById('suggestions-list');
   if (!container) return;
-  
+
   if (!suggestions || !suggestions.length) {
     container.innerHTML = `
       <div class="empty-state-text">
@@ -983,7 +986,7 @@ function renderBlockSuggestions(suggestions) {
     `;
     return;
   }
-  
+
   container.innerHTML = suggestions.slice(0, 5).map(suggestion => `
     <div class="suggestion-item" data-domain="${escapeHtml(suggestion.domain)}">
       <div class="suggestion-info">
@@ -997,28 +1000,28 @@ function renderBlockSuggestions(suggestions) {
       </button>
     </div>
   `).join('');
-  
+
   // Add click handlers for block buttons
   container.querySelectorAll('.suggestion-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const button = e.target.closest('.suggestion-btn');
       const domain = button?.dataset.domain;
       if (!domain) return;
-      
+
       try {
         button.disabled = true;
         button.innerHTML = `${Icons.clock}<span>Blocking...</span>`;
-        
-        await chrome.runtime.sendMessage({ 
-          type: 'ADD_BLOCKED_SITE', 
-          site: domain 
+
+        await chrome.runtime.sendMessage({
+          type: 'ADD_BLOCKED_SITE',
+          site: domain
         });
-        
+
         button.innerHTML = `${Icons.checkCircle}<span>Blocked!</span>`;
         button.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
         button.style.boxShadow = '0 2px 4px rgba(34, 197, 94, 0.3)';
         button.closest('.suggestion-item')?.classList.add('blocked');
-        
+
         // Remove the item after a moment
         setTimeout(() => {
           const item = button.closest('.suggestion-item');
@@ -1029,7 +1032,7 @@ function renderBlockSuggestions(suggestions) {
             setTimeout(() => item.remove(), 300);
           }
         }, 1200);
-        
+
       } catch (err) {
         console.error('Failed to block site:', err);
         button.disabled = false;
@@ -1042,11 +1045,11 @@ function renderBlockSuggestions(suggestions) {
 function renderInsights(productivityData) {
   const container = document.getElementById('insights-list');
   if (!container) return;
-  
+
   // Generate insights from productivity data
   const insightsData = productivityData.insights || {};
   const insights = [];
-  
+
   // Score-based achievement insight (show first if score is good)
   const score = productivityData.score || 0;
   if (score >= 80) {
@@ -1062,7 +1065,7 @@ function renderInsights(productivityData) {
       text: 'You have a healthy balance of productive browsing habits.'
     });
   }
-  
+
   // Top productive site
   if (insightsData.topProductiveSite) {
     insights.push({
@@ -1071,7 +1074,7 @@ function renderInsights(productivityData) {
       text: `Your most visited productive site is ${insightsData.topProductiveSite}`
     });
   }
-  
+
   // Peak hour insight
   if (insightsData.peakHourLabel) {
     insights.push({
@@ -1080,7 +1083,7 @@ function renderInsights(productivityData) {
       text: `You're most active online around ${insightsData.peakHourLabel}`
     });
   }
-  
+
   // Daily average insight
   if (insightsData.avgDailyVisits > 0) {
     insights.push({
@@ -1089,7 +1092,7 @@ function renderInsights(productivityData) {
       text: `You average ${insightsData.avgDailyVisits} site visits per day`
     });
   }
-  
+
   // Top distracting site
   if (insightsData.topDistractingSite) {
     insights.push({
@@ -1098,7 +1101,7 @@ function renderInsights(productivityData) {
       text: `Your most visited distracting site is ${insightsData.topDistractingSite}`
     });
   }
-  
+
   // Score-based warning
   if (score < 40) {
     insights.push({
@@ -1113,7 +1116,7 @@ function renderInsights(productivityData) {
       text: 'Try scheduling focused work sessions with distracting sites blocked.'
     });
   }
-  
+
   // Total sites insight
   if (insightsData.uniqueSites > 0) {
     insights.push({
@@ -1122,7 +1125,7 @@ function renderInsights(productivityData) {
       text: `You visited ${insightsData.uniqueSites} unique sites in the past week`
     });
   }
-  
+
   if (!insights.length) {
     container.innerHTML = `
       <div class="empty-state-text">
@@ -1132,7 +1135,7 @@ function renderInsights(productivityData) {
     `;
     return;
   }
-  
+
   // Map insight types to icons
   const insightIcons = {
     positive: Icons.trendingUp,
@@ -1142,7 +1145,7 @@ function renderInsights(productivityData) {
     warning: Icons.alertTriangle,
     achievement: Icons.trophy
   };
-  
+
   container.innerHTML = insights.map(insight => {
     const icon = insightIcons[insight.type] || Icons.info;
     return `

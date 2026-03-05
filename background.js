@@ -123,8 +123,8 @@ const DEFAULT_SETTINGS = {
   // Focus session presets (customizable pomodoro timers)
   focusPresets: {
     pomodoro: { workMinutes: 25, breakMinutes: 5, longBreakMinutes: 15, sessionsBeforeLongBreak: 4 },
-    short:    { workMinutes: 15, breakMinutes: 3, longBreakMinutes: 10, sessionsBeforeLongBreak: 4 },
-    long:     { workMinutes: 50, breakMinutes: 10, longBreakMinutes: 20, sessionsBeforeLongBreak: 3 }
+    short: { workMinutes: 15, breakMinutes: 3, longBreakMinutes: 10, sessionsBeforeLongBreak: 4 },
+    long: { workMinutes: 50, breakMinutes: 10, longBreakMinutes: 20, sessionsBeforeLongBreak: 3 }
   }
 };
 
@@ -185,7 +185,7 @@ const DEFAULT_PROFILE = {
   },
   unblockMethods: {
     timer: { enabled: false, minutes: 5 },
-    completeTodo: { enabled: true},
+    completeTodo: { enabled: true },
     typePhrase: { enabled: false, phrase: 'I want to waste my time', useRandomString: false, randomLength: 30 },
     typeReason: { enabled: true, minLength: 50 },
     mathProblem: { enabled: false },
@@ -266,7 +266,7 @@ let lastActiveTabCheck = null;
  */
 chrome.runtime.onInstalled.addListener(async (details) => {
   console.log(`Focus Extension ${details.reason}: ${details.previousVersion || 'new'} -> ${chrome.runtime.getManifest().version}`);
-  
+
   if (details.reason === 'install') {
     // Fresh install - set default settings
     await chrome.storage.local.set({ settings: DEFAULT_SETTINGS });
@@ -276,7 +276,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     await migrateSettings();
     console.log('Focus Extension updated - settings preserved and migrated');
   }
-  
+
   // Always update rules on install/update
   await updateBlockingRules();
 });
@@ -289,45 +289,45 @@ async function migrateSettings() {
   try {
     const result = await chrome.storage.local.get(['settings', 'profiles', 'activeProfileId']);
     const existingSettings = result.settings;
-    
+
     if (!existingSettings) {
       // No existing settings - use defaults
       await chrome.storage.local.set({ settings: DEFAULT_SETTINGS });
       return;
     }
-    
+
     // Merge: existing settings take priority, but add any new default fields
     const migratedSettings = { ...DEFAULT_SETTINGS, ...existingSettings };
-    
+
     // Deep merge for nested objects (unblockMethods, schedule, etc.)
     if (DEFAULT_SETTINGS.unblockMethods && existingSettings.unblockMethods) {
-      migratedSettings.unblockMethods = { 
-        ...DEFAULT_SETTINGS.unblockMethods, 
-        ...existingSettings.unblockMethods 
+      migratedSettings.unblockMethods = {
+        ...DEFAULT_SETTINGS.unblockMethods,
+        ...existingSettings.unblockMethods
       };
     }
-    
+
     if (DEFAULT_SETTINGS.schedule && existingSettings.schedule) {
-      migratedSettings.schedule = { 
-        ...DEFAULT_SETTINGS.schedule, 
-        ...existingSettings.schedule 
+      migratedSettings.schedule = {
+        ...DEFAULT_SETTINGS.schedule,
+        ...existingSettings.schedule
       };
     }
-    
+
     if (DEFAULT_SETTINGS.dailyLimit && existingSettings.dailyLimit) {
-      migratedSettings.dailyLimit = { 
-        ...DEFAULT_SETTINGS.dailyLimit, 
-        ...existingSettings.dailyLimit 
+      migratedSettings.dailyLimit = {
+        ...DEFAULT_SETTINGS.dailyLimit,
+        ...existingSettings.dailyLimit
       };
     }
-    
+
     if (DEFAULT_SETTINGS.earnedTime && existingSettings.earnedTime) {
-      migratedSettings.earnedTime = { 
-        ...DEFAULT_SETTINGS.earnedTime, 
-        ...existingSettings.earnedTime 
+      migratedSettings.earnedTime = {
+        ...DEFAULT_SETTINGS.earnedTime,
+        ...existingSettings.earnedTime
       };
     }
-    
+
     if (DEFAULT_SETTINGS.focusPresets && existingSettings.focusPresets) {
       migratedSettings.focusPresets = {};
       for (const key of Object.keys(DEFAULT_SETTINGS.focusPresets)) {
@@ -337,9 +337,9 @@ async function migrateSettings() {
         };
       }
     }
-    
+
     await chrome.storage.local.set({ settings: migratedSettings });
-    
+
     // Also migrate profiles if they exist
     if (result.profiles && Array.isArray(result.profiles) && result.profiles.length > 0) {
       const migratedProfiles = result.profiles.map(profile => ({
@@ -362,7 +362,7 @@ async function migrateSettings() {
       await chrome.storage.local.set({ profiles: migratedProfiles });
       console.log('Profiles migrated:', migratedProfiles.map(p => ({ id: p.id, name: p.name, blockedSitesCount: p.blockedSites?.length })));
     }
-    
+
     console.log('Settings migration complete');
   } catch (e) {
     console.error('Settings migration failed:', e);
@@ -375,7 +375,7 @@ async function migrateSettings() {
 async function exportAllData() {
   try {
     const data = await chrome.storage.local.get(null); // Get everything
-    
+
     return {
       success: true,
       data: {
@@ -405,51 +405,51 @@ async function importAllData(importData) {
     if (!importData || typeof importData !== 'object') {
       return { success: false, error: 'Invalid import data' };
     }
-    
+
     // Validate the data has expected structure
     if (!importData.settings && !importData.profiles) {
       return { success: false, error: 'No settings or profiles found in import data' };
     }
-    
+
     const dataToImport = {};
-    
+
     // Import each data type if present
     if (importData.settings) {
       // Merge with defaults to ensure all required fields exist
       dataToImport.settings = { ...DEFAULT_SETTINGS, ...importData.settings };
     }
-    
+
     if (importData.profiles) {
       dataToImport.profiles = importData.profiles;
     }
-    
+
     if (importData.activeProfileId) {
       dataToImport.activeProfileId = importData.activeProfileId;
     }
-    
+
     if (importData.categories) {
       dataToImport.categories = importData.categories;
     }
-    
+
     if (importData.xpData) {
       dataToImport.xpData = importData.xpData;
     }
-    
+
     if (importData.streakData) {
       dataToImport.streakData = importData.streakData;
     }
-    
+
     if (importData.focusSessionHistory) {
       dataToImport.focusSessionHistory = importData.focusSessionHistory;
     }
-    
+
     if (importData.theme) {
       dataToImport.theme = importData.theme;
     }
-    
+
     await chrome.storage.local.set(dataToImport);
     await updateBlockingRules();
-    
+
     console.log('Import complete:', Object.keys(dataToImport));
     return { success: true, imported: Object.keys(dataToImport) };
   } catch (e) {
@@ -474,7 +474,7 @@ chrome.runtime.onStartup.addListener(async () => {
       profilesCount: result.profiles?.length || 0
     });
   }
-  
+
   await updateBlockingRules();
 });
 
@@ -497,20 +497,20 @@ chrome.storage.onChanged.addListener(async (changes, namespace) => {
 async function getSettings() {
   const result = await chrome.storage.local.get('settings');
   const globalSettings = result.settings || { ...DEFAULT_SETTINGS };
-  
+
   // Get active profile
   const data = await chrome.storage.local.get(['profiles', 'activeProfileId']);
   const profiles = data.profiles || [];
-  
+
   // If no profiles exist yet, return global settings
   if (profiles.length === 0) {
     return globalSettings;
   }
-  
+
   // Find active profile - use stored ID, or fall back to first profile
   let activeProfileId = data.activeProfileId;
   let activeProfile = profiles.find(p => p.id === activeProfileId);
-  
+
   // If active profile not found (ID mismatch or never set), use first profile
   if (!activeProfile) {
     activeProfile = profiles[0];
@@ -518,7 +518,7 @@ async function getSettings() {
     // Fix the stored activeProfileId
     await chrome.storage.local.set({ activeProfileId });
   }
-  
+
   // Merge profile-specific settings into global settings
   // Profile overrides these fields
   return {
@@ -546,7 +546,7 @@ async function getSettings() {
 async function saveProfileSettings(updates) {
   const data = await chrome.storage.local.get(['profiles', 'activeProfileId']);
   const profiles = data.profiles || [];
-  
+
   // If no profiles exist, save to global settings (legacy behavior)
   if (profiles.length === 0) {
     const result = await chrome.storage.local.get('settings');
@@ -555,18 +555,18 @@ async function saveProfileSettings(updates) {
     await chrome.storage.local.set({ settings });
     return;
   }
-  
+
   // Find active profile - use stored ID, or fall back to first profile
   let activeProfileId = data.activeProfileId;
   let profileIndex = profiles.findIndex(p => p.id === activeProfileId);
-  
+
   // If active profile not found, use first profile and fix the stored ID
   if (profileIndex === -1) {
     profileIndex = 0;
     activeProfileId = profiles[0].id;
     await chrome.storage.local.set({ activeProfileId });
   }
-  
+
   // Update the profile
   Object.assign(profiles[profileIndex], updates);
   await chrome.storage.local.set({ profiles });
@@ -596,30 +596,30 @@ function isInAllowedTimeWindow(schedule) {
   if (!schedule || !schedule.enabled) {
     return true;
   }
-  
+
   const now = new Date();
   const currentDay = now.getDay();
-  
+
   // Check if today is an active day
   if (!schedule.activeDays || !schedule.activeDays.includes(currentDay)) {
     return true; // Schedule doesn't apply today
   }
-  
+
   // If no time windows defined, nothing is allowed
   if (!schedule.allowedTimes || schedule.allowedTimes.length === 0) {
     return false;
   }
-  
+
   // Get current time in HH:MM format
   const currentTime = now.toTimeString().slice(0, 5);
-  
+
   // Check each allowed time window
   for (const window of schedule.allowedTimes) {
     if (isTimeInRange(currentTime, window.start, window.end)) {
       return true;
     }
   }
-  
+
   return false;
 }
 
@@ -644,22 +644,22 @@ async function updateBlockingRules() {
     pendingUpdate = true;
     return;
   }
-  
+
   isUpdatingRules = true;
-  
+
   try {
     const settings = await getSettings();
     const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
     const blockedPageExtensionPath = '/blocked/blocked.html';
     const escapedBlockedPageUrl = blockedPageUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    
+
     // Get temporary unblocks to exclude from blocking
     const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
     const activeUnblocks = new Set();
-    
+
     // Check if schedule allows unblocks right now
     const scheduleAllowsUnblock = isInAllowedTimeWindow(settings.schedule);
-    
+
     // Filter to only active (non-expired) unblocks
     // BUT only if schedule allows unblocks
     const now = Date.now();
@@ -670,18 +670,18 @@ async function updateBlockingRules() {
         }
       }
     }
-    
+
     // Get existing dynamic rules
     const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
     const existingRuleIds = existingRules.map(rule => rule.id);
-    
+
     // Build new rules based on mode
     const newRules = [];
     let ruleId = RULE_ID_START;
-    
+
     // During pomodoro breaks, suspend all blocking rules as a reward
     const onBreak = await isOnFocusBreak();
-    
+
     // Only build rules if extension is enabled AND not on a focus break
     // Note: Schedule controls whether unblock methods are available on the blocked page,
     // not whether blocking happens. Sites are always blocked when schedule is enabled.
@@ -698,14 +698,14 @@ async function updateBlockingRules() {
           resourceTypes: ['main_frame']
         }
       });
-      
+
       if (settings.mode === 'blocklist') {
         // First, add allow rules for whitelisted URLs (higher priority)
         const allowedUrls = settings.allowedUrls || [];
         for (const url of allowedUrls) {
           // Escape special regex characters in the URL
           const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          
+
           newRules.push({
             id: ruleId++,
             priority: 10, // Higher priority than block rules
@@ -718,10 +718,10 @@ async function updateBlockingRules() {
             }
           });
         }
-        
+
         // Combine blocked sites with sites from enabled categories
         const allBlockedSites = new Set(settings.blockedSites.map(extractDomain));
-        
+
         // Add sites from enabled categories
         const categories = settings.categories || [];
         for (const category of categories) {
@@ -731,18 +731,18 @@ async function updateBlockingRules() {
             }
           }
         }
-        
+
         // Block specific sites (excluding temporarily unblocked ones)
         for (const domain of allBlockedSites) {
           // Skip if temporarily unblocked
           if (activeUnblocks.has(domain)) {
             continue;
           }
-          
+
           // Redirect to blocked page with known blocked domain (safer than full URL substitution)
           // Escape dots in domain for regex
           const escapedDomain = domain.replace(/\./g, '\\.');
-          
+
           newRules.push({
             id: ruleId++,
             priority: 1,
@@ -758,17 +758,17 @@ async function updateBlockingRules() {
             }
           });
         }
-        
+
         // Add keyword blocking rules (if enabled)
         const keywordSettings = settings.blockedKeywords || { enabled: false, keywords: [] };
         if (keywordSettings.enabled && keywordSettings.keywords.length > 0) {
           for (const keywordObj of keywordSettings.keywords) {
             // Escape special regex characters in the keyword
             const escapedKeyword = keywordObj.keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            
+
             // Build regex pattern - case insensitive by default
             const flags = keywordObj.caseSensitive ? '' : '(?i)';
-            
+
             newRules.push({
               id: ruleId++,
               priority: 1,
@@ -793,7 +793,7 @@ async function updateBlockingRules() {
           ...settings.allowedSites.map(extractDomain),
           ...activeUnblocks
         ]);
-        
+
         // First, add a rule to block all sites
         newRules.push({
           id: ruleId++,
@@ -810,10 +810,10 @@ async function updateBlockingRules() {
             excludedInitiatorDomains: ['chrome-extension']
           }
         });
-        
+
         // Add exceptions for allowed sites (higher priority)
         for (const domain of allAllowedDomains) {
-          
+
           newRules.push({
             id: ruleId++,
             priority: 2, // Higher priority to override the block-all rule
@@ -826,7 +826,7 @@ async function updateBlockingRules() {
             }
           });
         }
-        
+
         // Always allow extension pages
         newRules.push({
           id: ruleId++,
@@ -839,7 +839,7 @@ async function updateBlockingRules() {
             resourceTypes: ['main_frame']
           }
         });
-        
+
         // Allow chrome:// pages
         newRules.push({
           id: ruleId++,
@@ -854,18 +854,18 @@ async function updateBlockingRules() {
         });
       }
     }
-    
+
     // Remove old rules and add new ones in a single atomic operation
     await chrome.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: existingRuleIds,
       addRules: newRules
     });
-    
+
     console.log(`Updated blocking rules: ${newRules.length} rules active`);
     console.log('Rules:', JSON.stringify(newRules, null, 2));
   } finally {
     isUpdatingRules = false;
-    
+
     // If there was a pending update, run it now
     if (pendingUpdate) {
       pendingUpdate = false;
@@ -884,7 +884,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.error('Message handler error:', error);
       sendResponse({ error: error.message });
     });
-  
+
   // Return true to indicate async response
   return true;
 });
@@ -899,304 +899,304 @@ async function handleMessage(message, sender) {
   switch (message.type) {
     case 'GET_SETTINGS':
       return await getSettings();
-    
+
     case 'EXPORT_ALL_DATA':
       return await exportAllData();
-    
+
     case 'IMPORT_ALL_DATA':
       return await importAllData(message.data);
-    
+
     case 'UPDATE_SETTINGS':
       // Profile-specific fields that should be saved to the active profile
-      const profileSpecificFields = ['blockedSites', 'allowedSites', 'unblockMethods', 'requireAllMethods', 
-        'allowUnlimitedTime', 'dailyLimit', 'earnedTime', 'inactivityTimeout', 'schedule', 
+      const profileSpecificFields = ['blockedSites', 'allowedSites', 'unblockMethods', 'requireAllMethods',
+        'allowUnlimitedTime', 'dailyLimit', 'earnedTime', 'inactivityTimeout', 'schedule',
         'categories', 'blockedKeywords', 'allowedUrls'];
-      
+
       const profileUpdates = {};
-      
+
       // Extract profile-specific fields
       for (const field of profileSpecificFields) {
         if (field in message.settings) {
           profileUpdates[field] = message.settings[field];
         }
       }
-      
+
       // Save profile-specific settings to active profile (if any profiles exist)
       if (Object.keys(profileUpdates).length > 0) {
         await saveProfileSettings(profileUpdates);
       }
-      
+
       // Save global settings (the full settings object for backward compatibility)
       // This ensures non-profile settings like mode, schedule, etc. are saved
       const result = await chrome.storage.local.get('settings');
       const currentSettings = result.settings || { ...DEFAULT_SETTINGS };
       const mergedSettings = { ...currentSettings, ...message.settings };
       await chrome.storage.local.set({ settings: mergedSettings });
-      
+
       return { success: true };
-    
+
     case 'TOGGLE_ENABLED':
       const settings = await getSettings();
       settings.enabled = !settings.enabled;
       await chrome.storage.local.set({ settings });
       return { enabled: settings.enabled };
-    
+
     case 'ADD_BLOCKED_SITE':
       return await addBlockedSite(message.site);
-    
+
     case 'REMOVE_BLOCKED_SITE':
       return await removeBlockedSite(message.site);
-    
+
     case 'ADD_ALLOWED_SITE':
       return await addAllowedSite(message.site);
-    
+
     case 'REMOVE_ALLOWED_SITE':
       return await removeAllowedSite(message.site);
-    
+
     case 'TEMPORARY_UNBLOCK':
       return await temporaryUnblock(message.site, message.minutes);
-    
+
     case 'GET_CURRENT_TAB_URL':
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tabs[0] && tabs[0].url) {
         return { url: tabs[0].url, domain: extractDomain(tabs[0].url) };
       }
       return { url: null, domain: null };
-    
+
     case 'GET_TEMP_UNBLOCKS':
       return await getTempUnblocks();
-    
+
     case 'GET_DAILY_USAGE':
       return await getDailyUsageInfo();
-    
+
     case 'SAVE_UNBLOCK_REASON':
       return await saveUnblockReason(message.domain, message.reason);
-    
+
     case 'GET_UNBLOCK_REASONS':
       return await getUnblockReasons();
-    
+
     case 'CLEAR_UNBLOCK_REASONS':
       return await clearUnblockReasons();
-    
+
     case 'END_TEMP_UNBLOCK':
       return await endTempUnblock(message.domain);
-    
+
     case 'TRACK_BLOCK_ATTEMPT':
       return await incrementBlockAttempts();
-    
+
     case 'GET_EARNED_TIME':
       return await getEarnedTimeInfo();
-    
+
     case 'ADD_EARNED_TIME':
       return await addEarnedTime(message.taskCount || 1);
-    
+
     case 'USE_EARNED_TIME':
       return await useEarnedTime(message.minutes);
-    
+
     case 'RESET_EARNED_TIME':
       return await resetEarnedTimeBank();
-    
+
     case 'GET_NUCLEAR_STATUS':
       return await getNuclearStatus();
-    
+
     case 'ACTIVATE_NUCLEAR_MODE':
       return await activateNuclearMode(message.minutes);
-    
+
     case 'GET_STREAK_INFO':
       return await getStreakInfo();
-    
+
     case 'CHECK_STREAK':
       return await checkAndUpdateStreak();
-    
+
     case 'GET_XP_DATA':
       return await getXPData();
-    
+
     case 'ADD_XP':
       return await addXP(message.amount, message.reason);
-    
+
     case 'GET_XP_HISTORY':
       return await getXPHistory();
-    
+
     case 'GET_RANDOM_QUOTE':
       return getRandomQuote();
-    
+
     case 'GET_QUOTE_OF_DAY':
       return await getQuoteOfTheDay();
-    
+
     case 'GET_FOCUS_PRESETS':
       return await getFocusPresets();
-    
+
     case 'GET_FOCUS_SESSION':
       return await getFocusSession();
-    
+
     case 'START_FOCUS_SESSION':
       return await startFocusSession(message.sessionType, message.customMinutes);
-    
+
     case 'STOP_FOCUS_SESSION':
       return await stopFocusSession();
-    
+
     case 'SKIP_FOCUS_PHASE':
       return await skipFocusSessionPhase();
-    
+
     case 'GET_FOCUS_SESSION_STATS':
       return await getFocusSessionStats();
-    
+
     case 'GET_ACHIEVEMENTS':
       return await getAchievements();
-    
+
     case 'CHECK_ACHIEVEMENTS':
       return await checkAchievements();
-    
+
     case 'GET_ALL_TIME_STATS':
       return await getAllTimeStats();
-    
+
     // Category operations
     case 'GET_CATEGORIES':
       return await getCategories();
-    
+
     case 'GET_CATEGORY_TEMPLATES':
       return getCategoryTemplates();
-    
+
     case 'CREATE_CATEGORY':
       return await createCategory(message.category);
-    
+
     case 'UPDATE_CATEGORY':
       return await updateCategory(message.categoryId, message.updates);
-    
+
     case 'DELETE_CATEGORY':
       return await deleteCategory(message.categoryId);
-    
+
     case 'TOGGLE_CATEGORY':
       return await toggleCategory(message.categoryId);
-    
+
     case 'ADD_SITE_TO_CATEGORY':
       return await addSiteToCategory(message.categoryId, message.site);
-    
+
     case 'REMOVE_SITE_FROM_CATEGORY':
       return await removeSiteFromCategory(message.categoryId, message.site);
-    
+
     case 'ADD_CATEGORY_FROM_TEMPLATE':
       return await addCategoryFromTemplate(message.templateKey);
-    
+
     // Keyword blocking operations
     case 'GET_BLOCKED_KEYWORDS':
       return await getBlockedKeywords();
-    
+
     case 'ADD_BLOCKED_KEYWORD':
       return await addBlockedKeyword(message.keyword, message.caseSensitive);
-    
+
     case 'REMOVE_BLOCKED_KEYWORD':
       return await removeBlockedKeyword(message.keyword);
-    
+
     case 'TOGGLE_KEYWORD_BLOCKING':
       return await toggleKeywordBlocking();
-    
+
     case 'UPDATE_BLOCKED_KEYWORD':
       return await updateBlockedKeyword(message.keyword, message.updates);
-    
+
     // URL whitelist operations
     case 'GET_ALLOWED_URLS':
       return await getAllowedUrls();
-    
+
     case 'ADD_ALLOWED_URL':
       return await addAllowedUrl(message.url);
-    
+
     case 'REMOVE_ALLOWED_URL':
       return await removeAllowedUrl(message.url);
-    
+
     case 'IS_URL_WHITELISTED':
       return await isUrlWhitelisted(message.url);
-    
+
     // Profile operations
     case 'GET_PROFILES':
       return await getProfiles();
-    
+
     case 'GET_ACTIVE_PROFILE':
       return await getActiveProfile();
-    
+
     case 'GET_ACTIVE_PROFILE_ID':
       return await getActiveProfileId();
-    
+
     case 'SET_ACTIVE_PROFILE':
       return await setActiveProfile(message.profileId);
-    
+
     case 'CREATE_PROFILE':
       return await createProfile(message.profileData);
-    
+
     case 'UPDATE_PROFILE':
       return await updateProfile(message.profileId, message.updates);
-    
+
     case 'DELETE_PROFILE':
       return await deleteProfile(message.profileId);
-    
+
     case 'CREATE_PROFILE_FROM_TEMPLATE':
       return await createProfileFromTemplate(message.templateKey, message.customName);
-    
+
     case 'DUPLICATE_PROFILE':
       return await duplicateProfile(message.profileId, message.newName);
-    
+
     case 'GET_PROFILE_TEMPLATES':
       return getProfileTemplates();
-    
+
     // History analysis operations
     case 'ANALYZE_HISTORY':
       return await analyzeHistory(message.days || 7);
-    
+
     case 'GET_BLOCK_SUGGESTIONS':
       return await getBlockSuggestions();
-    
+
     case 'GET_PRODUCTIVITY_SCORE': {
       const prodResult = await getProductivityScore(message.days || 7);
       // Also check productivity achievements when score is fetched
       await checkProductivityAchievements();
       return prodResult;
     }
-    
+
     case 'GET_BROWSING_PATTERNS':
       return await getBrowsingPatterns(message.days || 30);
-    
+
     case 'GET_SITE_CATEGORIES':
       return getSiteCategories();
-    
+
     // Google Calendar operations
     case 'CONNECT_GOOGLE_CALENDAR':
       return await connectGoogleCalendar();
-    
+
     case 'DISCONNECT_GOOGLE_CALENDAR':
       return await disconnectGoogleCalendar();
-    
+
     case 'GET_CALENDAR_STATUS':
       return await getCalendarStatus();
-    
+
     case 'GET_CALENDAR_LIST':
       const token = await getValidCalendarToken();
       if (!token) return { error: 'Not connected' };
       return await fetchCalendarList(token);
-    
+
     case 'GET_UPCOMING_EVENTS':
       return await fetchUpcomingEvents(message.days || 7);
-    
+
     case 'GET_TODAY_EVENTS':
       return await getTodayEvents();
-    
+
     case 'GET_CURRENT_EVENTS':
       return await getCurrentEvents();
-    
+
     case 'UPDATE_CALENDAR_SETTINGS':
       return await updateCalendarSettings(message.settings);
-    
+
     case 'GET_SUGGESTED_PROFILE':
       return await getSuggestedProfileFromCalendar();
-    
+
     case 'START_CALENDAR_SYNC':
       await startCalendarSync();
       return { success: true };
-    
+
     case 'STOP_CALENDAR_SYNC':
       await chrome.alarms.clear('calendar-sync');
       await saveCalendarSettings({ syncEnabled: false });
       return { success: true };
-    
+
     default:
       throw new Error(`Unknown message type: ${message.type}`);
   }
@@ -1210,15 +1210,15 @@ async function addBlockedSite(site) {
   const settings = await getSettings();
   const domain = extractDomain(site);
   const blockedSites = [...settings.blockedSites];
-  
+
   if (!blockedSites.includes(domain)) {
     blockedSites.push(domain);
     await saveProfileSettings({ blockedSites });
-    
+
     // Check blocking achievements after adding a site
     await checkBlockingAchievements();
   }
-  
+
   return { success: true, blockedSites };
 }
 
@@ -1229,10 +1229,10 @@ async function addBlockedSite(site) {
 async function removeBlockedSite(site) {
   const settings = await getSettings();
   const domain = extractDomain(site);
-  
+
   const blockedSites = settings.blockedSites.filter(s => s !== domain);
   await saveProfileSettings({ blockedSites });
-  
+
   return { success: true, blockedSites };
 }
 
@@ -1244,12 +1244,12 @@ async function addAllowedSite(site) {
   const settings = await getSettings();
   const domain = extractDomain(site);
   const allowedSites = [...settings.allowedSites];
-  
+
   if (!allowedSites.includes(domain)) {
     allowedSites.push(domain);
     await saveProfileSettings({ allowedSites });
   }
-  
+
   return { success: true, allowedSites };
 }
 
@@ -1260,10 +1260,10 @@ async function addAllowedSite(site) {
 async function removeAllowedSite(site) {
   const settings = await getSettings();
   const domain = extractDomain(site);
-  
+
   const allowedSites = settings.allowedSites.filter(s => s !== domain);
   await saveProfileSettings({ allowedSites });
-  
+
   return { success: true, allowedSites };
 }
 
@@ -1275,7 +1275,7 @@ async function getTempUnblocks() {
   const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
   const now = Date.now();
   const active = [];
-  
+
   for (const [domain, expiry] of Object.entries(tempUnblocks)) {
     if (expiry === 'unlimited') {
       active.push({ domain, expiry: 'unlimited', remaining: null });
@@ -1283,14 +1283,14 @@ async function getTempUnblocks() {
       active.push({ domain, expiry, remaining: expiry - now });
     }
   }
-  
+
   // Sort by expiry (soonest first, unlimited last)
   active.sort((a, b) => {
     if (a.expiry === 'unlimited') return 1;
     if (b.expiry === 'unlimited') return -1;
     return a.expiry - b.expiry;
   });
-  
+
   return active;
 }
 
@@ -1302,7 +1302,7 @@ async function getDailyUsageInfo() {
   const settings = await getSettings();
   const dailyLimitEnabled = settings.dailyLimit?.enabled || false;
   const limitMinutes = settings.dailyLimit?.minutes || 30;
-  
+
   if (!dailyLimitEnabled) {
     return {
       enabled: false,
@@ -1312,12 +1312,12 @@ async function getDailyUsageInfo() {
       exceeded: false
     };
   }
-  
+
   const usage = await getDailyUsage();
   const usedMinutes = Math.round(usage.minutes);
   const remainingMinutes = Math.max(0, limitMinutes - usedMinutes);
   const exceeded = usedMinutes >= limitMinutes;
-  
+
   return {
     enabled: true,
     usedMinutes,
@@ -1349,17 +1349,17 @@ const REASON_CATEGORIES = {
  */
 function classifyReason(reason) {
   const lowerReason = reason.toLowerCase();
-  
+
   for (const [category, keywords] of Object.entries(REASON_CATEGORIES)) {
     if (category === 'other') continue;
-    
+
     for (const keyword of keywords) {
       if (lowerReason.includes(keyword)) {
         return category;
       }
     }
   }
-  
+
   return 'other';
 }
 
@@ -1371,7 +1371,7 @@ function classifyReason(reason) {
 async function saveUnblockReason(domain, reason) {
   const result = await chrome.storage.local.get('unblockReasons');
   const reasons = result.unblockReasons || [];
-  
+
   const entry = {
     id: Date.now().toString(),
     domain,
@@ -1380,14 +1380,14 @@ async function saveUnblockReason(domain, reason) {
     timestamp: Date.now(),
     date: new Date().toISOString()
   };
-  
+
   reasons.push(entry);
-  
+
   // Keep only last 100 reasons to avoid storage bloat
   const trimmedReasons = reasons.slice(-100);
-  
+
   await chrome.storage.local.set({ unblockReasons: trimmedReasons });
-  
+
   return { success: true, entry };
 }
 
@@ -1397,23 +1397,23 @@ async function saveUnblockReason(domain, reason) {
 async function getUnblockReasons() {
   const result = await chrome.storage.local.get('unblockReasons');
   const reasons = result.unblockReasons || [];
-  
+
   // Calculate category stats
   const categoryStats = {};
   const domainStats = {};
-  
+
   for (const entry of reasons) {
     // Category counts
     categoryStats[entry.category] = (categoryStats[entry.category] || 0) + 1;
-    
+
     // Domain counts
     domainStats[entry.domain] = (domainStats[entry.domain] || 0) + 1;
   }
-  
+
   // Get recent reasons (last 7 days)
   const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
   const recentReasons = reasons.filter(r => r.timestamp > weekAgo);
-  
+
   // Find top category and domain
   let topCategory = null;
   let topCategoryCount = 0;
@@ -1423,7 +1423,7 @@ async function getUnblockReasons() {
       topCategoryCount = count;
     }
   }
-  
+
   let topDomain = null;
   let topDomainCount = 0;
   for (const [domain, count] of Object.entries(domainStats)) {
@@ -1432,7 +1432,7 @@ async function getUnblockReasons() {
       topDomainCount = count;
     }
   }
-  
+
   return {
     reasons,
     recentReasons,
@@ -1461,35 +1461,35 @@ async function clearUnblockReasons() {
  */
 async function endTempUnblock(domain) {
   const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
-  
+
   // Remove the domain and any related domains
   const relatedDomains = {
     'twitter.com': ['x.com'],
     'x.com': ['twitter.com']
   };
   const domainsToRemove = [domain, ...(relatedDomains[domain] || [])];
-  
+
   for (const d of domainsToRemove) {
     delete tempUnblocks[d];
     // Clear any pending alarm
     chrome.alarms.clear(`reblock_${d}`);
   }
-  
+
   await chrome.storage.local.set({ tempUnblocks });
   await updateBlockingRules();
   await updateBadgeTimer();
-  
+
   // Redirect any tabs currently on the blocked domain(s) to the blocked page
   const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
   const tabs = await chrome.tabs.query({});
-  
+
   for (const tab of tabs) {
     if (!tab.url) continue;
-    
+
     try {
       const tabUrl = new URL(tab.url);
       const tabDomain = tabUrl.hostname.replace(/^www\./, '');
-      
+
       if (domainsToRemove.includes(tabDomain)) {
         // Redirect this tab to the blocked page
         const redirectUrl = `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}`;
@@ -1499,7 +1499,7 @@ async function endTempUnblock(domain) {
       // Invalid URL, skip
     }
   }
-  
+
   return { success: true };
 }
 
@@ -1511,28 +1511,28 @@ function getCurrentWindowEndTime(schedule) {
   if (!schedule || !schedule.enabled) {
     return null;
   }
-  
+
   const now = new Date();
   const currentDay = now.getDay();
-  
+
   // Check if today is an active day
   if (!schedule.activeDays || !schedule.activeDays.includes(currentDay)) {
     return null; // Schedule doesn't apply today, no cap needed
   }
-  
+
   if (!schedule.allowedTimes || schedule.allowedTimes.length === 0) {
     return null;
   }
-  
+
   const currentTime = now.toTimeString().slice(0, 5);
-  
+
   for (const window of schedule.allowedTimes) {
     if (isTimeInRange(currentTime, window.start, window.end)) {
       // We're in this window - calculate end time in milliseconds
       const [endHour, endMin] = window.end.split(':').map(Number);
       const endDate = new Date(now);
       endDate.setHours(endHour, endMin, 0, 0);
-      
+
       // Handle overnight windows where end is tomorrow
       if (window.start > window.end && currentTime < window.end) {
         // We're in the early morning part of an overnight window, end is today
@@ -1540,11 +1540,11 @@ function getCurrentWindowEndTime(schedule) {
         // We're in the evening part, end is tomorrow
         endDate.setDate(endDate.getDate() + 1);
       }
-      
+
       return endDate.getTime();
     }
   }
-  
+
   return null;
 }
 
@@ -1557,57 +1557,57 @@ function getCurrentWindowEndTime(schedule) {
 async function temporaryUnblock(site, minutes, useEarnedTimeFlag = false) {
   const domain = extractDomain(site);
   const settings = await getSettings();
-  
+
   // Check if nuclear mode is active
   if (await isNuclearModeActive()) {
     return { success: false, error: 'nuclear_mode_active' };
   }
-  
+
   // Check if daily limit is exceeded
   if (await isDailyLimitExceeded()) {
     return { success: false, error: 'daily_limit_exceeded' };
   }
-  
+
   // Check if earned time is required but user doesn't have enough
   const earnedTimeSettings = settings.earnedTime || { enabled: false, requireTasksToUnlock: false };
   if (earnedTimeSettings.enabled && earnedTimeSettings.requireTasksToUnlock) {
     const bank = await getEarnedTimeBank();
-    
+
     // For unlimited, check if they have any earned time
     if (minutes === 0 && bank.minutes <= 0) {
       return { success: false, error: 'insufficient_earned_time' };
     }
-    
+
     // For timed unblocks, check if they have enough earned time
     if (minutes > 0 && bank.minutes < minutes) {
       return { success: false, error: 'insufficient_earned_time', available: bank.minutes, requested: minutes };
     }
   }
-  
+
   // Related domains that should be unblocked together
   const relatedDomains = {
     'twitter.com': ['x.com'],
     'x.com': ['twitter.com']
   };
-  
+
   // Get all domains to unblock (the main one + any related)
   const domainsToUnblock = [domain, ...(relatedDomains[domain] || [])];
-  
+
   // Store the unblock expiry time (0 = unlimited)
   const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
   const isUnlimited = minutes === 0;
-  
+
   let expiryTime;
   let actualMinutes = minutes;
-  
+
   // Get remaining daily time if daily limit is enabled
   const remainingDailyMinutes = await getRemainingDailyTime();
-  
+
   // If using earned time, cap to available earned time
   let earnedTimeToUse = 0;
   if (earnedTimeSettings.enabled && earnedTimeSettings.requireTasksToUnlock) {
     const bank = await getEarnedTimeBank();
-    
+
     if (isUnlimited) {
       // Use all available earned time
       earnedTimeToUse = bank.minutes;
@@ -1618,7 +1618,7 @@ async function temporaryUnblock(site, minutes, useEarnedTimeFlag = false) {
       actualMinutes = minutes;
     }
   }
-  
+
   if (isUnlimited && !earnedTimeSettings.requireTasksToUnlock) {
     // For unlimited, check if we need to cap to schedule window end
     const windowEnd = getCurrentWindowEndTime(settings.schedule);
@@ -1637,7 +1637,7 @@ async function temporaryUnblock(site, minutes, useEarnedTimeFlag = false) {
   } else {
     // Calculate expiry based on actualMinutes
     expiryTime = Date.now() + (actualMinutes * 60 * 1000);
-    
+
     // Cap to schedule window end if it would exceed
     const windowEnd = getCurrentWindowEndTime(settings.schedule);
     if (windowEnd && expiryTime > windowEnd) {
@@ -1645,14 +1645,14 @@ async function temporaryUnblock(site, minutes, useEarnedTimeFlag = false) {
       actualMinutes = (windowEnd - Date.now()) / (60 * 1000);
       console.log(`Unblock capped to schedule window end: ${actualMinutes.toFixed(1)} minutes`);
     }
-    
+
     // Also cap to remaining daily time if it would exceed
     if (remainingDailyMinutes !== null && actualMinutes > remainingDailyMinutes) {
       expiryTime = Date.now() + (remainingDailyMinutes * 60 * 1000);
       actualMinutes = remainingDailyMinutes;
       console.log(`Unblock capped to remaining daily time: ${actualMinutes.toFixed(1)} minutes`);
     }
-    
+
     // If using earned time, cap to that
     if (earnedTimeToUse > 0 && actualMinutes > earnedTimeToUse) {
       actualMinutes = earnedTimeToUse;
@@ -1660,7 +1660,7 @@ async function temporaryUnblock(site, minutes, useEarnedTimeFlag = false) {
       console.log(`Unblock capped to earned time: ${actualMinutes.toFixed(1)} minutes`);
     }
   }
-  
+
   // Deduct earned time if using it
   if (earnedTimeToUse > 0) {
     // Use the actual minutes being granted (might be less than requested due to caps)
@@ -1668,31 +1668,31 @@ async function temporaryUnblock(site, minutes, useEarnedTimeFlag = false) {
     await useEarnedTime(minutesToDeduct);
     console.log(`Deducted ${minutesToDeduct} minutes from earned time bank`);
   }
-  
+
   for (const d of domainsToUnblock) {
     tempUnblocks[d] = expiryTime;
   }
   await chrome.storage.local.set({ tempUnblocks });
-  
+
   // Update blocking rules (will exclude temporarily unblocked sites)
   await updateBlockingRules();
-  
+
   // Set alarms to re-block each domain (only if not unlimited)
   if (expiryTime !== 'unlimited') {
     for (const d of domainsToUnblock) {
       chrome.alarms.create(`reblock_${d}`, { delayInMinutes: actualMinutes });
     }
   }
-  
+
   // Update badge immediately
   await updateBadgeTimer();
-  
+
   // Ensure we have an alarm set for window end
   await scheduleWindowEndAlarm();
-  
+
   // Record this unblock for streak tracking
   await recordUnblockForStreak(domain, actualMinutes);
-  
+
   return { success: true, unblockUntil: expiryTime, unlimited: expiryTime === 'unlimited', earnedTimeUsed: earnedTimeToUse > 0 };
 }
 
@@ -1704,14 +1704,14 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await updateBadgeTimer();
   } else if (alarm.name.startsWith('reblock_')) {
     const domain = alarm.name.replace('reblock_', '');
-    
+
     // Related domains that should also be re-blocked together
     const relatedDomains = {
       'twitter.com': ['x.com'],
       'x.com': ['twitter.com']
     };
     const domainsToReblock = [domain, ...(relatedDomains[domain] || [])];
-    
+
     // Remove from temporary unblocks
     const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
     for (const d of domainsToReblock) {
@@ -1720,18 +1720,18 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       chrome.alarms.clear(`reblock_${d}`);
     }
     await chrome.storage.local.set({ tempUnblocks });
-    
+
     // Update blocking rules (site will be blocked again)
     await updateBlockingRules();
     await updateBadgeTimer();
-    
+
     console.log(`Re-blocked site: ${domain} (and related: ${domainsToReblock.join(', ')})`);
-    
+
     // Redirect any tabs currently on this domain to the blocked page
     try {
       const tabs = await chrome.tabs.query({});
       const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
-      
+
       for (const tab of tabs) {
         if (tab.url) {
           const tabDomain = extractDomain(tab.url);
@@ -1747,7 +1747,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     }
   } else if (alarm.name.startsWith('inactivity_')) {
     const domain = alarm.name.replace('inactivity_', '');
-    
+
     // Check if user is currently on this domain
     try {
       const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -1762,17 +1762,17 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     } catch (e) {
       // Ignore errors, proceed with blocking
     }
-    
+
     console.log(`Inactivity timeout reached for ${domain}, re-blocking`);
-    
+
     // End the temporary unblock due to inactivity
     await endTempUnblock(domain);
-    
+
     // Also close or redirect any tabs on this domain
     try {
       const tabs = await chrome.tabs.query({});
       const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
-      
+
       for (const tab of tabs) {
         if (tab.url) {
           const tabDomain = extractDomain(tab.url);
@@ -1797,16 +1797,16 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   } else if (alarm.name === 'midnightReset') {
     // Reset daily usage at midnight
     console.log('Midnight reset triggered');
-    
+
     // Award XP for focused day before checking streak (which resets todayFocused)
     await awardDailyFocusXP();
-    
+
     // Check and update streak before resetting daily data
     await checkAndUpdateStreak();
-    
+
     await chrome.storage.local.set({ dailyUsage: { date: getTodayDateString(), minutes: 0 } });
     await chrome.storage.local.set({ dailyUnblockCount: { date: getTodayDateString(), count: 0, totalMinutes: 0 } });
-    
+
     // Schedule next midnight reset
     scheduleMidnightReset();
   } else if (alarm.name === 'nuclearModeEnd') {
@@ -1814,7 +1814,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     console.log('Nuclear mode ended');
     await chrome.storage.local.set({ nuclearMode: { active: false, expiresAt: null } });
     await updateBadgeTimer();
-    
+
     // Check for nuclear survivor achievement
     await checkNuclearSurvivorAchievement();
   } else if (alarm.name === 'focusSessionEnd') {
@@ -1841,19 +1841,19 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 async function updateBadgeTimer() {
   const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
   const settings = await getSettings();
-  
+
   if (!settings.enabled) {
     await chrome.action.setBadgeText({ text: 'OFF' });
     await chrome.action.setBadgeBackgroundColor({ color: '#666666' });
     return;
   }
-  
+
   // Check nuclear mode first
   const nuclearStatus = await getNuclearStatus();
   if (nuclearStatus.active) {
     const remainingMs = nuclearStatus.remainingMs || 0;
     const remainingMins = Math.ceil(remainingMs / 60000);
-    
+
     let badgeText;
     if (remainingMins >= 60) {
       const hours = Math.floor(remainingMins / 60);
@@ -1861,19 +1861,19 @@ async function updateBadgeTimer() {
     } else {
       badgeText = `${remainingMins}m`;
     }
-    
+
     await chrome.action.setBadgeText({ text: badgeText });
     await chrome.action.setBadgeBackgroundColor({ color: '#dc2626' }); // Red for nuclear
-    
+
     // Schedule next update
-    chrome.alarms.create('updateBadge', { delayInMinutes: 1/6 }); // Every 10s
+    chrome.alarms.create('updateBadge', { delayInMinutes: 1 / 6 }); // Every 10s
     return;
   }
-  
+
   // Find the soonest expiring unblock (excluding unlimited)
   let soonestExpiry = null;
   let hasUnlimited = false;
-  
+
   for (const [domain, expiry] of Object.entries(tempUnblocks)) {
     if (expiry === 'unlimited') {
       hasUnlimited = true;
@@ -1883,13 +1883,13 @@ async function updateBadgeTimer() {
       }
     }
   }
-  
+
   if (soonestExpiry) {
     const remaining = Math.max(0, soonestExpiry - Date.now());
     const remainingSeconds = Math.ceil(remaining / 1000);
     const mins = Math.floor(remainingSeconds / 60);
     const secs = remainingSeconds % 60;
-    
+
     // Format badge text
     let badgeText;
     if (mins >= 60) {
@@ -1900,7 +1900,7 @@ async function updateBadgeTimer() {
     } else {
       badgeText = `${secs}s`;
     }
-    
+
     // Set badge color based on time remaining
     let badgeColor;
     if (remainingSeconds <= 60) {
@@ -1910,12 +1910,12 @@ async function updateBadgeTimer() {
     } else {
       badgeColor = '#4CAF50'; // Green - plenty of time
     }
-    
+
     await chrome.action.setBadgeText({ text: badgeText });
     await chrome.action.setBadgeBackgroundColor({ color: badgeColor });
-    
+
     // Schedule next update
-    chrome.alarms.create('updateBadge', { delayInMinutes: remainingSeconds <= 60 ? 1/60 : 1/6 }); // Every 1s or 10s
+    chrome.alarms.create('updateBadge', { delayInMinutes: remainingSeconds <= 60 ? 1 / 60 : 1 / 6 }); // Every 1s or 10s
   } else if (hasUnlimited) {
     await chrome.action.setBadgeText({ text: '∞' });
     await chrome.action.setBadgeBackgroundColor({ color: '#2196F3' }); // Blue
@@ -1931,7 +1931,7 @@ async function updateBadgeTimer() {
 function startBadgeTimer() {
   updateBadgeTimer();
   // Create recurring alarm to update badge
-  chrome.alarms.create('updateBadge', { periodInMinutes: 1/6 }); // Every 10 seconds
+  chrome.alarms.create('updateBadge', { periodInMinutes: 1 / 6 }); // Every 10 seconds
   // Create recurring alarm to check schedule transitions
   chrome.alarms.create('scheduleCheck', { periodInMinutes: 1 }); // Every minute
   // Set precise alarm for current window end
@@ -1944,10 +1944,10 @@ function startBadgeTimer() {
 async function scheduleWindowEndAlarm() {
   const settings = await getSettings();
   const windowEnd = getCurrentWindowEndTime(settings.schedule);
-  
+
   // Clear any existing window end alarm
   chrome.alarms.clear('scheduleWindowEnd');
-  
+
   if (windowEnd) {
     const msUntilEnd = windowEnd - Date.now();
     if (msUntilEnd > 0) {
@@ -1962,40 +1962,40 @@ async function scheduleWindowEndAlarm() {
  */
 async function enforceSchedule() {
   const settings = await getSettings();
-  
+
   // Only enforce if schedule is enabled
   if (!settings.schedule || !settings.schedule.enabled) {
     return;
   }
-  
+
   const canUnblock = isInAllowedTimeWindow(settings.schedule);
-  
+
   // If we're outside allowed time windows, end all temporary unblocks
   if (!canUnblock) {
     const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
-    
+
     if (Object.keys(tempUnblocks).length > 0) {
       // Get domains to redirect
       const domainsToBlock = Object.keys(tempUnblocks);
-      
+
       // Clear all temp unblocks
       await chrome.storage.local.set({ tempUnblocks: {} });
-      
+
       // Clear all reblock alarms
       for (const domain of domainsToBlock) {
         chrome.alarms.clear(`reblock_${domain}`);
         chrome.alarms.clear(`inactivity_${domain}`);
       }
-      
+
       // Update blocking rules
       await updateBlockingRules();
       await updateBadgeTimer();
-      
+
       // Redirect any tabs on blocked domains
       try {
         const tabs = await chrome.tabs.query({});
         const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
-        
+
         for (const tab of tabs) {
           if (tab.url) {
             const tabDomain = extractDomain(tab.url);
@@ -2035,16 +2035,16 @@ async function isOnFocusBreak() {
  */
 async function shouldBlockDomain(domain) {
   if (!domain) return false;
-  
+
   const settings = await getSettings();
   if (!settings.enabled) return false;
-  
+
   // During pomodoro breaks, all sites are unblocked as a reward
   if (await isOnFocusBreak()) return false;
-  
+
   // Check if schedule allows unblocks
   const scheduleAllowsUnblock = isInAllowedTimeWindow(settings.schedule);
-  
+
   // Check temp unblocks first (only if schedule allows)
   if (scheduleAllowsUnblock) {
     const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
@@ -2053,7 +2053,7 @@ async function shouldBlockDomain(domain) {
       return false; // Temporarily unblocked
     }
   }
-  
+
   if (settings.mode === 'blocklist') {
     return settings.blockedSites.some(site => {
       const blockedDomain = site.replace(/^www\./, '');
@@ -2077,10 +2077,10 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
       return;
     }
-    
+
     const domain = extractDomain(tab.url);
     const shouldBlock = await shouldBlockDomain(domain);
-    
+
     if (shouldBlock) {
       // Redirect to blocked page
       const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
@@ -2102,23 +2102,23 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     if (!settings.inactivityTimeout || settings.inactivityTimeout <= 0) {
       return; // Inactivity timeout disabled
     }
-    
+
     // Get all tabs to find which ones we switched away from
     const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
     const activeUnblockDomains = Object.entries(tempUnblocks)
       .filter(([_, expiry]) => expiry === 'unlimited' || expiry > Date.now())
       .map(([domain]) => domain);
-    
+
     if (activeUnblockDomains.length === 0) return;
-    
+
     // Get the newly active tab
     const activeTab = await chrome.tabs.get(activeInfo.tabId);
     const activeDomain = activeTab.url ? extractDomain(activeTab.url) : null;
-    
+
     // For each unblocked domain, check if we're still on it
     for (const domain of activeUnblockDomains) {
       const alarmName = `inactivity_${domain}`;
-      
+
       if (activeDomain === domain || activeDomain === `www.${domain}`) {
         // We're on this domain, clear any inactivity timer
         await chrome.alarms.clear(alarmName);
@@ -2144,9 +2144,9 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
     // Browser lost focus, start inactivity timers for all unblocked domains
     const settings = await getSettings();
     if (!settings.inactivityTimeout || settings.inactivityTimeout <= 0) return;
-    
+
     const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
-    
+
     for (const [domain, expiry] of Object.entries(tempUnblocks)) {
       if (expiry === 'unlimited' || expiry > Date.now()) {
         const alarmName = `inactivity_${domain}`;
@@ -2187,14 +2187,14 @@ function getTodayDateString() {
 async function getDailyUsage() {
   const result = await chrome.storage.local.get('dailyUsage');
   let usage = result.dailyUsage || { date: '', minutes: 0 };
-  
+
   // Reset if it's a new day
   const today = getTodayDateString();
   if (usage.date !== today) {
     usage = { date: today, minutes: 0 };
     await chrome.storage.local.set({ dailyUsage: usage });
   }
-  
+
   return usage;
 }
 
@@ -2217,7 +2217,7 @@ async function isDailyLimitExceeded() {
   if (!settings.dailyLimit || !settings.dailyLimit.enabled) {
     return false;
   }
-  
+
   const usage = await getDailyUsage();
   return usage.minutes >= settings.dailyLimit.minutes;
 }
@@ -2230,7 +2230,7 @@ async function getRemainingDailyTime() {
   if (!settings.dailyLimit || !settings.dailyLimit.enabled) {
     return null; // Unlimited
   }
-  
+
   const usage = await getDailyUsage();
   const remaining = Math.max(0, settings.dailyLimit.minutes - usage.minutes);
   return remaining;
@@ -2244,17 +2244,17 @@ async function startUsageTracking() {
   if (usageTrackingInterval) {
     clearInterval(usageTrackingInterval);
   }
-  
+
   const settings = await getSettings();
   if (!settings.dailyLimit || !settings.dailyLimit.enabled) {
     return; // Daily limit not enabled
   }
-  
+
   // Track every 10 seconds
   usageTrackingInterval = setInterval(async () => {
     await trackActiveTabUsage();
   }, 10000); // 10 seconds
-  
+
   // Also track immediately
   await trackActiveTabUsage();
 }
@@ -2268,38 +2268,38 @@ async function trackActiveTabUsage() {
     if (!settings.dailyLimit || !settings.dailyLimit.enabled) {
       return;
     }
-    
+
     // Get active tab
     const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     if (!activeTab || !activeTab.url || activeTab.url.startsWith('chrome://') || activeTab.url.startsWith('chrome-extension://')) {
       return;
     }
-    
+
     const domain = extractDomain(activeTab.url);
-    
+
     // Check if this domain is a blocked site that's currently unblocked
     const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
-    const isTemporarilyUnblocked = tempUnblocks[domain] && 
+    const isTemporarilyUnblocked = tempUnblocks[domain] &&
       (tempUnblocks[domain] === 'unlimited' || tempUnblocks[domain] > Date.now());
-    
+
     if (!isTemporarilyUnblocked) {
       return; // Not on an unblocked blocked-site
     }
-    
+
     // Check if this domain is in the blocked sites list
     const isBlockedSite = settings.blockedSites.some(site => {
       const blockedDomain = site.replace(/^www\./, '');
       return domain === blockedDomain || domain.endsWith('.' + blockedDomain);
     });
-    
+
     if (!isBlockedSite) {
       return; // Not a blocked site
     }
-    
+
     // Add 10 seconds (1/6 minute) to usage
     const usage = await addDailyUsage(10 / 60);
     console.log(`Daily usage: ${usage.minutes.toFixed(2)} minutes on ${domain}`);
-    
+
     // Check if limit exceeded
     if (usage.minutes >= settings.dailyLimit.minutes) {
       console.log('Daily limit exceeded, ending all temporary unblocks');
@@ -2315,31 +2315,31 @@ async function trackActiveTabUsage() {
  */
 async function enforceDailyLimit() {
   const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
-  
+
   if (Object.keys(tempUnblocks).length === 0) {
     return; // No active unblocks
   }
-  
+
   const domainsToBlock = Object.keys(tempUnblocks);
-  
+
   // Clear all temp unblocks
   await chrome.storage.local.set({ tempUnblocks: {} });
-  
+
   // Clear all related alarms
   for (const domain of domainsToBlock) {
     chrome.alarms.clear(`reblock_${domain}`);
     chrome.alarms.clear(`inactivity_${domain}`);
   }
-  
+
   // Update blocking rules
   await updateBlockingRules();
   await updateBadgeTimer();
-  
+
   // Redirect any tabs on blocked domains
   try {
     const tabs = await chrome.tabs.query({});
     const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
-    
+
     for (const tab of tabs) {
       if (tab.url) {
         const tabDomain = extractDomain(tab.url);
@@ -2363,10 +2363,10 @@ function scheduleMidnightReset() {
   const now = new Date();
   const midnight = new Date(now);
   midnight.setHours(24, 0, 0, 0); // Next midnight
-  
+
   const msUntilMidnight = midnight.getTime() - now.getTime();
   const minutesUntilMidnight = msUntilMidnight / (60 * 1000);
-  
+
   // Create alarm for midnight reset
   chrome.alarms.create('midnightReset', { delayInMinutes: minutesUntilMidnight });
   console.log(`Midnight reset alarm scheduled for ${minutesUntilMidnight.toFixed(1)} minutes from now`);
@@ -2428,7 +2428,7 @@ async function getFocusSession() {
     startedAt: null,
     date: null
   };
-  
+
   // Reset daily totals if it's a new day
   const today = getTodayDateString();
   if (session.date !== today) {
@@ -2436,7 +2436,7 @@ async function getFocusSession() {
     session.totalMinutesToday = 0;
     session.date = today;
   }
-  
+
   // Check if session has expired
   if (session.active && session.endTime && session.endTime <= Date.now()) {
     // Guard against concurrent callers each triggering handleSessionPhaseEnd
@@ -2455,7 +2455,7 @@ async function getFocusSession() {
       _handlingPhaseEnd = false;
     }
   }
-  
+
   return session;
 }
 
@@ -2465,27 +2465,27 @@ async function getFocusSession() {
 async function handleSessionPhaseEnd(session) {
   const presets = await getFocusPresets();
   const preset = presets[session.type] || presets.pomodoro;
-  
+
   if (session.phase === 'work') {
     // Work phase completed - award XP
     const xpAmount = preset.workMinutes >= 50 ? XP_REWARDS.FOCUS_SESSION_50 : XP_REWARDS.FOCUS_SESSION_25;
     await addXP(xpAmount, `focus_session_${preset.workMinutes}`);
-    
+
     // Increment session count
     session.sessionsCompleted++;
     session.totalSessionsToday++;
     session.totalMinutesToday += preset.workMinutes;
-    
+
     // Increment total focus sessions counter (for achievements)
     await incrementTotalFocusSessions();
-    
+
     // Determine next phase
     if (session.sessionsCompleted >= preset.sessionsBeforeLongBreak) {
       // Full cycle complete — start long break, then stop
       session.phase = 'longBreak';
       session.endTime = Date.now() + (preset.longBreakMinutes * 60 * 1000);
       session.sessionsCompleted = 0; // Reset cycle
-      
+
       sendFocusNotification(
         'Time for a long break!',
         `Great work! You completed ${preset.sessionsBeforeLongBreak} sessions. Take a ${preset.longBreakMinutes} minute break — all sites are unblocked.`
@@ -2493,25 +2493,25 @@ async function handleSessionPhaseEnd(session) {
     } else {
       session.phase = 'break';
       session.endTime = Date.now() + (preset.breakMinutes * 60 * 1000);
-      
+
       sendFocusNotification(
         'Focus session complete!',
         `Nice work! Take a ${preset.breakMinutes} minute break — all sites are unblocked. (${session.sessionsCompleted}/${preset.sessionsBeforeLongBreak} sessions)`
       );
     }
-    
+
     // IMPORTANT: Save updated session to storage BEFORE checking achievements.
     // checkAchievements() calls getFocusSession() internally, which reads from storage.
     // If we haven't saved yet, it reads the old expired session and triggers
     // handleSessionPhaseEnd again -> infinite recursion -> runaway CPU/memory/XP.
     await chrome.storage.local.set({ focusSession: session });
-    
+
     // Set alarm for next phase end
     chrome.alarms.create('focusSessionEnd', { when: session.endTime });
-    
+
     // Unblock sites for the break
     await updateBlockingRules();
-    
+
     // Now safe to check achievements (storage has the updated, non-expired session)
     await checkNightOwlAchievement();
     await checkAchievements();
@@ -2521,13 +2521,13 @@ async function handleSessionPhaseEnd(session) {
     session.phase = null;
     session.endTime = null;
     session.startedAt = null;
-    
+
     await chrome.storage.local.set({ focusSession: session });
     chrome.alarms.clear('focusSessionEnd');
-    
+
     // Re-enable blocking now that the cycle is over
     await updateBlockingRules();
-    
+
     sendFocusNotification(
       'Break over — cycle complete!',
       `You finished a full focus cycle. ${session.totalSessionsToday} sessions today (${session.totalMinutesToday} min). Start another when you\'re ready.`
@@ -2537,19 +2537,19 @@ async function handleSessionPhaseEnd(session) {
     session.phase = 'work';
     session.endTime = Date.now() + (preset.workMinutes * 60 * 1000);
     session.startedAt = Date.now();
-    
+
     await chrome.storage.local.set({ focusSession: session });
     chrome.alarms.create('focusSessionEnd', { when: session.endTime });
-    
+
     // Re-enable blocking for the work phase
     await updateBlockingRules();
-    
+
     sendFocusNotification(
       'Break over — time to focus!',
       `Starting a ${preset.workMinutes} minute focus session. Sites are blocked again. (${session.sessionsCompleted + 1}/${preset.sessionsBeforeLongBreak})`
     );
   }
-  
+
   return session;
 }
 
@@ -2562,7 +2562,7 @@ async function startFocusSession(type, customMinutes = null) {
   const presets = await getFocusPresets();
   const preset = presets[type] || presets.pomodoro;
   const workMinutes = type === 'custom' && customMinutes ? customMinutes : preset.workMinutes;
-  
+
   const session = {
     active: true,
     type,
@@ -2575,19 +2575,19 @@ async function startFocusSession(type, customMinutes = null) {
     date: getTodayDateString(),
     customMinutes: type === 'custom' ? customMinutes : null
   };
-  
+
   await chrome.storage.local.set({ focusSession: session });
-  
+
   // Set alarm for session end
   chrome.alarms.create('focusSessionEnd', { when: session.endTime });
-  
+
   sendFocusNotification(
     'Focus session started!',
     `${workMinutes} minute focus session. Let's go!`
   );
-  
+
   console.log(`Focus session started: ${type} (${workMinutes} min work)`);
-  
+
   return session;
 }
 
@@ -2596,31 +2596,31 @@ async function startFocusSession(type, customMinutes = null) {
  */
 async function stopFocusSession() {
   const session = await getFocusSession();
-  
+
   if (!session.active) {
     return { success: false, error: 'No active session' };
   }
-  
+
   // Calculate partial work time if in work phase
   let partialMinutes = 0;
   if (session.phase === 'work' && session.startedAt) {
     partialMinutes = Math.floor((Date.now() - session.startedAt) / 60000);
     session.totalMinutesToday += partialMinutes;
   }
-  
+
   session.active = false;
   session.phase = null;
   session.endTime = null;
   session.startedAt = null;
-  
+
   await chrome.storage.local.set({ focusSession: session });
   chrome.alarms.clear('focusSessionEnd');
-  
+
   // Re-enable blocking in case we were on a break
   await updateBlockingRules();
-  
+
   console.log(`Focus session stopped. Partial minutes: ${partialMinutes}`);
-  
+
   return { success: true, partialMinutes };
 }
 
@@ -2632,13 +2632,13 @@ async function skipFocusSessionPhase() {
   // since we want to explicitly trigger the phase end here ourselves.
   const result = await chrome.storage.local.get('focusSession');
   const session = result.focusSession;
-  
+
   if (!session || !session.active) {
     return { success: false, error: 'No active session' };
   }
-  
+
   chrome.alarms.clear('focusSessionEnd');
-  
+
   // Trigger phase end handling
   return await handleSessionPhaseEnd(session);
 }
@@ -2648,17 +2648,17 @@ async function skipFocusSessionPhase() {
  */
 async function getFocusSessionStats() {
   const session = await getFocusSession();
-  
+
   // Get historical data
   const result = await chrome.storage.local.get('focusSessionHistory');
   const history = result.focusSessionHistory || [];
-  
+
   // Calculate this week's stats
   const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
   const thisWeekSessions = history.filter(h => h.timestamp > weekAgo);
   const weeklyMinutes = thisWeekSessions.reduce((sum, h) => sum + (h.minutes || 0), 0);
   const weeklySessions = thisWeekSessions.length;
-  
+
   return {
     todaySessions: session.totalSessionsToday,
     todayMinutes: session.totalMinutesToday,
@@ -2678,23 +2678,23 @@ async function getFocusSessionStats() {
  */
 async function getAllTimeStats() {
   const totalSessions = await getTotalFocusSessions();
-  
+
   // Get focus session history for monthly/all-time calculations
   const result = await chrome.storage.local.get('focusSessionHistory');
   const history = result.focusSessionHistory || [];
-  
+
   // Calculate monthly stats (last 30 days)
   const monthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
   const thisMonthSessions = history.filter(h => h.timestamp > monthAgo);
   const monthlyMinutes = thisMonthSessions.reduce((sum, h) => sum + (h.minutes || 0), 0);
   const monthlySessions = thisMonthSessions.length;
-  
+
   // Calculate all-time stats
   const totalMinutes = history.reduce((sum, h) => sum + (h.minutes || 0), 0);
-  
+
   // Get earned time bank for total todos
   const earnedTimeInfo = await getEarnedTimeInfo();
-  
+
   return {
     totalSessions,
     totalMinutes,
@@ -2777,19 +2777,19 @@ function getRandomQuote() {
 async function getQuoteOfTheDay() {
   const today = getTodayDateString();
   const result = await chrome.storage.local.get('quoteOfDay');
-  
+
   if (result.quoteOfDay && result.quoteOfDay.date === today) {
     return result.quoteOfDay.quote;
   }
-  
+
   // Generate a new quote for today based on date
   // Use date string to create a consistent "random" index for the day
   const dateHash = today.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
   const index = dateHash % MOTIVATIONAL_QUOTES.length;
   const quote = { ...MOTIVATIONAL_QUOTES[index], index };
-  
+
   await chrome.storage.local.set({ quoteOfDay: { date: today, quote } });
-  
+
   return quote;
 }
 
@@ -2813,7 +2813,7 @@ const LEVEL_THRESHOLDS = [
 
 const LEVEL_NAMES = [
   'Novice',
-  'Apprentice', 
+  'Apprentice',
   'Focused',
   'Dedicated',
   'Disciplined',
@@ -2844,7 +2844,7 @@ const XP_REWARDS = {
 async function getXPData() {
   const result = await chrome.storage.local.get('xpData');
   const data = result.xpData || { xp: 0, totalXpEarned: 0 };
-  
+
   return calculateLevelInfo(data.xp, data.totalXpEarned);
 }
 
@@ -2859,20 +2859,20 @@ function calculateLevelInfo(xp, totalXpEarned = 0) {
       break;
     }
   }
-  
+
   const currentLevelXP = LEVEL_THRESHOLDS[level - 1];
   const nextLevelXP = level < LEVEL_THRESHOLDS.length ? LEVEL_THRESHOLDS[level] : null;
-  
+
   let xpToNextLevel = null;
   let xpProgress = 100;
-  
+
   if (nextLevelXP !== null) {
     xpToNextLevel = nextLevelXP - xp;
     const levelRange = nextLevelXP - currentLevelXP;
     const progressInLevel = xp - currentLevelXP;
     xpProgress = Math.round((progressInLevel / levelRange) * 100);
   }
-  
+
   return {
     xp,
     level,
@@ -2893,24 +2893,24 @@ function calculateLevelInfo(xp, totalXpEarned = 0) {
 async function addXP(amount, reason = 'unknown') {
   const result = await chrome.storage.local.get('xpData');
   const data = result.xpData || { xp: 0, totalXpEarned: 0 };
-  
+
   const oldLevel = calculateLevelInfo(data.xp).level;
-  
+
   data.xp += amount;
   data.totalXpEarned = (data.totalXpEarned || 0) + amount;
-  
+
   const newInfo = calculateLevelInfo(data.xp, data.totalXpEarned);
   const levelUp = newInfo.level > oldLevel;
-  
+
   // Save XP data
   await chrome.storage.local.set({ xpData: data });
-  
+
   // Log XP gain
   console.log(`XP gained: +${amount} (${reason}) - Total: ${data.xp}, Level: ${newInfo.level}`);
-  
+
   // Record XP history
   await recordXPHistory(amount, reason, newInfo.level, levelUp);
-  
+
   return {
     newXP: data.xp,
     xpGained: amount,
@@ -2927,7 +2927,7 @@ async function addXP(amount, reason = 'unknown') {
 async function recordXPHistory(amount, reason, level, levelUp) {
   const result = await chrome.storage.local.get('xpHistory');
   const history = result.xpHistory || [];
-  
+
   history.push({
     amount,
     reason,
@@ -2935,7 +2935,7 @@ async function recordXPHistory(amount, reason, level, levelUp) {
     levelUp,
     timestamp: Date.now()
   });
-  
+
   // Keep only last 100 entries
   const trimmed = history.slice(-100);
   await chrome.storage.local.set({ xpHistory: trimmed });
@@ -2961,11 +2961,11 @@ async function awardTodoXP() {
  */
 async function awardDailyFocusXP() {
   const streak = await getStreakData();
-  
+
   if (streak.todayFocused) {
     let totalXP = XP_REWARDS.FOCUSED_DAY;
     let reason = 'focused_day';
-    
+
     // Add streak bonuses
     if (streak.currentStreak >= 30) {
       totalXP += XP_REWARDS.STREAK_BONUS_30;
@@ -2980,10 +2980,10 @@ async function awardDailyFocusXP() {
       totalXP += XP_REWARDS.STREAK_BONUS_3;
       reason = 'focused_day_streak_3';
     }
-    
+
     return await addXP(totalXP, reason);
   }
-  
+
   return null;
 }
 
@@ -2995,11 +2995,11 @@ async function awardBlockedAttemptXP() {
   const result = await chrome.storage.local.get('lastBlockedXP');
   const lastTime = result.lastBlockedXP || 0;
   const now = Date.now();
-  
+
   if (now - lastTime < 5 * 60 * 1000) {
     return null; // Too soon
   }
-  
+
   await chrome.storage.local.set({ lastBlockedXP: now });
   return await addXP(XP_REWARDS.BLOCKED_ATTEMPT, 'blocked_attempt');
 }
@@ -3032,7 +3032,7 @@ async function checkAndUpdateStreak() {
   const streak = await getStreakData();
   const today = getTodayDateString();
   const yesterday = getYesterdayDateString();
-  
+
   // If we haven't tracked today yet
   if (streak.lastFocusedDate !== today) {
     // Check if yesterday was focused
@@ -3040,7 +3040,7 @@ async function checkAndUpdateStreak() {
       // Continue the streak
       streak.currentStreak += 1;
       streak.longestStreak = Math.max(streak.longestStreak, streak.currentStreak);
-      
+
       // Add to history
       addToStreakHistory(streak, yesterday, true);
     } else if (streak.lastFocusedDate === yesterday && !streak.todayFocused) {
@@ -3053,18 +3053,18 @@ async function checkAndUpdateStreak() {
       streak.currentStreak = 0;
       streak.streakStartDate = null;
     }
-    
+
     // Reset for new day
     streak.lastFocusedDate = today;
     streak.todayFocused = true; // Start optimistic
-    
+
     if (streak.currentStreak === 1 || (streak.currentStreak === 0 && streak.streakStartDate === null)) {
       streak.streakStartDate = today;
     }
-    
+
     await chrome.storage.local.set({ streakData: streak });
   }
-  
+
   return streak;
 }
 
@@ -3073,7 +3073,7 @@ async function checkAndUpdateStreak() {
  */
 function addToStreakHistory(streak, date, focused) {
   if (!streak.history) streak.history = [];
-  
+
   // Check if this date already exists in history
   const existingIndex = streak.history.findIndex(h => h.date === date);
   if (existingIndex >= 0) {
@@ -3081,7 +3081,7 @@ function addToStreakHistory(streak, date, focused) {
   } else {
     streak.history.push({ date, focused });
   }
-  
+
   // Keep only last 30 days
   if (streak.history.length > 30) {
     streak.history = streak.history.slice(-30);
@@ -3117,29 +3117,29 @@ async function markTodayUnfocused() {
 async function recordUnblockForStreak(domain, minutes) {
   const result = await chrome.storage.local.get('dailyUnblockCount');
   const today = getTodayDateString();
-  
+
   let unblockData = result.dailyUnblockCount || { date: '', count: 0, totalMinutes: 0 };
-  
+
   // Reset if it's a new day
   if (unblockData.date !== today) {
     unblockData = { date: today, count: 0, totalMinutes: 0 };
   }
-  
+
   unblockData.count += 1;
   unblockData.totalMinutes += minutes || 0;
-  
+
   await chrome.storage.local.set({ dailyUnblockCount: unblockData });
-  
+
   // Check streak rules:
   // - More than 5 unblocks in a day breaks streak
   // - More than 60 total unblock minutes in a day breaks streak
   const settings = await getSettings();
   const dailyLimit = settings.dailyLimit?.minutes || 30;
-  
+
   if (unblockData.count > 5 || unblockData.totalMinutes > dailyLimit * 2) {
     await markTodayUnfocused();
   }
-  
+
   return unblockData;
 }
 
@@ -3149,13 +3149,13 @@ async function recordUnblockForStreak(domain, minutes) {
 async function getStreakInfo() {
   const streak = await getStreakData();
   const today = getTodayDateString();
-  
+
   // Make sure we're up to date
   if (streak.lastFocusedDate !== today) {
     await checkAndUpdateStreak();
     return await getStreakData();
   }
-  
+
   return {
     currentStreak: streak.currentStreak,
     longestStreak: streak.longestStreak,
@@ -3344,15 +3344,15 @@ const ACHIEVEMENTS = [
 async function getAchievements() {
   const result = await chrome.storage.local.get('unlockedAchievements');
   const unlocked = result.unlockedAchievements || {};
-  
+
   const achievements = ACHIEVEMENTS.map(achievement => ({
     ...achievement,
     unlocked: !!unlocked[achievement.id],
     unlockedAt: unlocked[achievement.id]?.unlockedAt || null
   }));
-  
+
   const unlockedCount = Object.keys(unlocked).length;
-  
+
   return {
     achievements,
     unlockedCount,
@@ -3368,32 +3368,32 @@ async function getAchievements() {
 async function unlockAchievement(achievementId) {
   const result = await chrome.storage.local.get('unlockedAchievements');
   const unlocked = result.unlockedAchievements || {};
-  
+
   // Check if already unlocked
   if (unlocked[achievementId]) {
     return { success: false, achievement: null, alreadyUnlocked: true };
   }
-  
+
   // Find achievement definition
   const achievement = ACHIEVEMENTS.find(a => a.id === achievementId);
   if (!achievement) {
     return { success: false, achievement: null, alreadyUnlocked: false };
   }
-  
+
   // Unlock the achievement
   unlocked[achievementId] = {
     unlockedAt: Date.now()
   };
-  
+
   await chrome.storage.local.set({ unlockedAchievements: unlocked });
-  
+
   // Award XP for unlocking
   if (achievement.xpReward) {
     await addXP(achievement.xpReward, `achievement_${achievementId}`);
   }
-  
+
   console.log(`Achievement unlocked: ${achievement.name} (+${achievement.xpReward} XP)`);
-  
+
   return { success: true, achievement, alreadyUnlocked: false };
 }
 
@@ -3403,27 +3403,27 @@ async function unlockAchievement(achievementId) {
  */
 async function checkAchievements() {
   const newlyUnlocked = [];
-  
+
   // Get current stats
   const focusSession = await getFocusSession();
   const focusStats = await getFocusSessionStats();
   const streakInfo = await getStreakInfo();
   const xpData = await getXPData();
   const earnedTimeInfo = await getEarnedTimeInfo();
-  
+
   // Check focus session achievements
   if (focusStats.todaySessions >= 1) {
     const result = await unlockAchievement('first_focus');
     if (result.success) newlyUnlocked.push(result.achievement);
   }
-  
+
   // Check pomodoro master (need to track total sessions)
   const sessionHistory = await getTotalFocusSessions();
   if (sessionHistory >= 10) {
     const result = await unlockAchievement('pomodoro_master');
     if (result.success) newlyUnlocked.push(result.achievement);
   }
-  
+
   // Check streak achievements
   if (streakInfo.currentStreak >= 3) {
     const result = await unlockAchievement('streak_3');
@@ -3441,7 +3441,7 @@ async function checkAchievements() {
     const result = await unlockAchievement('streak_30');
     if (result.success) newlyUnlocked.push(result.achievement);
   }
-  
+
   // Check level achievements
   if (xpData.level >= 5) {
     const result = await unlockAchievement('level_5');
@@ -3451,7 +3451,7 @@ async function checkAchievements() {
     const result = await unlockAchievement('level_10');
     if (result.success) newlyUnlocked.push(result.achievement);
   }
-  
+
   // Check todo achievements
   if (earnedTimeInfo.tasksCompleted >= 10) {
     const result = await unlockAchievement('todo_10');
@@ -3465,34 +3465,34 @@ async function checkAchievements() {
     const result = await unlockAchievement('todo_100');
     if (result.success) newlyUnlocked.push(result.achievement);
   }
-  
+
   // Check focus hour achievement
   if (focusStats.todayMinutes >= 60) {
     const result = await unlockAchievement('focus_hour');
     if (result.success) newlyUnlocked.push(result.achievement);
   }
-  
+
   // Check time-based achievements
   const now = new Date();
   const hour = now.getHours();
-  
+
   if (focusSession.active && focusSession.phase === 'work') {
     if (hour < 7) {
       const result = await unlockAchievement('early_bird');
       if (result.success) newlyUnlocked.push(result.achievement);
     }
   }
-  
+
   // Night owl is checked when session completes (after 10 PM)
-  
+
   // Check blocking achievements (blocklist size + block attempts)
   const blockingUnlocked = await checkBlockingAchievements();
   newlyUnlocked.push(...blockingUnlocked);
-  
+
   // Check productivity score achievements (from browser history)
   const productivityUnlocked = await checkProductivityAchievements();
   newlyUnlocked.push(...productivityUnlocked);
-  
+
   return newlyUnlocked;
 }
 
@@ -3558,10 +3558,10 @@ async function incrementBlockAttempts() {
   const current = await getTotalBlockAttempts();
   const newTotal = current + 1;
   await chrome.storage.local.set({ totalBlockAttempts: newTotal });
-  
+
   // Check achievements after incrementing
   await checkBlockingAchievements();
-  
+
   return newTotal;
 }
 
@@ -3574,7 +3574,7 @@ async function checkBlockingAchievements() {
   const settings = await getSettings();
   const blockedCount = settings.blockedSites?.length || 0;
   const blockAttempts = await getTotalBlockAttempts();
-  
+
   // Blocklist size achievements
   if (blockedCount >= 1) {
     const result = await unlockAchievement('first_block');
@@ -3588,7 +3588,7 @@ async function checkBlockingAchievements() {
     const result = await unlockAchievement('block_15');
     if (result.success) newlyUnlocked.push(result.achievement);
   }
-  
+
   // Block attempt (resisting temptation) achievements
   if (blockAttempts >= 10) {
     const result = await unlockAchievement('bouncer_10');
@@ -3602,7 +3602,7 @@ async function checkBlockingAchievements() {
     const result = await unlockAchievement('bouncer_100');
     if (result.success) newlyUnlocked.push(result.achievement);
   }
-  
+
   return newlyUnlocked;
 }
 
@@ -3612,11 +3612,11 @@ async function checkBlockingAchievements() {
  */
 async function checkProductivityAchievements() {
   const newlyUnlocked = [];
-  
+
   try {
     const productivityData = await getProductivityScore(7);
     if (productivityData.error) return newlyUnlocked;
-    
+
     if (productivityData.score >= 65) {
       const result = await unlockAchievement('productivity_b');
       if (result.success) newlyUnlocked.push(result.achievement);
@@ -3628,7 +3628,7 @@ async function checkProductivityAchievements() {
   } catch (e) {
     console.error('Error checking productivity achievements:', e);
   }
-  
+
   return newlyUnlocked;
 }
 
@@ -3643,16 +3643,16 @@ async function checkProductivityAchievements() {
 async function getNuclearStatus() {
   const result = await chrome.storage.local.get('nuclearMode');
   const nuclear = result.nuclearMode || { active: false, expiresAt: null };
-  
+
   // Check if nuclear mode has expired
   if (nuclear.active && nuclear.expiresAt && nuclear.expiresAt <= Date.now()) {
     // Nuclear mode expired, deactivate it
     await chrome.storage.local.set({ nuclearMode: { active: false, expiresAt: null } });
     return { active: false, expiresAt: null, remainingMs: null };
   }
-  
+
   const remainingMs = nuclear.active && nuclear.expiresAt ? nuclear.expiresAt - Date.now() : null;
-  
+
   return {
     active: nuclear.active,
     expiresAt: nuclear.expiresAt,
@@ -3667,7 +3667,7 @@ async function getNuclearStatus() {
  */
 async function activateNuclearMode(minutes) {
   const expiresAt = Date.now() + (minutes * 60 * 1000);
-  
+
   await chrome.storage.local.set({
     nuclearMode: {
       active: true,
@@ -3676,30 +3676,30 @@ async function activateNuclearMode(minutes) {
       durationMinutes: minutes
     }
   });
-  
+
   // End all current temporary unblocks
   const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
   const domainsToBlock = Object.keys(tempUnblocks);
-  
+
   if (domainsToBlock.length > 0) {
     // Clear all temp unblocks
     await chrome.storage.local.set({ tempUnblocks: {} });
-    
+
     // Clear all related alarms
     for (const domain of domainsToBlock) {
       chrome.alarms.clear(`reblock_${domain}`);
       chrome.alarms.clear(`inactivity_${domain}`);
     }
-    
+
     // Update blocking rules
     await updateBlockingRules();
-    
+
     // Redirect any tabs on blocked domains
     try {
       const tabs = await chrome.tabs.query({});
       const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
       const settings = await getSettings();
-      
+
       for (const tab of tabs) {
         if (tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
           const tabDomain = extractDomain(tab.url);
@@ -3707,7 +3707,7 @@ async function activateNuclearMode(minutes) {
             const blockedDomain = site.replace(/^www\./, '');
             return tabDomain === blockedDomain || tabDomain.endsWith('.' + blockedDomain);
           });
-          
+
           if (isBlockedSite) {
             await chrome.tabs.update(tab.id, {
               url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=nuclear`
@@ -3719,15 +3719,15 @@ async function activateNuclearMode(minutes) {
       console.error('Error redirecting tabs after nuclear mode activation:', e);
     }
   }
-  
+
   // Set alarm for when nuclear mode expires
   chrome.alarms.create('nuclearModeEnd', { delayInMinutes: minutes });
-  
+
   // Update badge
   await updateBadgeTimer();
-  
+
   console.log(`Nuclear mode activated for ${minutes} minutes, expires at ${new Date(expiresAt).toLocaleTimeString()}`);
-  
+
   return { success: true, expiresAt };
 }
 
@@ -3761,37 +3761,37 @@ async function getEarnedTimeBank() {
 async function addEarnedTime(taskCount = 1) {
   const settings = await getSettings();
   const earnedTimeSettings = settings.earnedTime || { enabled: false, minutesPerTask: 5, maxBankMinutes: 60 };
-  
+
   if (!earnedTimeSettings.enabled) {
     return { minutes: 0, tasksCompleted: 0, totalEarned: 0, totalUsed: 0, added: 0 };
   }
-  
+
   const bank = await getEarnedTimeBank();
   const minutesToAdd = taskCount * earnedTimeSettings.minutesPerTask;
   const maxBank = earnedTimeSettings.maxBankMinutes || 60;
-  
+
   // Add minutes, capped at max bank
   const newMinutes = Math.min(bank.minutes + minutesToAdd, maxBank);
   const actuallyAdded = newMinutes - bank.minutes;
-  
+
   const newBank = {
     minutes: newMinutes,
     tasksCompleted: bank.tasksCompleted + taskCount,
     totalEarned: (bank.totalEarned || 0) + actuallyAdded,
     totalUsed: bank.totalUsed || 0
   };
-  
+
   await chrome.storage.local.set({ earnedTimeBank: newBank });
   console.log(`Earned time: +${actuallyAdded} minutes (bank: ${newBank.minutes}/${maxBank} min)`);
-  
+
   // Award XP for completing todos
   for (let i = 0; i < taskCount; i++) {
     await awardTodoXP();
   }
-  
+
   // Check for todo-related achievements
   await checkAchievements();
-  
+
   return { ...newBank, added: actuallyAdded };
 }
 
@@ -3802,21 +3802,21 @@ async function addEarnedTime(taskCount = 1) {
  */
 async function useEarnedTime(minutes) {
   const bank = await getEarnedTimeBank();
-  
+
   if (bank.minutes < minutes) {
     return { success: false, remaining: bank.minutes, used: 0 };
   }
-  
+
   const newBank = {
     minutes: bank.minutes - minutes,
     tasksCompleted: bank.tasksCompleted,
     totalEarned: bank.totalEarned || 0,
     totalUsed: (bank.totalUsed || 0) + minutes
   };
-  
+
   await chrome.storage.local.set({ earnedTimeBank: newBank });
   console.log(`Used earned time: -${minutes} minutes (remaining: ${newBank.minutes} min)`);
-  
+
   return { success: true, remaining: newBank.minutes, used: minutes };
 }
 
@@ -3827,7 +3827,7 @@ async function useEarnedTime(minutes) {
 async function getEarnedTimeInfo() {
   const settings = await getSettings();
   const earnedTimeSettings = settings.earnedTime || { enabled: false, minutesPerTask: 5, maxBankMinutes: 60, requireTasksToUnlock: false };
-  
+
   if (!earnedTimeSettings.enabled) {
     return {
       enabled: false,
@@ -3840,9 +3840,9 @@ async function getEarnedTimeInfo() {
       requireTasksToUnlock: false
     };
   }
-  
+
   const bank = await getEarnedTimeBank();
-  
+
   return {
     enabled: true,
     minutes: bank.minutes,
@@ -3892,10 +3892,10 @@ function getCategoryTemplates() {
 async function createCategory(category) {
   const settings = await getSettings();
   const categories = settings.categories || [];
-  
+
   // Generate unique ID
   const id = `category-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   const newCategory = {
     id,
     name: category.name || 'New Category',
@@ -3903,12 +3903,12 @@ async function createCategory(category) {
     sites: category.sites || [],
     enabled: category.enabled || false
   };
-  
+
   categories.push(newCategory);
-  
+
   await saveProfileSettings({ categories });
   await updateBlockingRules();
-  
+
   return { success: true, category: newCategory };
 }
 
@@ -3921,22 +3921,22 @@ async function createCategory(category) {
 async function updateCategory(categoryId, updates) {
   const settings = await getSettings();
   const categories = settings.categories || [];
-  
+
   const index = categories.findIndex(c => c.id === categoryId);
   if (index === -1) {
     return { success: false, error: 'Category not found' };
   }
-  
+
   // Merge updates
   categories[index] = {
     ...categories[index],
     ...updates,
     id: categoryId // Ensure ID doesn't change
   };
-  
+
   await saveProfileSettings({ categories });
   await updateBlockingRules();
-  
+
   return { success: true, category: categories[index] };
 }
 
@@ -3948,17 +3948,17 @@ async function updateCategory(categoryId, updates) {
 async function deleteCategory(categoryId) {
   const settings = await getSettings();
   const categories = settings.categories || [];
-  
+
   const index = categories.findIndex(c => c.id === categoryId);
   if (index === -1) {
     return { success: false, error: 'Category not found' };
   }
-  
+
   categories.splice(index, 1);
-  
+
   await saveProfileSettings({ categories });
   await updateBlockingRules();
-  
+
   return { success: true };
 }
 
@@ -3970,17 +3970,17 @@ async function deleteCategory(categoryId) {
 async function toggleCategory(categoryId) {
   const settings = await getSettings();
   const categories = settings.categories || [];
-  
+
   const category = categories.find(c => c.id === categoryId);
   if (!category) {
     return { success: false, error: 'Category not found' };
   }
-  
+
   category.enabled = !category.enabled;
-  
+
   await saveProfileSettings({ categories });
   await updateBlockingRules();
-  
+
   return { success: true, enabled: category.enabled };
 }
 
@@ -3993,20 +3993,20 @@ async function toggleCategory(categoryId) {
 async function addSiteToCategory(categoryId, site) {
   const settings = await getSettings();
   const categories = settings.categories || [];
-  
+
   const category = categories.find(c => c.id === categoryId);
   if (!category) {
     return { success: false, error: 'Category not found' };
   }
-  
+
   const domain = extractDomain(site);
   if (!category.sites.includes(domain)) {
     category.sites.push(domain);
-    
+
     await saveProfileSettings({ categories });
     await updateBlockingRules();
   }
-  
+
   return { success: true, sites: category.sites };
 }
 
@@ -4019,18 +4019,18 @@ async function addSiteToCategory(categoryId, site) {
 async function removeSiteFromCategory(categoryId, site) {
   const settings = await getSettings();
   const categories = settings.categories || [];
-  
+
   const category = categories.find(c => c.id === categoryId);
   if (!category) {
     return { success: false, error: 'Category not found' };
   }
-  
+
   const domain = extractDomain(site);
   category.sites = category.sites.filter(s => s !== domain);
-  
+
   await saveProfileSettings({ categories });
   await updateBlockingRules();
-  
+
   return { success: true, sites: category.sites };
 }
 
@@ -4044,7 +4044,7 @@ async function addCategoryFromTemplate(templateKey) {
   if (!template) {
     return { success: false, error: 'Template not found' };
   }
-  
+
   return await createCategory({
     name: template.name,
     icon: template.icon,
@@ -4060,7 +4060,7 @@ async function addCategoryFromTemplate(templateKey) {
 async function getBlockedSitesFromCategories() {
   const settings = await getSettings();
   const categories = settings.categories || [];
-  
+
   const blockedSites = new Set();
   for (const category of categories) {
     if (category.enabled) {
@@ -4069,7 +4069,7 @@ async function getBlockedSitesFromCategories() {
       }
     }
   }
-  
+
   return blockedSites;
 }
 
@@ -4095,29 +4095,29 @@ async function getBlockedKeywords() {
 async function addBlockedKeyword(keyword, caseSensitive = false) {
   const settings = await getSettings();
   const blockedKeywords = settings.blockedKeywords || { enabled: false, keywords: [] };
-  
+
   const trimmedKeyword = keyword.trim();
   if (!trimmedKeyword) {
     return { success: false, error: 'Keyword cannot be empty' };
   }
-  
+
   // Check if keyword already exists
-  const exists = blockedKeywords.keywords.some(k => 
+  const exists = blockedKeywords.keywords.some(k =>
     k.keyword.toLowerCase() === trimmedKeyword.toLowerCase()
   );
-  
+
   if (exists) {
     return { success: false, error: 'Keyword already exists' };
   }
-  
+
   blockedKeywords.keywords.push({
     keyword: trimmedKeyword,
     caseSensitive
   });
-  
+
   await saveProfileSettings({ blockedKeywords });
   await updateBlockingRules();
-  
+
   return { success: true, keywords: blockedKeywords.keywords };
 }
 
@@ -4129,20 +4129,20 @@ async function addBlockedKeyword(keyword, caseSensitive = false) {
 async function removeBlockedKeyword(keyword) {
   const settings = await getSettings();
   const blockedKeywords = settings.blockedKeywords || { enabled: false, keywords: [] };
-  
-  const index = blockedKeywords.keywords.findIndex(k => 
+
+  const index = blockedKeywords.keywords.findIndex(k =>
     k.keyword.toLowerCase() === keyword.toLowerCase()
   );
-  
+
   if (index === -1) {
     return { success: false, error: 'Keyword not found' };
   }
-  
+
   blockedKeywords.keywords.splice(index, 1);
-  
+
   await saveProfileSettings({ blockedKeywords });
   await updateBlockingRules();
-  
+
   return { success: true, keywords: blockedKeywords.keywords };
 }
 
@@ -4153,12 +4153,12 @@ async function removeBlockedKeyword(keyword) {
 async function toggleKeywordBlocking() {
   const settings = await getSettings();
   const blockedKeywords = settings.blockedKeywords || { enabled: false, keywords: [] };
-  
+
   blockedKeywords.enabled = !blockedKeywords.enabled;
-  
+
   await saveProfileSettings({ blockedKeywords });
   await updateBlockingRules();
-  
+
   return { success: true, enabled: blockedKeywords.enabled };
 }
 
@@ -4171,15 +4171,15 @@ async function toggleKeywordBlocking() {
 async function updateBlockedKeyword(keyword, updates) {
   const settings = await getSettings();
   const blockedKeywords = settings.blockedKeywords || { enabled: false, keywords: [] };
-  
-  const keywordObj = blockedKeywords.keywords.find(k => 
+
+  const keywordObj = blockedKeywords.keywords.find(k =>
     k.keyword.toLowerCase() === keyword.toLowerCase()
   );
-  
+
   if (!keywordObj) {
     return { success: false, error: 'Keyword not found' };
   }
-  
+
   // Apply updates
   if (updates.caseSensitive !== undefined) {
     keywordObj.caseSensitive = updates.caseSensitive;
@@ -4187,10 +4187,10 @@ async function updateBlockedKeyword(keyword, updates) {
   if (updates.keyword !== undefined) {
     keywordObj.keyword = updates.keyword.trim();
   }
-  
+
   await saveProfileSettings({ blockedKeywords });
   await updateBlockingRules();
-  
+
   return { success: true, keywords: blockedKeywords.keywords };
 }
 
@@ -4215,37 +4215,37 @@ async function getAllowedUrls() {
 async function addAllowedUrl(url) {
   const settings = await getSettings();
   const allowedUrls = settings.allowedUrls || [];
-  
+
   // Normalize URL (ensure it has a protocol)
   let normalizedUrl = url.trim();
   if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
     normalizedUrl = 'https://' + normalizedUrl;
   }
-  
+
   // Remove trailing slash for consistency
   normalizedUrl = normalizedUrl.replace(/\/$/, '');
-  
+
   if (!normalizedUrl) {
     return { success: false, error: 'URL cannot be empty' };
   }
-  
+
   // Validate URL
   try {
     new URL(normalizedUrl);
   } catch {
     return { success: false, error: 'Invalid URL format' };
   }
-  
+
   // Check if URL already exists
   if (allowedUrls.includes(normalizedUrl)) {
     return { success: false, error: 'URL already whitelisted' };
   }
-  
+
   allowedUrls.push(normalizedUrl);
-  
+
   await saveProfileSettings({ allowedUrls });
   await updateBlockingRules();
-  
+
   return { success: true, allowedUrls };
 }
 
@@ -4257,17 +4257,17 @@ async function addAllowedUrl(url) {
 async function removeAllowedUrl(url) {
   const settings = await getSettings();
   const allowedUrls = settings.allowedUrls || [];
-  
+
   const index = allowedUrls.indexOf(url);
   if (index === -1) {
     return { success: false, error: 'URL not found' };
   }
-  
+
   allowedUrls.splice(index, 1);
-  
+
   await saveProfileSettings({ allowedUrls });
   await updateBlockingRules();
-  
+
   return { success: true, allowedUrls };
 }
 
@@ -4279,15 +4279,15 @@ async function removeAllowedUrl(url) {
 async function isUrlWhitelisted(url) {
   const settings = await getSettings();
   const allowedUrls = settings.allowedUrls || [];
-  
+
   // Normalize URL for comparison
   let normalizedUrl = url.trim().replace(/\/$/, '');
-  
+
   // Check for exact match
   if (allowedUrls.includes(normalizedUrl)) {
     return true;
   }
-  
+
   // Also check without protocol
   const urlWithoutProtocol = normalizedUrl.replace(/^https?:\/\//, '');
   return allowedUrls.some(allowed => {
@@ -4334,12 +4334,12 @@ async function getActiveProfile() {
   const profiles = await getProfiles();
   const activeId = await getActiveProfileId();
   const profile = profiles.find(p => p.id === activeId);
-  
+
   // If active profile not found, return default
   if (!profile) {
     return profiles.find(p => p.id === 'default') || profiles[0];
   }
-  
+
   return profile;
 }
 
@@ -4351,16 +4351,16 @@ async function getActiveProfile() {
 async function setActiveProfile(profileId) {
   const profiles = await getProfiles();
   const profile = profiles.find(p => p.id === profileId);
-  
+
   if (!profile) {
     return { success: false, error: 'Profile not found' };
   }
-  
+
   await chrome.storage.local.set({ activeProfileId: profileId });
-  
+
   // Update blocking rules based on new profile
   await updateBlockingRules();
-  
+
   return { success: true, profile };
 }
 
@@ -4371,10 +4371,10 @@ async function setActiveProfile(profileId) {
  */
 async function createProfile(profileData) {
   const profiles = await getProfiles();
-  
+
   // Generate unique ID
   const id = 'profile-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-  
+
   // Create profile with defaults
   const newProfile = {
     ...DEFAULT_PROFILE,
@@ -4389,10 +4389,10 @@ async function createProfile(profileData) {
     unblockMethods: profileData.unblockMethods || DEFAULT_PROFILE.unblockMethods,
     requireAllMethods: profileData.requireAllMethods || false
   };
-  
+
   profiles.push(newProfile);
   await chrome.storage.local.set({ profiles });
-  
+
   return { success: true, profile: newProfile };
 }
 
@@ -4405,23 +4405,23 @@ async function createProfile(profileData) {
 async function updateProfile(profileId, updates) {
   const profiles = await getProfiles();
   const index = profiles.findIndex(p => p.id === profileId);
-  
+
   if (index === -1) {
     return { success: false, error: 'Profile not found' };
   }
-  
+
   // Don't allow changing the ID
   delete updates.id;
-  
+
   profiles[index] = { ...profiles[index], ...updates };
   await chrome.storage.local.set({ profiles });
-  
+
   // If this is the active profile, update blocking rules
   const activeId = await getActiveProfileId();
   if (profileId === activeId) {
     await updateBlockingRules();
   }
-  
+
   return { success: true, profile: profiles[index] };
 }
 
@@ -4435,23 +4435,23 @@ async function deleteProfile(profileId) {
   if (profileId === 'default') {
     return { success: false, error: 'Cannot delete the default profile' };
   }
-  
+
   const profiles = await getProfiles();
   const index = profiles.findIndex(p => p.id === profileId);
-  
+
   if (index === -1) {
     return { success: false, error: 'Profile not found' };
   }
-  
+
   profiles.splice(index, 1);
   await chrome.storage.local.set({ profiles });
-  
+
   // If this was the active profile, switch to default
   const activeId = await getActiveProfileId();
   if (profileId === activeId) {
     await setActiveProfile('default');
   }
-  
+
   return { success: true };
 }
 
@@ -4466,7 +4466,7 @@ async function createProfileFromTemplate(templateKey, customName = null) {
   if (!template) {
     return { success: false, error: 'Template not found' };
   }
-  
+
   return await createProfile({
     name: customName || template.name,
     icon: template.icon,
@@ -4486,16 +4486,16 @@ async function createProfileFromTemplate(templateKey, customName = null) {
 async function duplicateProfile(profileId, newName = null) {
   const profiles = await getProfiles();
   const original = profiles.find(p => p.id === profileId);
-  
+
   if (!original) {
     return { success: false, error: 'Profile not found' };
   }
-  
+
   // Deep copy the profile
   const duplicate = JSON.parse(JSON.stringify(original));
   delete duplicate.id;
   duplicate.name = newName || `${original.name} (Copy)`;
-  
+
   return await createProfile(duplicate);
 }
 
@@ -4576,7 +4576,7 @@ const SITE_CATEGORIES = {
  */
 function classifyDomain(domain) {
   const normalizedDomain = domain.toLowerCase().replace(/^www\./, '');
-  
+
   for (const [categoryKey, category] of Object.entries(SITE_CATEGORIES)) {
     for (const catDomain of category.domains) {
       if (normalizedDomain === catDomain || normalizedDomain.endsWith('.' + catDomain)) {
@@ -4584,7 +4584,7 @@ function classifyDomain(domain) {
       }
     }
   }
-  
+
   return null;
 }
 
@@ -4596,7 +4596,7 @@ function classifyDomain(domain) {
 async function analyzeHistory(days = 7) {
   const endTime = Date.now();
   const startTime = endTime - (days * 24 * 60 * 60 * 1000);
-  
+
   try {
     // Get history items (returns unique URLs visited in the time range)
     const historyItems = await chrome.history.search({
@@ -4605,14 +4605,14 @@ async function analyzeHistory(days = 7) {
       endTime,
       maxResults: 10000
     });
-    
+
     // Aggregate data
     const domainStats = {};
     const categoryStats = {};
     const hourlyStats = Array(24).fill(0);
     const dailyStats = {};
     let totalVisits = 0;
-    
+
     // For each URL, get the actual visits within the time range
     // Process in batches to avoid overwhelming the API
     const BATCH_SIZE = 50;
@@ -4625,25 +4625,25 @@ async function analyzeHistory(days = 7) {
             const urlObj = new URL(item.url);
             const domain = urlObj.hostname.replace(/^www\./, '');
             if (domain.includes('chrome-extension') || domain.includes('chrome://')) return null;
-            
+
             // Get individual visits for this URL, filtered to our time range
             const visits = await chrome.history.getVisits({ url: item.url });
             const rangeVisits = visits.filter(v => v.visitTime >= startTime && v.visitTime <= endTime);
-            
+
             return { item, domain, visits: rangeVisits };
           } catch (e) {
             return null;
           }
         })
       );
-      
+
       for (const result of visitResults) {
         if (!result || result.visits.length === 0) continue;
-        
+
         const { domain, visits: rangeVisits } = result;
         const visitCount = rangeVisits.length;
         totalVisits += visitCount;
-        
+
         // Domain stats
         if (!domainStats[domain]) {
           domainStats[domain] = {
@@ -4658,7 +4658,7 @@ async function analyzeHistory(days = 7) {
           domainStats[domain].lastVisit,
           ...rangeVisits.map(v => v.visitTime)
         );
-        
+
         // Category stats
         const category = classifyDomain(domain);
         if (category) {
@@ -4673,13 +4673,13 @@ async function analyzeHistory(days = 7) {
           categoryStats[category].visits += visitCount;
           categoryStats[category].uniqueDomains.add(domain);
         }
-        
+
         // Hourly and daily distribution using actual visit timestamps
         for (const visit of rangeVisits) {
           const visitDate = new Date(visit.visitTime);
           const hour = visitDate.getHours();
           hourlyStats[hour] += 1;
-          
+
           const dateKey = visitDate.toISOString().split('T')[0];
           if (!dailyStats[dateKey]) {
             dailyStats[dateKey] = 0;
@@ -4688,25 +4688,25 @@ async function analyzeHistory(days = 7) {
         }
       }
     }
-    
+
     // Convert category uniqueDomains Set to count
     for (const category of Object.values(categoryStats)) {
       category.uniqueDomains = category.uniqueDomains.size;
     }
-    
+
     // Sort domains by visits
     const topDomains = Object.values(domainStats)
       .sort((a, b) => b.visits - a.visits)
       .slice(0, 20);
-    
+
     // Sort categories by visits
     const categoriesSorted = Object.values(categoryStats)
       .sort((a, b) => b.visits - a.visits);
-    
+
     // Calculate percentages
     const totalCategorizedVisits = categoriesSorted.reduce((sum, c) => sum + c.visits, 0);
     const uncategorizedVisits = totalVisits - totalCategorizedVisits;
-    
+
     return {
       period: {
         days,
@@ -4738,23 +4738,23 @@ async function analyzeHistory(days = 7) {
  */
 async function getBlockSuggestions() {
   const analysis = await analyzeHistory(14); // 2 weeks of data
-  
+
   if (analysis.error) {
     return { error: analysis.error };
   }
-  
+
   const settings = await getSettings();
   const alreadyBlocked = new Set(settings.blockedSites.map(s => s.toLowerCase()));
-  
+
   // Get distracting categories
   const distractingCategories = ['socialMedia', 'entertainment', 'gaming', 'forums', 'news'];
-  
+
   const suggestions = [];
-  
+
   for (const domainData of analysis.topDomains) {
     // Skip if already blocked
     if (alreadyBlocked.has(domainData.domain.toLowerCase())) continue;
-    
+
     // Check if in a distracting category
     if (domainData.category && distractingCategories.includes(domainData.category)) {
       suggestions.push({
@@ -4766,7 +4766,7 @@ async function getBlockSuggestions() {
       });
     }
   }
-  
+
   // Sort by visits and limit
   return suggestions.sort((a, b) => b.visits - a.visits).slice(0, 10);
 }
@@ -4778,20 +4778,20 @@ async function getBlockSuggestions() {
  */
 async function getProductivityScore(days = 7) {
   const analysis = await analyzeHistory(days);
-  
+
   if (analysis.error) {
     return { error: analysis.error };
   }
-  
+
   // Define productive vs distracting categories
   const productiveCategories = ['productivity', 'education', 'email'];
   const distractingCategories = ['socialMedia', 'entertainment', 'gaming', 'forums'];
   const neutralCategories = ['news', 'shopping'];
-  
+
   let productiveVisits = 0;
   let distractingVisits = 0;
   let neutralVisits = 0;
-  
+
   for (const category of analysis.categories) {
     if (productiveCategories.includes(category.key)) {
       productiveVisits += category.visits;
@@ -4801,9 +4801,9 @@ async function getProductivityScore(days = 7) {
       neutralVisits += category.visits;
     }
   }
-  
+
   const categorizedTotal = productiveVisits + distractingVisits + neutralVisits;
-  
+
   // Calculate score (0-100)
   // Score = (productive - distracting) / total * 50 + 50
   // This gives 50 as neutral, higher for more productive, lower for more distracting
@@ -4812,7 +4812,7 @@ async function getProductivityScore(days = 7) {
     const ratio = (productiveVisits - distractingVisits) / categorizedTotal;
     score = Math.round(Math.max(0, Math.min(100, 50 + ratio * 50)));
   }
-  
+
   // Determine grade
   let grade, gradeLabel;
   if (score >= 80) {
@@ -4831,17 +4831,17 @@ async function getProductivityScore(days = 7) {
     grade = 'F';
     gradeLabel = 'Poor';
   }
-  
+
   // Find peak hours (most active)
   const hourlyStats = analysis.hourlyDistribution;
   const peakHour = hourlyStats.indexOf(Math.max(...hourlyStats));
-  
+
   // Calculate daily average
   const dailyValues = Object.values(analysis.dailyVisits);
-  const avgDailyVisits = dailyValues.length > 0 
+  const avgDailyVisits = dailyValues.length > 0
     ? Math.round(dailyValues.reduce((a, b) => a + b, 0) / dailyValues.length)
     : 0;
-  
+
   return {
     score,
     grade,
@@ -4886,7 +4886,7 @@ function formatHour(hour) {
 async function getBrowsingPatterns(days = 30) {
   const endTime = Date.now();
   const startTime = endTime - (days * 24 * 60 * 60 * 1000);
-  
+
   try {
     const historyItems = await chrome.history.search({
       text: '',
@@ -4894,11 +4894,11 @@ async function getBrowsingPatterns(days = 30) {
       endTime,
       maxResults: 10000
     });
-    
+
     const dayOfWeekStats = Array(7).fill(null).map(() => ({ visits: 0, domains: new Set() }));
     const distractingCategories = ['socialMedia', 'entertainment', 'gaming', 'forums'];
     const distractingByDay = Array(7).fill(0);
-    
+
     // Process in batches to get accurate time-scoped visit counts
     const BATCH_SIZE = 50;
     for (let i = 0; i < historyItems.length; i += BATCH_SIZE) {
@@ -4910,39 +4910,39 @@ async function getBrowsingPatterns(days = 30) {
             const urlObj = new URL(item.url);
             const domain = urlObj.hostname.replace(/^www\./, '');
             if (domain.includes('chrome-extension') || domain.includes('chrome://')) return null;
-            
+
             const visits = await chrome.history.getVisits({ url: item.url });
             const rangeVisits = visits.filter(v => v.visitTime >= startTime && v.visitTime <= endTime);
-            
+
             return { domain, visits: rangeVisits };
           } catch (e) {
             return null;
           }
         })
       );
-      
+
       for (const result of visitResults) {
         if (!result || result.visits.length === 0) continue;
-        
+
         const { domain, visits: rangeVisits } = result;
         const category = classifyDomain(domain);
-        
+
         for (const visit of rangeVisits) {
           const visitDate = new Date(visit.visitTime);
           const dayOfWeek = visitDate.getDay();
-          
+
           dayOfWeekStats[dayOfWeek].visits += 1;
           dayOfWeekStats[dayOfWeek].domains.add(domain);
-          
+
           if (category && distractingCategories.includes(category)) {
             distractingByDay[dayOfWeek] += 1;
           }
         }
       }
     }
-    
+
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    
+
     return {
       dayOfWeek: dayOfWeekStats.map((stats, index) => ({
         day: dayNames[index],
@@ -4978,6 +4978,24 @@ function getSiteCategories() {
  * Google Calendar API base URL
  */
 const GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
+
+/**
+ * Google Calendar event colorId → hex colour mapping.
+ * These are the standard event colours returned by the Calendar API.
+ */
+const GCAL_EVENT_COLORS = {
+  '1': '#7986cb', // Lavender
+  '2': '#33b679', // Sage
+  '3': '#8e24aa', // Grape
+  '4': '#e67c73', // Flamingo
+  '5': '#f6bf26', // Banana
+  '6': '#f4511e', // Tangerine
+  '7': '#039be5', // Peacock
+  '8': '#616161', // Graphite
+  '9': '#3f51b5', // Blueberry
+  '10': '#0b8043', // Basil
+  '11': '#d50000', // Tomato
+};
 
 /**
  * Default calendar settings
@@ -5026,14 +5044,14 @@ async function connectGoogleCalendar() {
   try {
     // First try the simpler getAuthToken approach (works if extension is properly configured)
     let token = null;
-    
+
     try {
       token = await new Promise((resolve, reject) => {
         // Set a timeout to prevent infinite loading
         const timeout = setTimeout(() => {
           reject(new Error('OAuth timeout - please try again'));
         }, 60000); // 60 second timeout
-        
+
         chrome.identity.getAuthToken({ interactive: true }, (authToken) => {
           clearTimeout(timeout);
           if (chrome.runtime.lastError) {
@@ -5047,22 +5065,22 @@ async function connectGoogleCalendar() {
       });
     } catch (authError) {
       console.error('getAuthToken failed:', authError);
-      
+
       // Fall back to launchWebAuthFlow for development
       token = await launchWebAuthFlowForCalendar();
     }
-    
+
     if (!token) {
       throw new Error('Failed to obtain access token');
     }
-    
+
     // Get user info to get email
     let email = null;
     try {
       const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       if (userInfoResponse.ok) {
         const userInfo = await userInfoResponse.json();
         email = userInfo.email;
@@ -5070,7 +5088,7 @@ async function connectGoogleCalendar() {
     } catch (e) {
       console.warn('Could not fetch user email:', e);
     }
-    
+
     // Save connection state
     await saveCalendarSettings({
       connected: true,
@@ -5078,10 +5096,10 @@ async function connectGoogleCalendar() {
       tokenExpiry: Date.now() + 3600000, // 1 hour
       email: email
     });
-    
+
     // Fetch available calendars
     const calendars = await fetchCalendarList(token);
-    
+
     return {
       success: true,
       email: email,
@@ -5100,24 +5118,24 @@ async function connectGoogleCalendar() {
 async function launchWebAuthFlowForCalendar() {
   // Get the extension's redirect URL
   const redirectUrl = chrome.identity.getRedirectURL();
-  
+
   // Get client ID from manifest
   const manifest = chrome.runtime.getManifest();
   const clientId = manifest.oauth2?.client_id;
-  
+
   if (!clientId) {
     throw new Error('No OAuth2 client_id configured in manifest.json');
   }
-  
+
   const scopes = (manifest.oauth2?.scopes || []).join(' ');
-  
+
   const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   authUrl.searchParams.set('client_id', clientId);
   authUrl.searchParams.set('redirect_uri', redirectUrl);
   authUrl.searchParams.set('response_type', 'token');
   authUrl.searchParams.set('scope', scopes + ' https://www.googleapis.com/auth/userinfo.email');
   authUrl.searchParams.set('prompt', 'consent');
-  
+
   return new Promise((resolve, reject) => {
     chrome.identity.launchWebAuthFlow(
       {
@@ -5129,22 +5147,22 @@ async function launchWebAuthFlowForCalendar() {
           reject(new Error(chrome.runtime.lastError.message));
           return;
         }
-        
+
         if (!responseUrl) {
           reject(new Error('No response from auth flow'));
           return;
         }
-        
+
         // Extract token from URL fragment
         const url = new URL(responseUrl);
         const hashParams = new URLSearchParams(url.hash.substring(1));
         const accessToken = hashParams.get('access_token');
-        
+
         if (!accessToken) {
           reject(new Error('No access token in response'));
           return;
         }
-        
+
         resolve(accessToken);
       }
     );
@@ -5158,14 +5176,14 @@ async function launchWebAuthFlowForCalendar() {
 async function disconnectGoogleCalendar() {
   try {
     const settings = await getCalendarSettings();
-    
+
     if (settings.accessToken) {
       // Revoke the token
       await new Promise((resolve) => {
         chrome.identity.removeCachedAuthToken({ token: settings.accessToken }, resolve);
       });
     }
-    
+
     // Clear all calendar settings
     await saveCalendarSettings({
       connected: false,
@@ -5177,10 +5195,10 @@ async function disconnectGoogleCalendar() {
       upcomingEvents: [],
       lastSync: null
     });
-    
+
     // Clear calendar sync alarm
     await chrome.alarms.clear('calendar-sync');
-    
+
     return { success: true };
   } catch (e) {
     console.error('Failed to disconnect from Google Calendar:', e);
@@ -5194,16 +5212,16 @@ async function disconnectGoogleCalendar() {
  */
 async function getValidCalendarToken() {
   const settings = await getCalendarSettings();
-  
+
   if (!settings.connected) {
     return null;
   }
-  
+
   // Check if token is still valid (with 5 min buffer)
   if (settings.accessToken && settings.tokenExpiry && Date.now() < settings.tokenExpiry - 300000) {
     return settings.accessToken;
   }
-  
+
   // Token looks expired — clear Chrome's internal cache of the old token
   // first, otherwise getAuthToken may return the same stale token.
   if (settings.accessToken) {
@@ -5211,7 +5229,7 @@ async function getValidCalendarToken() {
       chrome.identity.removeCachedAuthToken({ token: settings.accessToken }, resolve);
     });
   }
-  
+
   // Now request a fresh token
   try {
     const token = await new Promise((resolve, reject) => {
@@ -5223,7 +5241,7 @@ async function getValidCalendarToken() {
         }
       });
     });
-    
+
     if (token) {
       await saveCalendarSettings({
         accessToken: token,
@@ -5233,10 +5251,10 @@ async function getValidCalendarToken() {
     }
   } catch (e) {
     console.error('Failed to refresh calendar token:', e);
-    
+
     const msg = e.message || '';
     const isRevoked = msg.includes('not granted') || msg.includes('revoked');
-    
+
     if (isRevoked) {
       // Consent was revoked — mark disconnected so the UI shows
       // the "Connect Calendar" button for re-authentication.
@@ -5248,7 +5266,7 @@ async function getValidCalendarToken() {
       });
       return null;
     }
-    
+
     // Transient network error — fall back to the cached token; the
     // actual API call will surface a real 401 if it's truly expired.
     if (settings.accessToken) {
@@ -5256,7 +5274,7 @@ async function getValidCalendarToken() {
       return settings.accessToken;
     }
   }
-  
+
   return null;
 }
 
@@ -5267,16 +5285,16 @@ async function getValidCalendarToken() {
  */
 async function forceRefreshCalendarToken() {
   const settings = await getCalendarSettings();
-  
+
   if (settings.accessToken) {
     await new Promise(resolve => {
       chrome.identity.removeCachedAuthToken({ token: settings.accessToken }, resolve);
     });
   }
-  
+
   // Clear stored expiry so getValidCalendarToken doesn't short-circuit
   await saveCalendarSettings({ accessToken: null, tokenExpiry: null });
-  
+
   try {
     const token = await new Promise((resolve, reject) => {
       chrome.identity.getAuthToken({ interactive: false }, (token) => {
@@ -5287,7 +5305,7 @@ async function forceRefreshCalendarToken() {
         }
       });
     });
-    
+
     if (token) {
       await saveCalendarSettings({
         accessToken: token,
@@ -5297,7 +5315,7 @@ async function forceRefreshCalendarToken() {
     }
   } catch (e) {
     console.error('Failed to force-refresh calendar token:', e);
-    
+
     const msg = e.message || '';
     if (msg.includes('not granted') || msg.includes('revoked')) {
       console.log('Calendar OAuth grant revoked, marking disconnected');
@@ -5308,7 +5326,7 @@ async function forceRefreshCalendarToken() {
       });
     }
   }
-  
+
   return null;
 }
 
@@ -5322,13 +5340,13 @@ async function fetchCalendarList(token) {
     const response = await fetch(`${GOOGLE_CALENDAR_API}/users/me/calendarList`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    
+
     if (!response.ok) {
       throw new Error(`Calendar API error: ${response.status}`);
     }
-    
+
     const data = await response.json();
-    
+
     return (data.items || []).map(cal => ({
       id: cal.id,
       name: cal.summary,
@@ -5353,9 +5371,9 @@ async function fetchUpcomingEvents(days = 7) {
   if (!token) {
     return { error: 'Not connected to Google Calendar' };
   }
-  
+
   let result = await fetchUpcomingEventsWithToken(token, days);
-  
+
   // If we got 401s on all calendars, force-refresh and retry once
   if (result.got401 && result.events.length === 0) {
     const freshToken = await forceRefreshCalendarToken();
@@ -5363,31 +5381,38 @@ async function fetchUpcomingEvents(days = 7) {
       result = await fetchUpcomingEventsWithToken(freshToken, days);
     }
   }
-  
+
   const events = result.events;
   events.sort((a, b) => new Date(a.start) - new Date(b.start));
-  
+
   if (events.length > 0 || !result.failed) {
     await saveCalendarSettings({ upcomingEvents: events, lastSync: Date.now() });
   }
-  
+
   return events;
 }
 
 async function fetchUpcomingEventsWithToken(token, days) {
   const settings = await getCalendarSettings();
-  const calendarsToFetch = settings.selectedCalendars.length > 0 
-    ? settings.selectedCalendars 
+  const calendarsToFetch = settings.selectedCalendars.length > 0
+    ? settings.selectedCalendars
     : ['primary'];
-  
+
+  // Build calendar-id → color map from stored calendar list
+  const calList = await fetchCalendarList(token);
+  const calColorMap = {};
+  for (const cal of calList) {
+    calColorMap[cal.id] = cal.color;
+  }
+
   const now = new Date();
   const timeMin = now.toISOString();
   const timeMax = new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
-  
+
   const events = [];
   let failed = false;
   let got401 = false;
-  
+
   for (const calendarId of calendarsToFetch) {
     try {
       const params = new URLSearchParams({
@@ -5397,32 +5422,38 @@ async function fetchUpcomingEventsWithToken(token, days) {
         orderBy: 'startTime',
         maxResults: '100'
       });
-      
+
       const response = await fetch(
         `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       if (response.status === 401) {
         got401 = true;
         failed = true;
         continue;
       }
-      
+
       if (!response.ok) {
         console.error(`Failed to fetch events from calendar ${calendarId}:`, response.status);
         failed = true;
         continue;
       }
-      
+
       const data = await response.json();
-      
+      const calColor = calColorMap[calendarId] || '#4285f4';
+
       for (const event of (data.items || [])) {
         const startTime = event.start?.dateTime || event.start?.date;
         const endTime = event.end?.dateTime || event.end?.date;
-        
+
         if (!startTime || !endTime) continue;
-        
+
+        // Per-event colorId overrides the calendar color
+        const eventColor = event.colorId
+          ? (GCAL_EVENT_COLORS[event.colorId] || calColor)
+          : calColor;
+
         events.push({
           id: event.id,
           calendarId: calendarId,
@@ -5433,7 +5464,8 @@ async function fetchUpcomingEventsWithToken(token, days) {
           isAllDay: !event.start?.dateTime,
           location: event.location || '',
           status: event.status,
-          htmlLink: event.htmlLink
+          htmlLink: event.htmlLink,
+          color: eventColor
         });
       }
     } catch (e) {
@@ -5441,7 +5473,7 @@ async function fetchUpcomingEventsWithToken(token, days) {
       failed = true;
     }
   }
-  
+
   return { events, failed, got401 };
 }
 
@@ -5452,7 +5484,7 @@ async function fetchUpcomingEventsWithToken(token, days) {
 async function getCurrentEvents() {
   const settings = await getCalendarSettings();
   const now = Date.now();
-  
+
   // Use cached events if recent (< 5 minutes old)
   let events = settings.upcomingEvents || [];
   if (!settings.lastSync || Date.now() - settings.lastSync > 300000) {
@@ -5461,7 +5493,7 @@ async function getCurrentEvents() {
       events = freshEvents;
     }
   }
-  
+
   // Filter to currently active events
   return events.filter(event => {
     const start = new Date(event.start).getTime();
@@ -5485,38 +5517,38 @@ async function getTodayEvents() {
   startOfDay.setHours(0, 0, 0, 0);
   const endOfDay = new Date(startOfDay);
   endOfDay.setDate(endOfDay.getDate() + 1);
-  
+
   const token = await getValidCalendarToken();
-  
+
   if (!token) {
     return filterEventsForToday(await getCachedEvents(), todayStr, startOfDay, endOfDay);
   }
-  
+
   // First attempt
   let result = await fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay);
-  
+
   // If every calendar returned 401, force-refresh the token and retry once
   if (result.got401 && result.events.length === 0) {
     console.log('Got 401 from all calendars, force-refreshing token…');
     const freshToken = await forceRefreshCalendarToken();
-    
+
     if (freshToken && freshToken !== token) {
       result = await fetchTodayEventsWithToken(freshToken, todayStr, startOfDay, endOfDay);
     }
   }
-  
+
   // If still no events after retry, fall back to cache
   if (result.events.length === 0 && result.failed) {
     console.log('Calendar fetch failed after retry, using cached events');
     return filterEventsForToday(await getCachedEvents(), todayStr, startOfDay, endOfDay);
   }
-  
+
   const filtered = filterEventsForToday(result.events, todayStr, startOfDay, endOfDay);
-  
+
   if (result.events.length > 0) {
     await saveCalendarSettings({ upcomingEvents: result.events, lastSync: Date.now() });
   }
-  
+
   return filtered;
 }
 
@@ -5529,14 +5561,21 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
   const calendarsToFetch = settings.selectedCalendars.length > 0
     ? settings.selectedCalendars
     : ['primary'];
-  
+
+  // Build calendar-id → color map from stored calendar list
+  const calList = await fetchCalendarList(token);
+  const calColorMap = {};
+  for (const cal of calList) {
+    calColorMap[cal.id] = cal.color;
+  }
+
   const timeMin = startOfDay.toISOString();
   const timeMax = endOfDay.toISOString();
-  
+
   const allEvents = [];
   let fetchFailed = false;
   let got401 = false;
-  
+
   for (const calendarId of calendarsToFetch) {
     try {
       const params = new URLSearchParams({
@@ -5546,35 +5585,41 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
         orderBy: 'startTime',
         maxResults: '100'
       });
-      
+
       const response = await fetch(
         `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       if (response.status === 401) {
         got401 = true;
         fetchFailed = true;
         continue;
       }
-      
+
       if (!response.ok) {
         console.error(`Failed to fetch today's events from calendar ${calendarId}:`, response.status);
         fetchFailed = true;
         continue;
       }
-      
+
       const data = await response.json();
-      
+      const calColor = calColorMap[calendarId] || '#4285f4';
+
       for (const event of (data.items || [])) {
         const startTime = event.start?.dateTime || event.start?.date;
         const endTime = event.end?.dateTime || event.end?.date;
-        
+
         if (!startTime || !endTime) continue;
-        
+
         const title = (event.summary || '').trim();
         if (title.startsWith('✓') || title.startsWith('✔')) continue;
-        
+
+        // Per-event colorId overrides the calendar color
+        const eventColor = event.colorId
+          ? (GCAL_EVENT_COLORS[event.colorId] || calColor)
+          : calColor;
+
         allEvents.push({
           id: event.id,
           calendarId: calendarId,
@@ -5585,7 +5630,8 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
           isAllDay: !event.start?.dateTime,
           location: event.location || '',
           status: event.status,
-          htmlLink: event.htmlLink
+          htmlLink: event.htmlLink,
+          color: eventColor
         });
       }
     } catch (e) {
@@ -5593,7 +5639,7 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
       fetchFailed = true;
     }
   }
-  
+
   return { events: allEvents, failed: fetchFailed, got401 };
 }
 
@@ -5604,19 +5650,19 @@ function filterEventsForToday(events, todayStr, startOfDay, endOfDay) {
   const filtered = (events || []).filter(event => {
     const title = (event.title || '').trim();
     if (title.startsWith('✓') || title.startsWith('✔')) return false;
-    
+
     if (event.isAllDay) {
       const eventStartDate = event.start.split('T')[0];
       const eventEndDate = event.end.split('T')[0];
       return eventStartDate <= todayStr && eventEndDate > todayStr;
     }
-    
+
     const start = new Date(event.start).getTime();
     const end = new Date(event.end).getTime();
     // Include events that overlap with today at all
     return start < endOfDay.getTime() && end > startOfDay.getTime();
   });
-  
+
   filtered.sort((a, b) => new Date(a.start) - new Date(b.start));
   return filtered;
 }
@@ -5640,17 +5686,17 @@ function scoreKeywordMatch(text, keyword) {
   if (!text.includes(keyword)) {
     return 0;
   }
-  
+
   // Base score is keyword length (longer = more specific = better)
   let score = keyword.length;
-  
+
   // Check for word boundary match (much better than substring)
   // Use regex to check if keyword appears as a complete word
   const wordBoundaryRegex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
   if (wordBoundaryRegex.test(text)) {
     score += 100; // Strong bonus for exact word match
   }
-  
+
   return score;
 }
 
@@ -5663,16 +5709,16 @@ function scoreKeywordMatch(text, keyword) {
 function findBestKeywordMatch(text, keywords) {
   const lowerText = text.toLowerCase();
   let bestMatch = null;
-  
+
   for (const keyword of keywords) {
     const lowerKeyword = keyword.toLowerCase();
     const score = scoreKeywordMatch(lowerText, lowerKeyword);
-    
+
     if (score > 0 && (!bestMatch || score > bestMatch.score)) {
       bestMatch = { keyword, score };
     }
   }
-  
+
   return bestMatch;
 }
 
@@ -5685,17 +5731,17 @@ function categorizeEventByKeywords(event) {
   const settings = getCalendarSettings();
   const focusKeywords = settings.focusEventKeywords || ['focus', 'work', 'deep work', 'coding', 'meeting', 'busy'];
   const breakKeywords = settings.breakEventKeywords || ['break', 'lunch', 'coffee', 'personal'];
-  
+
   const text = `${event.title} ${event.description}`;
-  
+
   const focusMatch = findBestKeywordMatch(text, focusKeywords);
   const breakMatch = findBestKeywordMatch(text, breakKeywords);
-  
+
   // No matches
   if (!focusMatch && !breakMatch) {
     return null;
   }
-  
+
   // Only one category matched
   if (focusMatch && !breakMatch) {
     return 'focus';
@@ -5703,7 +5749,7 @@ function categorizeEventByKeywords(event) {
   if (breakMatch && !focusMatch) {
     return 'break';
   }
-  
+
   // Both matched - return the one with higher score
   return focusMatch.score >= breakMatch.score ? 'focus' : 'break';
 }
@@ -5734,28 +5780,28 @@ function isEventBreakTime(event) {
  */
 async function getSuggestedProfileFromCalendar() {
   const calendarSettings = await getCalendarSettings();
-  
+
   if (!calendarSettings.connected || !calendarSettings.autoSwitchProfiles) {
     return null;
   }
-  
+
   const currentEvents = await getCurrentEvents();
-  
+
   if (currentEvents.length === 0) {
     return null;
   }
-  
+
   // Check profile mappings first - find the best match across all events
   if (calendarSettings.profileMapping && calendarSettings.profileMapping.length > 0) {
     let bestMappingMatch = null;
-    
+
     for (const event of currentEvents) {
       const text = `${event.title} ${event.description}`;
-      
+
       for (const mapping of calendarSettings.profileMapping) {
         // Find the best keyword match for this mapping
         const keywordMatch = findBestKeywordMatch(text, mapping.eventKeywords);
-        
+
         if (keywordMatch) {
           if (!bestMappingMatch || keywordMatch.score > bestMappingMatch.score) {
             bestMappingMatch = {
@@ -5765,7 +5811,7 @@ async function getSuggestedProfileFromCalendar() {
             };
           }
         }
-        
+
         // Calendar ID match (lower priority than keyword match)
         if (mapping.calendarId === event.calendarId && !bestMappingMatch) {
           bestMappingMatch = {
@@ -5776,31 +5822,31 @@ async function getSuggestedProfileFromCalendar() {
         }
       }
     }
-    
+
     if (bestMappingMatch) {
       return { profileId: bestMappingMatch.profileId, event: bestMappingMatch.event };
     }
   }
-  
+
   // Fall back to keyword-based detection
   for (const event of currentEvents) {
     if (isEventFocusTime(event)) {
       // Suggest a strict profile like "Work"
       const profiles = await getProfiles();
-      const workProfile = profiles.find(p => 
-        p.name.toLowerCase().includes('work') || 
+      const workProfile = profiles.find(p =>
+        p.name.toLowerCase().includes('work') ||
         p.name.toLowerCase().includes('focus')
       );
       if (workProfile) {
         return { profileId: workProfile.id, event: event };
       }
     }
-    
+
     if (isEventBreakTime(event)) {
       // Suggest a relaxed profile
       const profiles = await getProfiles();
-      const relaxedProfile = profiles.find(p => 
-        p.name.toLowerCase().includes('relax') || 
+      const relaxedProfile = profiles.find(p =>
+        p.name.toLowerCase().includes('relax') ||
         p.name.toLowerCase().includes('break')
       );
       if (relaxedProfile) {
@@ -5808,7 +5854,7 @@ async function getSuggestedProfileFromCalendar() {
       }
     }
   }
-  
+
   return null;
 }
 
@@ -5818,16 +5864,16 @@ async function getSuggestedProfileFromCalendar() {
  */
 async function checkCalendarAndSwitchProfile() {
   const calendarSettings = await getCalendarSettings();
-  
+
   if (!calendarSettings.connected || !calendarSettings.autoSwitchProfiles) {
     return;
   }
-  
+
   const suggestion = await getSuggestedProfileFromCalendar();
-  
+
   if (suggestion) {
     const currentProfile = await getCurrentProfile();
-    
+
     if (currentProfile.id !== suggestion.profileId) {
       await switchProfile(suggestion.profileId);
       console.log(`Auto-switched to profile ${suggestion.profileId} due to calendar event: ${suggestion.event.title}`);
@@ -5840,20 +5886,20 @@ async function checkCalendarAndSwitchProfile() {
  */
 async function startCalendarSync() {
   const settings = await getCalendarSettings();
-  
+
   if (!settings.connected || !settings.syncEnabled) {
     await chrome.alarms.clear('calendar-sync');
     return;
   }
-  
+
   // Sync every 5 minutes
   await chrome.alarms.create('calendar-sync', {
     periodInMinutes: 5
   });
-  
+
   // Also do an immediate sync
   await fetchUpcomingEvents(7);
-  
+
   // Check for profile switching
   if (settings.autoSwitchProfiles) {
     await checkCalendarAndSwitchProfile();
@@ -5874,12 +5920,12 @@ async function handleCalendarSyncAlarm() {
  */
 async function updateCalendarSettings(updates) {
   const updated = await saveCalendarSettings(updates);
-  
+
   // Restart sync if enabled
   if (updated.syncEnabled) {
     await startCalendarSync();
   }
-  
+
   return updated;
 }
 
@@ -5889,7 +5935,7 @@ async function updateCalendarSettings(updates) {
  */
 async function getCalendarStatus() {
   const settings = await getCalendarSettings();
-  
+
   return {
     connected: settings.connected,
     email: settings.email,
