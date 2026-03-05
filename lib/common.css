@@ -179,6 +179,13 @@
   --indigo: #444444;
   --indigo-foreground: #ffffff;
   --indigo-hover: #333333;
+  --indigo-50: #f7f7f7;
+  --indigo-100: #eeeeee;
+  --indigo-200: #dddddd;
+  --indigo-800: #333333;
+  --indigo-900: #111111;
+  --indigo-subtle: rgba(0, 0, 0, 0.06);
+  --destructive-subtle: rgba(200, 0, 0, 0.08);
   --shadow-sm: none;
   --shadow: none;
   --shadow-md: none;
@@ -213,6 +220,13 @@
   --indigo: #999999;
   --indigo-foreground: #111111;
   --indigo-hover: #bbbbbb;
+  --indigo-50: #1a1a1a;
+  --indigo-100: #222222;
+  --indigo-200: #333333;
+  --indigo-800: #cccccc;
+  --indigo-900: #e0e0e0;
+  --indigo-subtle: rgba(255, 255, 255, 0.06);
+  --destructive-subtle: rgba(255, 50, 50, 0.1);
   --shadow-sm: none;
   --shadow: none;
   --shadow-md: none;
