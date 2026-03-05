@@ -5013,7 +5013,9 @@ const DEFAULT_CALENDAR_SETTINGS = {
   focusEventKeywords: ['focus', 'work', 'deep work', 'coding', 'meeting', 'busy'],
   breakEventKeywords: ['break', 'lunch', 'coffee', 'personal'],
   lastSync: null,
-  upcomingEvents: [] // Cached events
+  upcomingEvents: [], // Cached events
+  calendarListCache: [],
+  calendarListCacheTime: null
 };
 
 /**
@@ -5330,14 +5332,31 @@ async function forceRefreshCalendarToken() {
   return null;
 }
 
+async function fetchWithRetry(url, options, maxRetries = 2) {
+  let attempts = 0;
+  while (attempts < maxRetries) {
+    attempts++;
+    try {
+      const response = await fetch(url, options);
+      return response;
+    } catch (e) {
+      if (attempts >= maxRetries) throw e;
+      await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+    }
+  }
+}
 /**
  * Fetch list of user's calendars
  * @param {string} token - Access token
  * @returns {Promise<Array>}
  */
-async function fetchCalendarList(token) {
+async function fetchCalendarList(token, forceRefresh = false) {
+  const settings = await getCalendarSettings();
+  if (!forceRefresh && settings.calendarListCache.length > 0 && Date.now() - settings.calendarListCacheTime < 3600000) {
+    return settings.calendarListCache;
+  }
   try {
-    const response = await fetch(`${GOOGLE_CALENDAR_API}/users/me/calendarList`, {
+    const response = await fetchWithRetry(`${GOOGLE_CALENDAR_API}/users/me/calendarList`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
@@ -5346,8 +5365,7 @@ async function fetchCalendarList(token) {
     }
 
     const data = await response.json();
-
-    return (data.items || []).map(cal => ({
+    const calendars = (data.items || []).map(cal => ({
       id: cal.id,
       name: cal.summary,
       description: cal.description || '',
@@ -5355,6 +5373,11 @@ async function fetchCalendarList(token) {
       primary: cal.primary || false,
       accessRole: cal.accessRole
     }));
+    await saveCalendarSettings({
+      calendarListCache: calendars,
+      calendarListCacheTime: Date.now()
+    });
+    return calendars;
   } catch (e) {
     console.error('Failed to fetch calendar list:', e);
     return [];
@@ -5412,8 +5435,7 @@ async function fetchUpcomingEventsWithToken(token, days) {
   const events = [];
   let failed = false;
   let got401 = false;
-
-  for (const calendarId of calendarsToFetch) {
+  await Promise.allSettled(calendarsToFetch.map(async (calendarId) => {
     try {
       const params = new URLSearchParams({
         timeMin,
@@ -5423,7 +5445,7 @@ async function fetchUpcomingEventsWithToken(token, days) {
         maxResults: '100'
       });
 
-      const response = await fetch(
+      const response = await fetchWithRetry(
         `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -5431,13 +5453,13 @@ async function fetchUpcomingEventsWithToken(token, days) {
       if (response.status === 401) {
         got401 = true;
         failed = true;
-        continue;
+        return;
       }
 
       if (!response.ok) {
         console.error(`Failed to fetch events from calendar ${calendarId}:`, response.status);
         failed = true;
-        continue;
+        return;
       }
 
       const data = await response.json();
@@ -5472,7 +5494,7 @@ async function fetchUpcomingEventsWithToken(token, days) {
       console.error(`Error fetching events from calendar ${calendarId}:`, e);
       failed = true;
     }
-  }
+  }));
 
   return { events, failed, got401 };
 }
@@ -5575,8 +5597,7 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
   const allEvents = [];
   let fetchFailed = false;
   let got401 = false;
-
-  for (const calendarId of calendarsToFetch) {
+  await Promise.allSettled(calendarsToFetch.map(async (calendarId) => {
     try {
       const params = new URLSearchParams({
         timeMin,
@@ -5586,7 +5607,7 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
         maxResults: '100'
       });
 
-      const response = await fetch(
+      const response = await fetchWithRetry(
         `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -5594,13 +5615,13 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
       if (response.status === 401) {
         got401 = true;
         fetchFailed = true;
-        continue;
+        return;
       }
 
       if (!response.ok) {
         console.error(`Failed to fetch today's events from calendar ${calendarId}:`, response.status);
         fetchFailed = true;
-        continue;
+        return;
       }
 
       const data = await response.json();
@@ -5638,7 +5659,7 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
       console.error(`Error fetching today's events from calendar ${calendarId}:`, e);
       fetchFailed = true;
     }
-  }
+  }));
 
   return { events: allEvents, failed: fetchFailed, got401 };
 }
