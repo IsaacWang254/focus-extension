@@ -264,37 +264,67 @@
 }
 
 [data-theme="brutalist"] .btn,
-[data-theme="brutalist-dark"] .btn {
+[data-theme="brutalist"] .btn-primary,
+[data-theme="brutalist"] .btn-secondary,
+[data-theme="brutalist"] .btn-danger,
+[data-theme="brutalist"] .btn-indigo,
+[data-theme="brutalist"] .btn-ghost {
   border: 1px solid var(--border) !important;
-  background: var(--secondary) !important;
-  color: var(--foreground) !important;
+  background: #e8e8e8 !important;
+  color: #111111 !important;
   text-transform: uppercase;
   font-weight: 600;
   font-size: 12px;
   letter-spacing: 0.08em;
   box-shadow: none !important;
   padding: 8px 16px;
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 [data-theme="brutalist"] .btn:hover,
-[data-theme="brutalist-dark"] .btn:hover {
-  background: var(--muted) !important;
-  transform: none;
-  box-shadow: none !important;
-}
-
-[data-theme="brutalist"] .btn-primary,
-[data-theme="brutalist-dark"] .btn-primary {
-  background: var(--primary) !important;
-  color: var(--primary-foreground) !important;
-  border-color: var(--primary) !important;
-}
-
 [data-theme="brutalist"] .btn-primary:hover,
-[data-theme="brutalist-dark"] .btn-primary:hover {
-  background: var(--primary) !important;
-  color: var(--primary-foreground) !important;
-  opacity: 0.85;
+[data-theme="brutalist"] .btn-secondary:hover,
+[data-theme="brutalist"] .btn-danger:hover,
+[data-theme="brutalist"] .btn-indigo:hover,
+[data-theme="brutalist"] .btn-ghost:hover {
+  background: #f8f8f8 !important;
+  color: #111111 !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+[data-theme="brutalist-dark"] .btn,
+[data-theme="brutalist-dark"] .btn-primary,
+[data-theme="brutalist-dark"] .btn-secondary,
+[data-theme="brutalist-dark"] .btn-danger,
+[data-theme="brutalist-dark"] .btn-indigo,
+[data-theme="brutalist-dark"] .btn-ghost {
+  border: 1px solid var(--border) !important;
+  background: #1a1a1a !important;
+  color: #e0e0e0 !important;
+  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  box-shadow: none !important;
+  padding: 8px 16px;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+[data-theme="brutalist-dark"] .btn:hover,
+[data-theme="brutalist-dark"] .btn-primary:hover,
+[data-theme="brutalist-dark"] .btn-secondary:hover,
+[data-theme="brutalist-dark"] .btn-danger:hover,
+[data-theme="brutalist-dark"] .btn-indigo:hover,
+[data-theme="brutalist-dark"] .btn-ghost:hover {
+  background: #333333 !important;
+  color: #e0e0e0 !important;
+  transform: none !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
 }
 
 [data-theme="brutalist"] .card,
