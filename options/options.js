@@ -104,11 +104,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load theme first to avoid flash
   await loadTheme();
 
+  // Apply accent color
+  await loadAndApplyAccentColor();
+
   // Setup theme toggle
   setupThemeToggle();
 
   // Setup brutalist mode toggle
   setupBrutalistToggle();
+
+  // Setup accent color picker
+  setupAccentColorPicker();
 
   // Load settings
   settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
@@ -807,6 +813,9 @@ function setupThemeToggle() {
     } catch (e) {
       console.error('Failed to save theme:', e);
     }
+
+    // Re-apply accent color for the new theme
+    await loadAndApplyAccentColor();
   });
 }
 
@@ -827,7 +836,220 @@ function setupBrutalistToggle() {
     } catch (e) {
       console.error('Failed to save brutalist mode:', e);
     }
+
+    // Re-apply accent color after theme change (brutalist themes ignore custom accent)
+    await loadAndApplyAccentColor();
   });
+}
+
+// =============================================================================
+// ACCENT COLOR
+// =============================================================================
+
+const DEFAULT_ACCENT_COLOR = '#6366f1';
+
+/**
+ * Parse a hex color string into { r, g, b }
+ */
+function hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  return {
+    r: parseInt(h.substring(0, 2), 16),
+    g: parseInt(h.substring(2, 4), 16),
+    b: parseInt(h.substring(4, 6), 16)
+  };
+}
+
+/**
+ * Convert RGB to hex string
+ */
+function rgbToHex(r, g, b) {
+  return '#' + [r, g, b].map(c => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Mix a color with white (tint) or black (shade)
+ * @param {{ r: number, g: number, b: number }} rgb
+ * @param {number} amount - 0 to 1 (0 = original, 1 = fully white/black)
+ * @param {'lighten'|'darken'} direction
+ */
+function mixColor(rgb, amount, direction) {
+  const target = direction === 'lighten' ? 255 : 0;
+  return {
+    r: rgb.r + (target - rgb.r) * amount,
+    g: rgb.g + (target - rgb.g) * amount,
+    b: rgb.b + (target - rgb.b) * amount
+  };
+}
+
+/**
+ * Determine whether white or black text has better contrast on a given background
+ */
+function contrastForeground(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  // Relative luminance (sRGB)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5 ? '#09090b' : '#ffffff';
+}
+
+/**
+ * Apply a custom accent color to the document root as CSS custom properties.
+ * Generates all needed --indigo-* shades from a single hex color.
+ * Skips brutalist themes (they use their own greyscale palette).
+ */
+function applyAccentColor(hex) {
+  if (!hex) return;
+
+  const theme = document.documentElement.getAttribute('data-theme') || 'light';
+  // Brutalist themes have their own greyscale accent — don't override
+  if (theme.startsWith('brutalist')) return;
+
+  const isDark = theme === 'dark';
+  const rgb = hexToRgb(hex);
+  const root = document.documentElement.style;
+
+  if (isDark) {
+    // For dark mode, use a lighter tint as the main accent
+    const lighter = mixColor(rgb, 0.25, 'lighten');
+    const mainHex = rgbToHex(lighter.r, lighter.g, lighter.b);
+    root.setProperty('--indigo', mainHex);
+    root.setProperty('--indigo-foreground', contrastForeground(mainHex));
+    root.setProperty('--indigo-hover', hex); // original color as hover
+    root.setProperty('--indigo-subtle', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)`);
+
+    // Shades for dark mode
+    const s50 = mixColor(rgb, 0.90, 'darken');
+    const s100 = mixColor(rgb, 0.85, 'darken');
+    const s200 = mixColor(rgb, 0.75, 'darken');
+    const s800 = mixColor(rgb, 0.25, 'lighten');
+    const s900 = mixColor(rgb, 0.40, 'lighten');
+    root.setProperty('--indigo-50', rgbToHex(s50.r, s50.g, s50.b));
+    root.setProperty('--indigo-100', rgbToHex(s100.r, s100.g, s100.b));
+    root.setProperty('--indigo-200', rgbToHex(s200.r, s200.g, s200.b));
+    root.setProperty('--indigo-800', rgbToHex(s800.r, s800.g, s800.b));
+    root.setProperty('--indigo-900', rgbToHex(s900.r, s900.g, s900.b));
+  } else {
+    // Light mode
+    root.setProperty('--indigo', hex);
+    root.setProperty('--indigo-foreground', contrastForeground(hex));
+    const darker = mixColor(rgb, 0.15, 'darken');
+    root.setProperty('--indigo-hover', rgbToHex(darker.r, darker.g, darker.b));
+    root.setProperty('--indigo-subtle', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.08)`);
+
+    // Shades for light mode
+    const s50 = mixColor(rgb, 0.92, 'lighten');
+    const s100 = mixColor(rgb, 0.85, 'lighten');
+    const s200 = mixColor(rgb, 0.72, 'lighten');
+    const s800 = mixColor(rgb, 0.55, 'darken');
+    const s900 = mixColor(rgb, 0.65, 'darken');
+    root.setProperty('--indigo-50', rgbToHex(s50.r, s50.g, s50.b));
+    root.setProperty('--indigo-100', rgbToHex(s100.r, s100.g, s100.b));
+    root.setProperty('--indigo-200', rgbToHex(s200.r, s200.g, s200.b));
+    root.setProperty('--indigo-800', rgbToHex(s800.r, s800.g, s800.b));
+    root.setProperty('--indigo-900', rgbToHex(s900.r, s900.g, s900.b));
+  }
+}
+
+/**
+ * Load the accent color from storage and apply it.
+ */
+async function loadAndApplyAccentColor() {
+  try {
+    const result = await chrome.storage.local.get('accentColor');
+    const color = result.accentColor || DEFAULT_ACCENT_COLOR;
+    applyAccentColor(color);
+    return color;
+  } catch (e) {
+    console.error('Failed to load accent color:', e);
+    return DEFAULT_ACCENT_COLOR;
+  }
+}
+
+/**
+ * Setup the accent color picker UI in the Appearance section.
+ */
+function setupAccentColorPicker() {
+  const swatches = document.querySelectorAll('#accent-swatches .accent-swatch:not(.accent-swatch-custom)');
+  const colorInput = document.getElementById('accent-color-input');
+  const resetBtn = document.getElementById('reset-accent-color');
+
+  if (!colorInput) return;
+
+  // Load saved color and set active state
+  chrome.storage.local.get('accentColor').then(result => {
+    const saved = result.accentColor || DEFAULT_ACCENT_COLOR;
+    colorInput.value = saved;
+    updateSwatchActive(saved);
+  });
+
+  // Swatch click handler
+  swatches.forEach(swatch => {
+    swatch.addEventListener('click', async () => {
+      const color = swatch.dataset.color;
+      colorInput.value = color;
+      updateSwatchActive(color);
+      applyAccentColor(color);
+      await chrome.storage.local.set({ accentColor: color });
+    });
+  });
+
+  // Custom color input handler
+  colorInput.addEventListener('input', (e) => {
+    const color = e.target.value;
+    updateSwatchActive(color);
+    applyAccentColor(color);
+  });
+
+  colorInput.addEventListener('change', async (e) => {
+    const color = e.target.value;
+    updateSwatchActive(color);
+    applyAccentColor(color);
+    await chrome.storage.local.set({ accentColor: color });
+  });
+
+  // Reset button
+  resetBtn?.addEventListener('click', async () => {
+    colorInput.value = DEFAULT_ACCENT_COLOR;
+    updateSwatchActive(DEFAULT_ACCENT_COLOR);
+    applyAccentColor(DEFAULT_ACCENT_COLOR);
+    await chrome.storage.local.set({ accentColor: DEFAULT_ACCENT_COLOR });
+  });
+}
+
+/**
+ * Update which swatch has the 'active' class.
+ */
+function updateSwatchActive(color) {
+  const swatches = document.querySelectorAll('#accent-swatches .accent-swatch');
+  const normalizedColor = color.toLowerCase();
+  let matchedPreset = false;
+
+  swatches.forEach(swatch => {
+    if (swatch.classList.contains('accent-swatch-custom')) {
+      swatch.classList.remove('active');
+      return;
+    }
+    if (swatch.dataset.color.toLowerCase() === normalizedColor) {
+      swatch.classList.add('active');
+      matchedPreset = true;
+    } else {
+      swatch.classList.remove('active');
+    }
+  });
+
+  // If no preset matched, highlight the custom swatch
+  if (!matchedPreset) {
+    const customSwatch = document.querySelector('.accent-swatch-custom');
+    if (customSwatch) {
+      customSwatch.classList.add('active');
+      customSwatch.style.backgroundColor = color;
+    }
+  } else {
+    const customSwatch = document.querySelector('.accent-swatch-custom');
+    if (customSwatch) {
+      customSwatch.style.backgroundColor = '';
+    }
+  }
 }
 
 // =============================================================================
@@ -1789,7 +2011,8 @@ function setupUnsavedChangesWarning() {
     'allowed-site-input',
     'category-site-input',
     'profile-site-input',
-    'settings-search'
+    'settings-search',
+    'accent-color-input'
   ];
 
   function shouldIgnoreInput(target) {

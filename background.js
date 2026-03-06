@@ -388,7 +388,8 @@ async function exportAllData() {
         xpData: data.xpData,
         streakData: data.streakData,
         focusSessionHistory: data.focusSessionHistory,
-        theme: data.theme
+        theme: data.theme,
+        accentColor: data.accentColor
       }
     };
   } catch (e) {
@@ -445,6 +446,10 @@ async function importAllData(importData) {
 
     if (importData.theme) {
       dataToImport.theme = importData.theme;
+    }
+
+    if (importData.accentColor) {
+      dataToImport.accentColor = importData.accentColor;
     }
 
     await chrome.storage.local.set(dataToImport);

@@ -136,6 +136,13 @@
   --indigo-foreground: #09090b;
   --indigo-hover: #6366f1;
 
+  /* Indigo shade variants for dark mode (used by ::selection etc.) */
+  --indigo-50: #0a0a18;
+  --indigo-100: #0f0f24;
+  --indigo-200: #191a3c;
+  --indigo-800: #8a8cf5;
+  --indigo-900: #a1a3f7;
+
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
@@ -472,6 +479,11 @@
     --indigo: #818cf8;
     --indigo-foreground: #09090b;
     --indigo-hover: #6366f1;
+    --indigo-50: #0a0a18;
+    --indigo-100: #0f0f24;
+    --indigo-200: #191a3c;
+    --indigo-800: #8a8cf5;
+    --indigo-900: #a1a3f7;
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
     --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
@@ -499,23 +511,23 @@
 }
 
 [data-theme="dark"] ::selection {
-  background-color: rgba(99, 102, 241, 0.4);
+  background-color: var(--indigo-subtle);
   color: var(--foreground);
 }
 
 [data-theme="dark"] ::-moz-selection {
-  background-color: rgba(99, 102, 241, 0.4);
+  background-color: var(--indigo-subtle);
   color: var(--foreground);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]):not(.light):not([data-theme="brutalist"]):not([data-theme="brutalist-dark"]) ::selection {
-    background-color: rgba(99, 102, 241, 0.4);
+    background-color: var(--indigo-subtle);
     color: var(--foreground);
   }
 
   :root:not([data-theme="light"]):not(.light):not([data-theme="brutalist"]):not([data-theme="brutalist-dark"]) ::-moz-selection {
-    background-color: rgba(99, 102, 241, 0.4);
+    background-color: var(--indigo-subtle);
     color: var(--foreground);
   }
 }

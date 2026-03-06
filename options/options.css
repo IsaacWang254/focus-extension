@@ -3278,6 +3278,102 @@ input.search-input {
 }
 
 /* ============================================
+   Accent Color Picker
+   ============================================ */
+
+.accent-color-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.accent-swatches {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.accent-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  padding: 0;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.accent-swatch:hover {
+  transform: scale(1.15);
+}
+
+.accent-swatch.active {
+  border-color: var(--foreground);
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--foreground);
+}
+
+.accent-swatch-custom {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--secondary);
+  border: 2px dashed var(--border);
+  overflow: hidden;
+}
+
+.accent-swatch-custom input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.accent-swatch-custom-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+
+.accent-swatch-custom.active {
+  border-style: solid;
+  border-color: var(--foreground);
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--foreground);
+}
+
+.accent-swatch-custom.active .accent-swatch-custom-icon {
+  color: var(--foreground);
+}
+
+.btn-ghost {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.btn-ghost:hover {
+  color: var(--foreground);
+  border-color: var(--foreground);
+}
+
+.btn-sm {
+  font-size: 0.75rem;
+  padding: var(--space-1) var(--space-2);
+}
+
+/* ============================================
    Responsive
    ============================================ */
 
