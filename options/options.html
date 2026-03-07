@@ -1335,37 +1335,39 @@
         <h2>Appearance</h2>
         <p class="section-desc">Customize how Focus looks and feels.</p>
 
-        <div class="setting-row">
-          <div class="setting-info">
-            <span class="setting-label">Accent Color</span>
-            <span class="setting-desc">Choose a custom accent color for buttons, links, and highlights.</span>
-          </div>
-          <div class="accent-color-picker">
-            <div class="accent-swatches" id="accent-swatches">
-              <button type="button" class="accent-swatch active" data-color="#6366f1" style="background-color: #6366f1" title="Indigo (default)"></button>
-              <button type="button" class="accent-swatch" data-color="#8b5cf6" style="background-color: #8b5cf6" title="Violet"></button>
-              <button type="button" class="accent-swatch" data-color="#3b82f6" style="background-color: #3b82f6" title="Blue"></button>
-              <button type="button" class="accent-swatch" data-color="#06b6d4" style="background-color: #06b6d4" title="Cyan"></button>
-              <button type="button" class="accent-swatch" data-color="#10b981" style="background-color: #10b981" title="Emerald"></button>
-              <button type="button" class="accent-swatch" data-color="#f59e0b" style="background-color: #f59e0b" title="Amber"></button>
-              <button type="button" class="accent-swatch" data-color="#f97316" style="background-color: #f97316" title="Orange"></button>
-              <button type="button" class="accent-swatch" data-color="#ef4444" style="background-color: #ef4444" title="Red"></button>
-              <button type="button" class="accent-swatch" data-color="#ec4899" style="background-color: #ec4899" title="Pink"></button>
-              <button type="button" class="accent-swatch" data-color="#64748b" style="background-color: #64748b" title="Slate"></button>
-              <label class="accent-swatch accent-swatch-custom" title="Custom color">
-                <input type="color" id="accent-color-input" value="#6366f1">
-                <span class="accent-swatch-custom-icon">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.7-.1 2.5-.3C11.2 20 9 17.2 9 14c0-3.9 3.1-7 7-7 1.7 0 3.2.6 4.4 1.6-.3-3.9-3.5-6.9-7.4-7.5-.3 0-.7-.1-1-.1z"></path>
-                  </svg>
-                </span>
-              </label>
+        <div id="accent-color-section">
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-label">Accent Color</span>
+              <span class="setting-desc">Choose a custom accent color for buttons, links, and highlights.</span>
             </div>
-            <button type="button" class="btn btn-ghost btn-sm" id="reset-accent-color" title="Reset to default">Reset</button>
+            <div class="accent-color-picker">
+              <div class="accent-swatches" id="accent-swatches">
+                <button type="button" class="accent-swatch active" data-color="#6366f1" style="background-color: #6366f1" title="Indigo (default)"></button>
+                <button type="button" class="accent-swatch" data-color="#8b5cf6" style="background-color: #8b5cf6" title="Violet"></button>
+                <button type="button" class="accent-swatch" data-color="#3b82f6" style="background-color: #3b82f6" title="Blue"></button>
+                <button type="button" class="accent-swatch" data-color="#06b6d4" style="background-color: #06b6d4" title="Cyan"></button>
+                <button type="button" class="accent-swatch" data-color="#10b981" style="background-color: #10b981" title="Emerald"></button>
+                <button type="button" class="accent-swatch" data-color="#f59e0b" style="background-color: #f59e0b" title="Amber"></button>
+                <button type="button" class="accent-swatch" data-color="#f97316" style="background-color: #f97316" title="Orange"></button>
+                <button type="button" class="accent-swatch" data-color="#ef4444" style="background-color: #ef4444" title="Red"></button>
+                <button type="button" class="accent-swatch" data-color="#ec4899" style="background-color: #ec4899" title="Pink"></button>
+                <button type="button" class="accent-swatch" data-color="#64748b" style="background-color: #64748b" title="Slate"></button>
+                <label class="accent-swatch accent-swatch-custom" title="Custom color">
+                  <input type="color" id="accent-color-input" value="#6366f1">
+                  <span class="accent-swatch-custom-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.7-.1 2.5-.3C11.2 20 9 17.2 9 14c0-3.9 3.1-7 7-7 1.7 0 3.2.6 4.4 1.6-.3-3.9-3.5-6.9-7.4-7.5-.3 0-.7-.1-1-.1z"></path>
+                    </svg>
+                  </span>
+                </label>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" id="reset-accent-color" title="Reset to default">Reset</button>
+            </div>
           </div>
-        </div>
 
-        <hr class="divider">
+          <hr class="divider">
+        </div>
 
         <div class="setting-row">
           <div class="setting-info">

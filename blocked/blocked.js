@@ -250,6 +250,23 @@ async function loadQuote() {
 // THEME
 // =============================================================================
 
+const ACCENT_COLOR_CSS_VARIABLES = [
+  '--indigo',
+  '--indigo-foreground',
+  '--indigo-hover',
+  '--indigo-subtle',
+  '--indigo-50',
+  '--indigo-100',
+  '--indigo-200',
+  '--indigo-800',
+  '--indigo-900'
+];
+
+function clearAccentColorOverrides() {
+  const rootStyle = document.documentElement.style;
+  ACCENT_COLOR_CSS_VARIABLES.forEach(variable => rootStyle.removeProperty(variable));
+}
+
 async function loadTheme() {
   try {
     const result = await chrome.storage.local.get(['theme', 'brutalistEnabled']);
@@ -278,7 +295,10 @@ async function applyAccentColorFromStorage() {
     const result = await chrome.storage.local.get('accentColor');
     const hex = result.accentColor || '#6366f1';
     const theme = document.documentElement.getAttribute('data-theme') || 'light';
-    if (theme.startsWith('brutalist')) return;
+    if (theme.startsWith('brutalist')) {
+      clearAccentColorOverrides();
+      return;
+    }
 
     const isDark = theme === 'dark';
     const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);

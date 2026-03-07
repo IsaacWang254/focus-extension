@@ -785,6 +785,7 @@ async function loadTheme() {
 
     const resolved = brutalist ? (base === 'dark' ? 'brutalist-dark' : 'brutalist') : base;
     document.documentElement.setAttribute('data-theme', resolved);
+    syncAccentColorSectionVisibility();
   } catch (e) {
     console.error('Failed to load theme:', e);
   }
@@ -806,6 +807,7 @@ function setupThemeToggle() {
     // Resolve the actual data-theme value
     const resolved = brutalist ? (newBase === 'dark' ? 'brutalist-dark' : 'brutalist') : newBase;
     root.setAttribute('data-theme', resolved);
+    syncAccentColorSectionVisibility();
 
     // Save the base theme
     try {
@@ -830,6 +832,7 @@ function setupBrutalistToggle() {
 
     const resolved = enabled ? (base === 'dark' ? 'brutalist-dark' : 'brutalist') : base;
     document.documentElement.setAttribute('data-theme', resolved);
+    syncAccentColorSectionVisibility();
 
     try {
       await chrome.storage.local.set({ brutalistEnabled: enabled });
@@ -847,6 +850,38 @@ function setupBrutalistToggle() {
 // =============================================================================
 
 const DEFAULT_ACCENT_COLOR = '#6366f1';
+const ACCENT_COLOR_CSS_VARIABLES = [
+  '--indigo',
+  '--indigo-foreground',
+  '--indigo-hover',
+  '--indigo-subtle',
+  '--indigo-50',
+  '--indigo-100',
+  '--indigo-200',
+  '--indigo-800',
+  '--indigo-900'
+];
+
+function isBrutalistThemeActive() {
+  const theme = document.documentElement.getAttribute('data-theme') || 'light';
+  return theme.startsWith('brutalist');
+}
+
+function clearAccentColorOverrides() {
+  const rootStyle = document.documentElement.style;
+  ACCENT_COLOR_CSS_VARIABLES.forEach(variable => rootStyle.removeProperty(variable));
+}
+
+function syncAccentColorSectionVisibility() {
+  const accentSection = document.getElementById('accent-color-section');
+  if (!accentSection) return;
+
+  const hidden = isBrutalistThemeActive();
+  accentSection.hidden = hidden;
+  accentSection.querySelectorAll('button, input').forEach(element => {
+    element.disabled = hidden;
+  });
+}
 
 /**
  * Parse a hex color string into { r, g, b }
@@ -900,10 +935,13 @@ function contrastForeground(hex) {
 function applyAccentColor(hex) {
   if (!hex) return;
 
-  const theme = document.documentElement.getAttribute('data-theme') || 'light';
   // Brutalist themes have their own greyscale accent — don't override
-  if (theme.startsWith('brutalist')) return;
+  if (isBrutalistThemeActive()) {
+    clearAccentColorOverrides();
+    return;
+  }
 
+  const theme = document.documentElement.getAttribute('data-theme') || 'light';
   const isDark = theme === 'dark';
   const rgb = hexToRgb(hex);
   const root = document.documentElement.style;
@@ -974,6 +1012,8 @@ function setupAccentColorPicker() {
   const resetBtn = document.getElementById('reset-accent-color');
 
   if (!colorInput) return;
+
+  syncAccentColorSectionVisibility();
 
   // Load saved color and set active state
   chrome.storage.local.get('accentColor').then(result => {
