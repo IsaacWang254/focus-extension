@@ -1,0 +1,12 @@
+{
+  "name": "focus-extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:local": "node scripts/build-local.js"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.5"
+  }
+}

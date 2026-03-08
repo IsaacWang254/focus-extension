@@ -28,6 +28,85 @@ let currentRandomPhrase = '';
 let currentReason = ''; // Store the reason for unblocking
 let earnedTimeInfo = null; // Store earned time info
 
+const COMMON_REASON_WORDS = new Set([
+  'a', 'about', 'after', 'am', 'an', 'and', 'because', 'before', 'but', 'for',
+  'from', 'have', 'i', 'if', 'in', 'into', 'is', 'it', 'just', 'me', 'my',
+  'need', 'now', 'of', 'on', 'or', 'our', 'quick', 'really', 'so', 'that',
+  'the', 'this', 'to', 'today', 'urgent', 'we', 'with', 'work'
+]);
+
+function getReasonValidation(text, minLength) {
+  const trimmed = text.trim();
+
+  if (trimmed.length < minLength) {
+    return {
+      isValid: false,
+      message: `Write at least ${minLength} characters.`
+    };
+  }
+
+  if (/(.)\1{5,}/.test(trimmed)) {
+    return {
+      isValid: false,
+      message: 'Avoid repeated characters like "aaaaaa".'
+    };
+  }
+
+  const words = trimmed.match(/[A-Za-z]+(?:['-][A-Za-z]+)*/g) || [];
+  if (words.length < 8) {
+    return {
+      isValid: false,
+      message: 'Write at least 8 words.'
+    };
+  }
+
+  const uniqueWords = new Set(words.map(word => word.toLowerCase()));
+  if (uniqueWords.size < 5) {
+    return {
+      isValid: false,
+      message: 'Use a few different words, not the same one repeated.'
+    };
+  }
+
+  const lettersOnly = trimmed.replace(/[^A-Za-z]/g, '');
+  if (!lettersOnly) {
+    return {
+      isValid: false,
+      message: 'Use letters and words, not only symbols or numbers.'
+    };
+  }
+
+  const lettersRatio = lettersOnly.length / trimmed.length;
+  if (lettersRatio < 0.65) {
+    return {
+      isValid: false,
+      message: 'Use mostly words instead of numbers or symbols.'
+    };
+  }
+
+  const vowelCount = (lettersOnly.match(/[AEIOUYaeiouy]/g) || []).length;
+  const vowelRatio = vowelCount / lettersOnly.length;
+  if (vowelRatio < 0.22 || vowelRatio > 0.75) {
+    return {
+      isValid: false,
+      message: 'Write a natural sentence with readable words.'
+    };
+  }
+
+  const commonWordMatches = words.filter(word => COMMON_REASON_WORDS.has(word.toLowerCase())).length;
+  if (commonWordMatches < 2) {
+    return {
+      isValid: false,
+      message: 'Write a short sentence in plain language.'
+    };
+  }
+
+  return {
+    isValid: true,
+    message: 'Reason looks good.'
+  };
+}
+
 function getIcon(name, fallback = '') {
   if (typeof Icons !== 'undefined' && Icons && Icons[name]) {
     return Icons[name];
@@ -1294,6 +1373,7 @@ async function setupUnblockMethods() {
     document.getElementById('method-reason').style.display = 'block';
     const minLength = methods.typeReason.minLength || 50;
     document.getElementById('reason-min-chars').textContent = minLength;
+    document.getElementById('reason-validation-message').textContent = `Write at least ${minLength} characters and use real words.`;
     anyMethodEnabled = true;
   }
 
@@ -1845,11 +1925,13 @@ function setupEventListeners() {
   // Reason textarea input
   const reasonInput = document.getElementById('reason-input');
   const reasonCharCount = document.getElementById('reason-char-count');
+  const reasonValidationMessage = document.getElementById('reason-validation-message');
 
   reasonInput.addEventListener('input', () => {
     const text = reasonInput.value;
     const charCount = text.length;
     const minLength = settings.unblockMethods.typeReason?.minLength || 50;
+    const validation = getReasonValidation(text, minLength);
 
     // Update character counter
     reasonCharCount.textContent = charCount;
@@ -1857,8 +1939,11 @@ function setupEventListeners() {
     // Store the reason
     currentReason = text;
 
-    // Check if minimum length is met
-    if (charCount >= minLength) {
+    reasonValidationMessage.textContent = validation.message;
+    reasonValidationMessage.classList.toggle('error', !validation.isValid && charCount > 0);
+    reasonValidationMessage.classList.toggle('success', validation.isValid);
+
+    if (validation.isValid) {
       reasonInput.classList.remove('error');
       reasonInput.classList.add('success');
       completedMethods.typeReason = true;
@@ -1866,6 +1951,13 @@ function setupEventListeners() {
       checkUnblockReady();
     } else {
       reasonInput.classList.remove('success');
+      if (charCount > 0) {
+        reasonInput.classList.add('error');
+      } else {
+        reasonInput.classList.remove('error');
+        reasonValidationMessage.classList.remove('error', 'success');
+        reasonValidationMessage.textContent = `Write at least ${minLength} characters and use real words.`;
+      }
       completedMethods.typeReason = false;
       updateMethodStatus('method-reason', 'reason-status', false);
     }

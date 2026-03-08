@@ -23,3 +23,7 @@ worker/node_modules/
 # Build artifacts
 dist/
 *.zip
+
+# Generated local config
+lib/config.js
+worker/wrangler.toml

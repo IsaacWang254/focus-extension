@@ -978,6 +978,24 @@ body::before {
   margin-top: var(--space-1);
 }
 
+.reason-validation-message {
+  margin-top: var(--space-2);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  line-height: 1.45;
+}
+
+.reason-validation-message.error {
+  padding: 0;
+  background: transparent;
+  color: var(--destructive);
+  text-align: left;
+}
+
+.reason-validation-message.success {
+  color: var(--success);
+}
+
 /* No Methods */
 .no-methods {
   padding: var(--space-6);
