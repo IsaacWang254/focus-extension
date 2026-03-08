@@ -61,13 +61,26 @@ cd worker && npm install && cd ..
 
 1. Create a Todoist developer app.
 2. Set the **redirect URI** to Chrome’s extension redirect pattern (see Todoist docs) and to your deployed Worker if needed.
-3. In this repo:
-   - Open `lib/todoist.js` and set:
-     - `TODOIST_CLIENT_ID` to your Todoist client ID.
-     - `TOKEN_PROXY_URL` to your deployed Cloudflare Worker URL, e.g. `https://your-worker-subdomain.workers.dev/api/todoist/token`.
-   - In `worker/wrangler.toml`, set:
-     - `TODOIST_CLIENT_ID` under `[vars]` to the same client ID.
-   - In your Cloudflare Worker environment, set the **secret**:
+3. Copy `.env.example` to `.env`.
+4. Fill in:
+   - `GOOGLE_OAUTH_CLIENT_ID`
+   - `TODOIST_CLIENT_ID`
+   - `TOKEN_PROXY_URL` (your deployed Cloudflare Worker URL, e.g. `https://your-worker-subdomain.workers.dev/api/todoist/token`)
+5. Generate local config files:
+
+```bash
+npm run build:local
+```
+
+This generates:
+
+- `manifest.json`
+- `lib/config.js`
+- `worker/wrangler.toml`
+
+Re-run `npm run build:local` any time you change `.env`.
+
+6. In your Cloudflare Worker environment, set the **secret**:
 
 ```bash
 cd worker
@@ -77,10 +90,9 @@ npx wrangler secret put TODOIST_CLIENT_SECRET
 #### 3. Configure Google Calendar OAuth
 
 1. In Google Cloud Console, create OAuth credentials for a Chrome extension.
-2. Copy your OAuth client ID.
-3. In `manifest.json`, set:
-   - `oauth2.client_id` to your Google OAuth client ID.
-4. Ensure the scopes under `oauth2.scopes` match what you’ve configured (currently read-only Calendar scopes).
+2. Copy your OAuth client ID into `.env` as `GOOGLE_OAUTH_CLIENT_ID`.
+3. Run `npm run build:local` so `manifest.json` is regenerated with that value.
+4. Ensure the scopes under `manifest.template.json` `oauth2.scopes` match what you’ve configured (currently read-only Calendar scopes).
 
 #### 4. Run / deploy the Cloudflare Worker
 
@@ -92,11 +104,11 @@ npx wrangler dev
 npx wrangler deploy
 ```
 
-Update `TOKEN_PROXY_URL` in `lib/todoist.js` to match your deployed URL.
+If you change the deployed Worker URL, update `TOKEN_PROXY_URL` in `.env` and re-run `npm run build:local`.
 
 #### 5. Load the extension in Chrome
 
-1. Build step is not required; the extension runs directly from source.
+1. Run `npm run build:local` first so the generated config files exist.
 2. Open `chrome://extensions`.
 3. Enable **Developer mode**.
 4. Click **Load unpacked** and select the `focus-extension` folder.
@@ -122,4 +134,3 @@ Update `TOKEN_PROXY_URL` in `lib/todoist.js` to match your deployed URL.
 
 - Issues and PRs are welcome.
 - Please avoid committing any personal OAuth client IDs, secrets, or Cloudflare Worker URLs tied to private accounts.
-
