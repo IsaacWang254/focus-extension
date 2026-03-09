@@ -11,6 +11,7 @@ import * as todoist from '../lib/todoist.js';
 let settings = null;
 let originalSettingsJson = null; // Store original settings for comparison
 let hasUnsavedChanges = false;
+let todoTaskProgressPreview = null;
 
 // =============================================================================
 // KEYWORD MATCHING HELPERS
@@ -1275,6 +1276,11 @@ function populateSettings() {
 
   // Complete todo
   document.getElementById('todo-enabled').checked = methods.completeTodo.enabled;
+  document.getElementById('todo-mode').value = methods.completeTodo.mode || 'single';
+  document.getElementById('todo-required-count').value = methods.completeTodo.requiredCount || 3;
+  updateMethodOptions('todo');
+  updateTodoRequirementOptions();
+  refreshTodoTaskProgressPreview();
 
   // Type phrase
   document.getElementById('phrase-enabled').checked = methods.typePhrase.enabled;
@@ -1375,6 +1381,61 @@ function updateMethodOptions(method) {
     optionsEl.classList.remove('hidden');
   } else {
     optionsEl.classList.add('hidden');
+  }
+
+  if (method === 'todo') {
+    refreshTodoTaskProgressPreview();
+  }
+}
+
+function updateTodoRequirementOptions() {
+  const mode = document.getElementById('todo-mode')?.value || 'single';
+  const countRow = document.getElementById('todo-count-row');
+  if (countRow) {
+    countRow.classList.toggle('hidden', mode !== 'daily');
+  }
+}
+
+function updateProfileTodoRequirementOptions() {
+  const enabled = document.getElementById('profile-todo-enabled')?.checked;
+  const mode = document.getElementById('profile-todo-mode')?.value || 'single';
+  const countRow = document.getElementById('profile-todo-count-row');
+
+  if (countRow) {
+    countRow.classList.toggle('hidden', !enabled || mode !== 'daily');
+  }
+}
+
+async function refreshTodoTaskProgressPreview() {
+  const enabled = document.getElementById('todo-enabled')?.checked;
+  const mode = document.getElementById('todo-mode')?.value || 'single';
+  const hintEl = document.querySelector('#todo-options .option-hint');
+
+  if (!hintEl) {
+    return;
+  }
+
+  if (!enabled) {
+    hintEl.textContent = 'Once enabled, the task requirement must be met before the normal access-time picker appears.';
+    return;
+  }
+
+  if (mode !== 'daily') {
+    hintEl.textContent = 'Complete one task on the blocked page, then choose how long to unblock the site.';
+    return;
+  }
+
+  try {
+    const progress = await chrome.runtime.sendMessage({ type: 'GET_COMPLETE_TODO_PROGRESS' });
+    todoTaskProgressPreview = progress;
+    const required = Math.max(1, parseInt(document.getElementById('todo-required-count')?.value, 10) || progress?.requiredCount || 3);
+    const completed = progress?.completedCount || 0;
+    const remaining = Math.max(0, required - completed);
+    hintEl.textContent = remaining > 0
+      ? `Today: ${completed}/${required} tasks completed. Finish ${remaining} more, then choose an unblock duration.`
+      : `Today: ${completed}/${required} tasks completed. The task gate is already satisfied, so time-based unblocking is available.`;
+  } catch (error) {
+    hintEl.textContent = 'Complete the required number of Todoist tasks today, then choose how long to unblock the site.';
   }
 }
 
@@ -1624,9 +1685,17 @@ function setupEventListeners() {
     if (checkbox) {
       checkbox.addEventListener('change', () => {
         updateMethodOptions(method);
+        if (method === 'todo') {
+          updateTodoRequirementOptions();
+        }
       });
     }
   });
+
+  document.getElementById('todo-mode').addEventListener('change', updateTodoRequirementOptions);
+  document.getElementById('todo-mode').addEventListener('change', refreshTodoTaskProgressPreview);
+  document.getElementById('todo-required-count').addEventListener('input', refreshTodoTaskProgressPreview);
+  document.getElementById('todo-enabled').addEventListener('change', refreshTodoTaskProgressPreview);
 
   // Phrase mode toggle (custom vs random)
   document.getElementById('phrase-use-random').addEventListener('change', updatePhraseMode);
@@ -1707,7 +1776,9 @@ async function saveSettings() {
       minutes: parseInt(document.getElementById('timer-minutes').value, 10) || 5
     },
     completeTodo: {
-      enabled: document.getElementById('todo-enabled').checked
+      enabled: document.getElementById('todo-enabled').checked,
+      mode: document.getElementById('todo-mode').value === 'daily' ? 'daily' : 'single',
+      requiredCount: Math.max(1, parseInt(document.getElementById('todo-required-count').value, 10) || 3)
     },
     typePhrase: {
       enabled: document.getElementById('phrase-enabled').checked,
@@ -2165,7 +2236,9 @@ function gatherCurrentSettings() {
         minutes: parseInt(document.getElementById('timer-minutes').value, 10) || 5
       },
       completeTodo: {
-        enabled: document.getElementById('todo-enabled').checked
+        enabled: document.getElementById('todo-enabled').checked,
+        mode: document.getElementById('todo-mode').value === 'daily' ? 'daily' : 'single',
+        requiredCount: Math.max(1, parseInt(document.getElementById('todo-required-count').value, 10) || 3)
       },
       typePhrase: {
         enabled: document.getElementById('phrase-enabled').checked,
@@ -3031,6 +3104,9 @@ function setupProfileListeners() {
     if (e.key === 'Enter') addProfileSite();
   });
 
+  document.getElementById('profile-todo-enabled').addEventListener('change', updateProfileTodoRequirementOptions);
+  document.getElementById('profile-todo-mode').addEventListener('change', updateProfileTodoRequirementOptions);
+
   // Remove site from profile (delegated)
   document.getElementById('profile-sites-list').addEventListener('click', (e) => {
     if (e.target.classList.contains('site-remove')) {
@@ -3096,8 +3172,11 @@ async function openProfileModal(profileId) {
     document.getElementById('profile-phrase-enabled').checked = methods.typePhrase?.enabled ?? false;
     document.getElementById('profile-math-enabled').checked = methods.mathProblem?.enabled ?? false;
     document.getElementById('profile-todo-enabled').checked = methods.completeTodo?.enabled ?? false;
+    document.getElementById('profile-todo-mode').value = methods.completeTodo?.mode || 'single';
+    document.getElementById('profile-todo-required-count').value = methods.completeTodo?.requiredCount || 3;
     document.getElementById('profile-reason-enabled').checked = methods.typeReason?.enabled ?? false;
     document.getElementById('profile-require-all').checked = currentEditingProfile.requireAllMethods ?? false;
+    updateProfileTodoRequirementOptions();
 
   } else {
     // Create new profile
@@ -3110,7 +3189,7 @@ async function openProfileModal(profileId) {
         timer: { enabled: true, minutes: 5 },
         typePhrase: { enabled: false, phrase: 'I want to waste my time' },
         mathProblem: { enabled: false },
-        completeTodo: { enabled: false },
+        completeTodo: { enabled: false, mode: 'single', requiredCount: 3 },
         typeReason: { enabled: false, minLength: 50 },
         password: { enabled: false, value: '' }
       },
@@ -3132,8 +3211,11 @@ async function openProfileModal(profileId) {
     document.getElementById('profile-phrase-enabled').checked = false;
     document.getElementById('profile-math-enabled').checked = false;
     document.getElementById('profile-todo-enabled').checked = false;
+    document.getElementById('profile-todo-mode').value = 'single';
+    document.getElementById('profile-todo-required-count').value = 3;
     document.getElementById('profile-reason-enabled').checked = false;
     document.getElementById('profile-require-all').checked = false;
+    updateProfileTodoRequirementOptions();
   }
 
   modal.classList.remove('hidden');
@@ -3273,7 +3355,9 @@ async function saveProfile() {
       enabled: document.getElementById('profile-math-enabled').checked
     },
     completeTodo: {
-      enabled: document.getElementById('profile-todo-enabled').checked
+      enabled: document.getElementById('profile-todo-enabled').checked,
+      mode: document.getElementById('profile-todo-mode').value === 'daily' ? 'daily' : 'single',
+      requiredCount: Math.max(1, parseInt(document.getElementById('profile-todo-required-count').value, 10) || 3)
     },
     typeReason: {
       enabled: document.getElementById('profile-reason-enabled').checked,

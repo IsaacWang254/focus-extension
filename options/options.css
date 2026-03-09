@@ -786,6 +786,11 @@ input.search-input {
   color: var(--foreground);
 }
 
+.option-label .select,
+.option-label .input {
+  margin-left: auto;
+}
+
 .option-hint {
   font-size: 0.75rem;
   color: var(--muted-foreground);

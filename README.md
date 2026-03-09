@@ -11,6 +11,7 @@ Chrome extension for blocking distracting sites and replacing them with a focuse
 - **Smart unblock flows**:
   - Timed unlock, typing a phrase or reason, math challenge, optional password
   - **Earned time** by completing Todoist tasks
+  - Task-goal unlocks based on completing one task now or a required number of tasks today
 - **New tab dashboard**:
   - Clock, greeting, motivational quote
   - Weather

@@ -932,6 +932,40 @@ body::before {
   transition: width 0.5s ease-out;
 }
 
+.todo-progress {
+  margin-top: var(--space-3);
+}
+
+.todo-progress-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.todo-progress-count {
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+#todo-progress .progress-bar {
+  height: 8px;
+  background-color: var(--muted);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+#todo-progress .progress-fill {
+  width: 0%;
+  height: 100%;
+  background: var(--indigo);
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease-out;
+}
+
 /* Math Problem */
 .math-problem {
   font-size: 1.5rem;

@@ -110,7 +110,7 @@ const DEFAULT_SETTINGS = {
   },
   unblockMethods: {
     timer: { enabled: false, minutes: 5 },
-    completeTodo: { enabled: true },
+    completeTodo: { enabled: true, mode: 'single', requiredCount: 3 },
     typePhrase: { enabled: false, phrase: 'I want to waste my time', useRandomString: false, randomLength: 30 },
     typeReason: { enabled: true, minLength: 50 },
     mathProblem: { enabled: false },
@@ -185,7 +185,7 @@ const DEFAULT_PROFILE = {
   },
   unblockMethods: {
     timer: { enabled: false, minutes: 5 },
-    completeTodo: { enabled: true },
+    completeTodo: { enabled: true, mode: 'single', requiredCount: 3 },
     typePhrase: { enabled: false, phrase: 'I want to waste my time', useRandomString: false, randomLength: 30 },
     typeReason: { enabled: true, minLength: 50 },
     mathProblem: { enabled: false },
@@ -208,7 +208,7 @@ const PROFILE_TEMPLATES = {
     ],
     unblockMethods: {
       timer: { enabled: true, minutes: 10 },
-      completeTodo: { enabled: false },
+      completeTodo: { enabled: false, mode: 'single', requiredCount: 3 },
       typePhrase: { enabled: true, phrase: 'I should be working right now', useRandomString: false, randomLength: 30 },
       typeReason: { enabled: false, minLength: 50 },
       mathProblem: { enabled: false },
@@ -226,7 +226,7 @@ const PROFILE_TEMPLATES = {
     ],
     unblockMethods: {
       timer: { enabled: true, minutes: 15 },
-      completeTodo: { enabled: true },
+      completeTodo: { enabled: true, mode: 'single', requiredCount: 3 },
       typePhrase: { enabled: false, phrase: 'I want to waste my time', useRandomString: false, randomLength: 30 },
       typeReason: { enabled: true, minLength: 50 },
       mathProblem: { enabled: true },
@@ -241,7 +241,7 @@ const PROFILE_TEMPLATES = {
     categories: [],
     unblockMethods: {
       timer: { enabled: true, minutes: 1 },
-      completeTodo: { enabled: false },
+      completeTodo: { enabled: false, mode: 'single', requiredCount: 3 },
       typePhrase: { enabled: false, phrase: 'I want to waste my time', useRandomString: false, randomLength: 30 },
       typeReason: { enabled: false, minLength: 50 },
       mathProblem: { enabled: false },
@@ -305,6 +305,7 @@ async function migrateSettings() {
         ...DEFAULT_SETTINGS.unblockMethods,
         ...existingSettings.unblockMethods
       };
+      migratedSettings.unblockMethods.completeTodo = normalizeCompleteTodoSettings(migratedSettings.unblockMethods.completeTodo);
     }
 
     if (DEFAULT_SETTINGS.schedule && existingSettings.schedule) {
@@ -359,6 +360,9 @@ async function migrateSettings() {
           ...(profile.schedule || {})
         }
       }));
+      migratedProfiles.forEach(profile => {
+        profile.unblockMethods.completeTodo = normalizeCompleteTodoSettings(profile.unblockMethods.completeTodo);
+      });
       await chrome.storage.local.set({ profiles: migratedProfiles });
       console.log('Profiles migrated:', migratedProfiles.map(p => ({ id: p.id, name: p.name, blockedSitesCount: p.blockedSites?.length })));
     }
@@ -502,6 +506,9 @@ chrome.storage.onChanged.addListener(async (changes, namespace) => {
 async function getSettings() {
   const result = await chrome.storage.local.get('settings');
   const globalSettings = result.settings || { ...DEFAULT_SETTINGS };
+  if (globalSettings.unblockMethods) {
+    globalSettings.unblockMethods.completeTodo = normalizeCompleteTodoSettings(globalSettings.unblockMethods.completeTodo);
+  }
 
   // Get active profile
   const data = await chrome.storage.local.get(['profiles', 'activeProfileId']);
@@ -534,7 +541,10 @@ async function getSettings() {
     blockedKeywords: activeProfile.blockedKeywords || globalSettings.blockedKeywords,
     allowedUrls: activeProfile.allowedUrls || globalSettings.allowedUrls,
     schedule: activeProfile.schedule || globalSettings.schedule,
-    unblockMethods: activeProfile.unblockMethods || globalSettings.unblockMethods,
+    unblockMethods: {
+      ...(activeProfile.unblockMethods || globalSettings.unblockMethods),
+      completeTodo: normalizeCompleteTodoSettings((activeProfile.unblockMethods || globalSettings.unblockMethods)?.completeTodo)
+    },
     requireAllMethods: activeProfile.requireAllMethods !== undefined ? activeProfile.requireAllMethods : globalSettings.requireAllMethods,
     // Keep reference to active profile
     _activeProfileId: activeProfileId,
@@ -638,6 +648,17 @@ function isTimeInRange(time, start, end) {
     // Overnight range
     return time >= start || time < end;
   }
+}
+
+function normalizeCompleteTodoSettings(method = {}) {
+  const normalizedMode = method.mode === 'daily' ? 'daily' : 'single';
+  const parsedRequiredCount = parseInt(method.requiredCount, 10);
+
+  return {
+    enabled: !!method.enabled,
+    mode: normalizedMode,
+    requiredCount: Number.isFinite(parsedRequiredCount) && parsedRequiredCount > 0 ? parsedRequiredCount : 3
+  };
 }
 
 /**
@@ -936,6 +957,9 @@ async function handleMessage(message, sender) {
       const result = await chrome.storage.local.get('settings');
       const currentSettings = result.settings || { ...DEFAULT_SETTINGS };
       const mergedSettings = { ...currentSettings, ...message.settings };
+      if (mergedSettings.unblockMethods) {
+        mergedSettings.unblockMethods.completeTodo = normalizeCompleteTodoSettings(mergedSettings.unblockMethods.completeTodo);
+      }
       await chrome.storage.local.set({ settings: mergedSettings });
 
       return { success: true };
@@ -991,6 +1015,9 @@ async function handleMessage(message, sender) {
 
     case 'GET_EARNED_TIME':
       return await getEarnedTimeInfo();
+
+    case 'GET_COMPLETE_TODO_PROGRESS':
+      return await getCompleteTodoProgress();
 
     case 'ADD_EARNED_TIME':
       return await addEarnedTime(message.taskCount || 1);
@@ -3860,6 +3887,65 @@ async function getEarnedTimeInfo() {
   };
 }
 
+async function getCompleteTodoProgress() {
+  const settings = await getSettings();
+  const methodSettings = normalizeCompleteTodoSettings(settings.unblockMethods?.completeTodo);
+
+  if (!methodSettings.enabled) {
+    return {
+      enabled: false,
+      mode: methodSettings.mode,
+      requiredCount: methodSettings.requiredCount,
+      completedCount: 0,
+      remainingCount: 0,
+      satisfied: false
+    };
+  }
+
+  if (methodSettings.mode === 'daily') {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const since = startOfDay.toISOString();
+    const until = today.toISOString();
+
+    try {
+      const module = await import('./lib/todoist.js');
+      const completedTasks = await module.getCompletedTasks({ since, until, limit: 200 });
+      const completedCount = completedTasks.length;
+      const remainingCount = Math.max(0, methodSettings.requiredCount - completedCount);
+
+      return {
+        enabled: true,
+        mode: 'daily',
+        requiredCount: methodSettings.requiredCount,
+        completedCount,
+        remainingCount,
+        satisfied: completedCount >= methodSettings.requiredCount
+      };
+    } catch (error) {
+      console.error('Failed to get daily task completion progress:', error);
+      return {
+        enabled: true,
+        mode: 'daily',
+        requiredCount: methodSettings.requiredCount,
+        completedCount: 0,
+        remainingCount: methodSettings.requiredCount,
+        satisfied: false,
+        error: error.message
+      };
+    }
+  }
+
+  return {
+    enabled: true,
+    mode: 'single',
+    requiredCount: 1,
+    completedCount: 0,
+    remainingCount: 1,
+    satisfied: false
+  };
+}
+
 /**
  * Reset earned time bank
  */
@@ -4395,6 +4481,8 @@ async function createProfile(profileData) {
     requireAllMethods: profileData.requireAllMethods || false
   };
 
+  newProfile.unblockMethods.completeTodo = normalizeCompleteTodoSettings(newProfile.unblockMethods.completeTodo);
+
   profiles.push(newProfile);
   await chrome.storage.local.set({ profiles });
 
@@ -4419,6 +4507,9 @@ async function updateProfile(profileId, updates) {
   delete updates.id;
 
   profiles[index] = { ...profiles[index], ...updates };
+  if (profiles[index].unblockMethods) {
+    profiles[index].unblockMethods.completeTodo = normalizeCompleteTodoSettings(profiles[index].unblockMethods.completeTodo);
+  }
   await chrome.storage.local.set({ profiles });
 
   // If this is the active profile, update blocking rules

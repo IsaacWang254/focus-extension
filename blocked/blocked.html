@@ -94,7 +94,16 @@
             <span id="todo-status" class="method-status"></span>
           </div>
           <div class="method-content">
-            <p class="method-hint">Complete at least one task from the list above to unlock.</p>
+            <p class="method-hint" id="todo-method-hint">Complete at least one task from the list above to unlock.</p>
+            <div id="todo-progress" class="todo-progress" style="display: none;">
+              <div class="todo-progress-row">
+                <span class="todo-progress-label">Today's progress</span>
+                <span id="todo-progress-count" class="todo-progress-count">0 / 0</span>
+              </div>
+              <div class="progress-bar">
+                <div id="todo-progress-fill" class="progress-fill"></div>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -235,6 +244,28 @@
           </div>
           
           <p class="earned-time-settings-hint">You can adjust earned time settings in <a href="#" id="open-options-earned-time">Settings</a>.</p>
+        </div>
+
+        <!-- Daily Task Goal Locked -->
+        <div id="daily-task-goal-locked" class="insufficient-earned-time" style="display: none;">
+          <div class="insufficient-earned-time-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 11l3 3L22 4"></path>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+          </div>
+          <h3>Daily Task Goal Not Met</h3>
+          <p>Finish your required tasks for today before this site can be unblocked.</p>
+
+          <div class="earned-time-bank-display">
+            <p class="earned-time-bank-label">Progress today:</p>
+            <div class="earned-time-bank-value">
+              <span id="daily-task-progress-count">0</span> / <span id="daily-task-progress-required">0</span> tasks
+            </div>
+            <p class="earned-time-earn-hint" id="daily-task-progress-hint">Complete more tasks from the list above to continue.</p>
+          </div>
+
+          <p class="earned-time-settings-hint">You can adjust this task goal in <a href="#" id="open-options-daily-task-goal">Settings</a>.</p>
         </div>
 
         <!-- Nuclear Mode Active -->

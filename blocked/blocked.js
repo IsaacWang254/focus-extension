@@ -27,6 +27,7 @@ let mathProblem = { a: 0, b: 0, op: '+', answer: 0 };
 let currentRandomPhrase = '';
 let currentReason = ''; // Store the reason for unblocking
 let earnedTimeInfo = null; // Store earned time info
+let completeTodoProgress = null;
 
 const COMMON_REASON_WORDS = new Set([
   'a', 'about', 'after', 'am', 'an', 'and', 'because', 'before', 'but', 'for',
@@ -284,6 +285,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Update earned time info card
     await updateEarnedTimeInfoCard();
 
+    // Load task completion progress for todo-based unlocks
+    await loadCompleteTodoProgress();
+
     // Check authentication and load todos
     const isAuthenticated = await todoist.isAuthenticated();
 
@@ -293,6 +297,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       showAuthSection();
     }
+
+    updateCompleteTodoUI();
 
     // Setup unblock methods
     await setupUnblockMethods();
@@ -758,9 +764,25 @@ async function completeTask(taskId, listItem, checkbox) {
 
     // Check if completeTodo method is satisfied
     if (settings.unblockMethods.completeTodo.enabled && !completedMethods.completeTodo) {
-      completedMethods.completeTodo = true;
-      updateMethodStatus('method-todo', 'todo-status', true);
-      checkUnblockReady();
+      if (settings.unblockMethods.completeTodo.mode === 'daily') {
+        await loadCompleteTodoProgress();
+        updateCompleteTodoUI();
+
+        if (completeTodoProgress?.satisfied) {
+          completedMethods.completeTodo = true;
+          updateMethodStatus('method-todo', 'todo-status', true);
+          checkUnblockReady();
+
+          const dailyGoalLocked = document.getElementById('daily-task-goal-locked');
+          if (dailyGoalLocked && dailyGoalLocked.style.display === 'block') {
+            location.reload();
+          }
+        }
+      } else {
+        completedMethods.completeTodo = true;
+        updateMethodStatus('method-todo', 'todo-status', true);
+        checkUnblockReady();
+      }
     }
 
     // Remove the item after animation completes
@@ -977,6 +999,42 @@ function formatTime12Hour(hours, minutes) {
   return `${displayHours}:${displayMinutes} ${period}`;
 }
 
+async function loadCompleteTodoProgress() {
+  try {
+    completeTodoProgress = await chrome.runtime.sendMessage({ type: 'GET_COMPLETE_TODO_PROGRESS' });
+  } catch (error) {
+    completeTodoProgress = null;
+    console.error('Failed to load task completion progress:', error);
+  }
+}
+
+function updateCompleteTodoUI() {
+  const methodHintEl = document.getElementById('todo-method-hint');
+  const progressEl = document.getElementById('todo-progress');
+  const progressCountEl = document.getElementById('todo-progress-count');
+  const progressFillEl = document.getElementById('todo-progress-fill');
+
+  if (!methodHintEl) {
+    return;
+  }
+
+  const todoSettings = settings?.unblockMethods?.completeTodo || {};
+  const mode = todoSettings.mode || 'single';
+  const requiredCount = Math.max(1, todoSettings.requiredCount || 3);
+
+  if (mode === 'daily') {
+    const completedCount = completeTodoProgress?.completedCount || 0;
+    const percentage = Math.min((completedCount / requiredCount) * 100, 100);
+    methodHintEl.textContent = `Complete ${requiredCount} tasks today to unlock time-based access.`;
+    if (progressEl) progressEl.style.display = 'block';
+    if (progressCountEl) progressCountEl.textContent = `${completedCount} / ${requiredCount}`;
+    if (progressFillEl) progressFillEl.style.width = `${percentage}%`;
+  } else {
+    methodHintEl.textContent = 'Complete at least one task from the list above to unlock.';
+    if (progressEl) progressEl.style.display = 'none';
+  }
+}
+
 /**
  * Update the daily limit info card
  */
@@ -1149,6 +1207,7 @@ async function showDailyLimitExceeded() {
   document.querySelectorAll('.unblock-methods .method').forEach(el => el.style.display = 'none');
   document.getElementById('no-methods').style.display = 'none';
   document.getElementById('schedule-locked').style.display = 'none';
+  document.getElementById('daily-task-goal-locked').style.display = 'none';
   document.querySelector('.time-limit-section').style.display = 'none';
   document.querySelector('.unblock-action').style.display = 'none';
 
@@ -1187,6 +1246,7 @@ async function showNuclearModeActive(nuclearStatus) {
   document.getElementById('no-methods').style.display = 'none';
   document.getElementById('schedule-locked').style.display = 'none';
   document.getElementById('daily-limit-exceeded').style.display = 'none';
+  document.getElementById('daily-task-goal-locked').style.display = 'none';
   document.getElementById('insufficient-earned-time').style.display = 'none';
   document.querySelector('.time-limit-section').style.display = 'none';
   document.querySelector('.unblock-action').style.display = 'none';
@@ -1258,6 +1318,7 @@ async function showInsufficientEarnedTime() {
   document.getElementById('no-methods').style.display = 'none';
   document.getElementById('schedule-locked').style.display = 'none';
   document.getElementById('daily-limit-exceeded').style.display = 'none';
+  document.getElementById('daily-task-goal-locked').style.display = 'none';
   document.querySelector('.time-limit-section').style.display = 'none';
   document.querySelector('.unblock-action').style.display = 'none';
 
@@ -1273,6 +1334,47 @@ async function showInsufficientEarnedTime() {
 
   // Setup link to settings
   const settingsLink = document.getElementById('open-options-earned-time');
+  if (settingsLink) {
+    settingsLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.runtime.openOptionsPage();
+    });
+  }
+}
+
+async function showDailyTaskGoalLocked() {
+  const progress = completeTodoProgress || await chrome.runtime.sendMessage({ type: 'GET_COMPLETE_TODO_PROGRESS' });
+  completeTodoProgress = progress;
+
+  document.querySelector('#unblock-section .section-header').style.display = 'none';
+
+  document.querySelectorAll('.unblock-methods .method').forEach(el => {
+    if (el.id !== 'method-todo') {
+      el.style.display = 'none';
+    }
+  });
+  document.getElementById('no-methods').style.display = 'none';
+  document.getElementById('schedule-locked').style.display = 'none';
+  document.getElementById('daily-limit-exceeded').style.display = 'none';
+  document.getElementById('insufficient-earned-time').style.display = 'none';
+  document.querySelector('.time-limit-section').style.display = 'none';
+  document.querySelector('.unblock-action').style.display = 'none';
+
+  const lockedSection = document.getElementById('daily-task-goal-locked');
+  lockedSection.style.display = 'block';
+
+  document.getElementById('daily-task-progress-count').textContent = progress?.completedCount || 0;
+  document.getElementById('daily-task-progress-required').textContent = progress?.requiredCount || 0;
+
+  const remaining = progress?.remainingCount || 0;
+  const hint = document.getElementById('daily-task-progress-hint');
+  if (hint) {
+    hint.textContent = remaining > 0
+      ? `Complete ${remaining} more task${remaining === 1 ? '' : 's'} from Todoist to continue.`
+      : 'Task goal complete. Reload if the unlock controls do not appear yet.';
+  }
+
+  const settingsLink = document.getElementById('open-options-daily-task-goal');
   if (settingsLink) {
     settingsLink.addEventListener('click', (e) => {
       e.preventDefault();
@@ -1307,6 +1409,19 @@ async function setupUnblockMethods() {
     return;
   }
 
+  if (methods.completeTodo.enabled && methods.completeTodo.mode === 'daily') {
+    completeTodoProgress = completeTodoProgress || await chrome.runtime.sendMessage({ type: 'GET_COMPLETE_TODO_PROGRESS' });
+    updateCompleteTodoUI();
+
+    if (!completeTodoProgress?.satisfied) {
+      await showDailyTaskGoalLocked();
+      return;
+    }
+
+    completedMethods.completeTodo = true;
+    updateMethodStatus('method-todo', 'todo-status', true);
+  }
+
   // Check if we're in an allowed time window
   const canUnblock = isInAllowedTimeWindow(schedule);
 
@@ -1338,6 +1453,7 @@ async function setupUnblockMethods() {
   if (methods.completeTodo.enabled) {
     document.getElementById('method-todo').style.display = 'block';
     anyMethodEnabled = true;
+    updateCompleteTodoUI();
   }
 
   // Type phrase method
@@ -1396,6 +1512,7 @@ function showScheduleLocked(schedule) {
   // Hide individual unblock methods instead of the whole container
   document.querySelectorAll('.unblock-methods .method').forEach(el => el.style.display = 'none');
   document.getElementById('no-methods').style.display = 'none';
+  document.getElementById('daily-task-goal-locked').style.display = 'none';
   document.querySelector('.time-limit-section').style.display = 'none';
   document.querySelector('.unblock-action').style.display = 'none';
 
