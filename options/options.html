@@ -42,6 +42,7 @@
         <div class="sidebar-group-label">Automation</div>
         <a href="#section-focus-presets" class="sidebar-link" data-section="section-focus-presets">Focus Sessions</a>
         <a href="#section-schedule" class="sidebar-link" data-section="section-schedule">Block Schedule</a>
+        <a href="#section-bedtime" class="sidebar-link" data-section="section-bedtime">Bedtime Reminder</a>
         <a href="#section-nuclear" class="sidebar-link" data-section="section-nuclear">Nuclear Mode</a>
         <a href="#section-profiles" class="sidebar-link" data-section="section-profiles">Profiles</a>
       </div>
@@ -827,6 +828,34 @@
               <!-- Time windows will be added here dynamically -->
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- Bedtime Reminder -->
+      <section id="section-bedtime" class="section"
+        data-search-keywords="bedtime sleep reminder cutoff stop computer night new tab">
+        <h2>Bedtime Reminder</h2>
+        <p class="section-desc">Show a clear reminder on the new tab page when it's time to get off your computer.</p>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Enable Bedtime Reminder</span>
+            <span class="setting-desc">After your chosen time, the new tab page will remind you to stop for the night.</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="bedtime-reminder-enabled">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <hr class="divider">
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Reminder Time</span>
+            <span class="setting-desc">Choose when you want the nightly stop-computer reminder to start appearing.</span>
+          </div>
+          <input type="time" id="bedtime-reminder-time" class="input input-small" value="22:30">
         </div>
       </section>
 

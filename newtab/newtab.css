@@ -241,6 +241,85 @@ body {
 }
 
 /* ============================================
+   Bedtime Reminder
+   ============================================ */
+
+.bedtime-reminder {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  width: min(100%, 720px);
+  margin: 0 auto var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: calc(var(--radius-lg) + 4px);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.14), rgba(249, 115, 22, 0.08));
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  animation: newtabFadeIn 0.4s ease;
+}
+
+.bedtime-reminder-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  color: #f59e0b;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.bedtime-reminder-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.bedtime-reminder-copy {
+  min-width: 0;
+}
+
+.bedtime-reminder-eyebrow {
+  margin: 0 0 var(--space-1);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #b45309;
+}
+
+.bedtime-reminder-title {
+  margin: 0 0 var(--space-1);
+  font-size: 1.35rem;
+  line-height: 1.2;
+  color: var(--foreground);
+}
+
+.bedtime-reminder-text {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+
+[data-theme='dark'] .bedtime-reminder,
+[data-theme='brutalist-dark'] .bedtime-reminder {
+  border-color: rgba(251, 191, 36, 0.22);
+  background: linear-gradient(135deg, rgba(120, 53, 15, 0.38), rgba(146, 64, 14, 0.2));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+}
+
+[data-theme='dark'] .bedtime-reminder-icon,
+[data-theme='brutalist-dark'] .bedtime-reminder-icon {
+  background: rgba(15, 23, 42, 0.42);
+}
+
+[data-theme='dark'] .bedtime-reminder-eyebrow,
+[data-theme='brutalist-dark'] .bedtime-reminder-eyebrow {
+  color: #fbbf24;
+}
+
+/* ============================================
    Weather Section
    ============================================ */
 
@@ -805,6 +884,16 @@ body {
 
   .greeting {
     font-size: 1.125rem;
+  }
+
+  .bedtime-reminder {
+    width: 100%;
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .bedtime-reminder-title {
+    font-size: 1.1rem;
   }
 
   .content-panels {

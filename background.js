@@ -98,6 +98,8 @@ const DEFAULT_SETTINGS = {
     maxBankMinutes: 60, // Maximum banked minutes
     requireTasksToUnlock: false, // If true, must have earned time to unblock
   },
+  bedtimeReminderEnabled: false,
+  bedtimeReminderTime: '22:30',
   schedule: {
     enabled: false,
     // Times when sites are UNBLOCKED (allowed)

@@ -23,6 +23,8 @@ const DEFAULTS = {
   newtabTempUnit: 'C', // 'C' or 'F'
   newtabBgColorLight: 'default',
   newtabBgColorDark: 'default',
+  bedtimeReminderEnabled: false,
+  bedtimeReminderTime: '22:30',
 };
 
 const BG_PRESETS = {
@@ -70,6 +72,7 @@ function clearAccentColorOverrides() {
 let allTasks = [];
 let tasksExpanded = false;
 let completedToday = [];
+let reminderIntervalId = null;
 
 // =============================================================================
 // THEME (same pattern as blocked.js / options.js)
@@ -192,6 +195,7 @@ function setupIcons() {
   document.getElementById('calendar-icon').innerHTML = Icons.calendar;
   document.getElementById('todos-icon').innerHTML = Icons.list;
   document.getElementById('completed-icon').innerHTML = Icons.checkCircle;
+  document.getElementById('bedtime-reminder-icon').innerHTML = Icons.moon;
 }
 
 // =============================================================================
@@ -226,6 +230,90 @@ function startClock() {
   setInterval(updateClock, 1000);
   // Update greeting every minute (in case hour changes)
   setInterval(updateGreeting, 60000);
+}
+
+function parseTimeString(timeString) {
+  if (typeof timeString !== 'string') {
+    return null;
+  }
+
+  const match = timeString.match(/^(\d{2}):(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+
+  const hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+
+  return { hours, minutes };
+}
+
+function formatReminderTime(timeString) {
+  const parsed = parseTimeString(timeString);
+  if (!parsed) {
+    return timeString;
+  }
+
+  const date = new Date();
+  date.setHours(parsed.hours, parsed.minutes, 0, 0);
+
+  return date.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
+function isPastBedtime(timeString, now = new Date()) {
+  const parsed = parseTimeString(timeString);
+  if (!parsed) {
+    return false;
+  }
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const cutoffMinutes = parsed.hours * 60 + parsed.minutes;
+  return currentMinutes >= cutoffMinutes;
+}
+
+function renderBedtimeReminder(settings) {
+  const reminderEl = document.getElementById('bedtime-reminder');
+  const textEl = document.getElementById('bedtime-reminder-text');
+  if (!reminderEl || !textEl) {
+    return;
+  }
+
+  const enabled = !!settings.bedtimeReminderEnabled;
+  const time = settings.bedtimeReminderTime || DEFAULTS.bedtimeReminderTime;
+  const showReminder = enabled && isPastBedtime(time);
+
+  reminderEl.classList.toggle('hidden', !showReminder);
+
+  if (!showReminder) {
+    return;
+  }
+
+  textEl.textContent = `You planned to start winding down at ${formatReminderTime(time)}. Wrap up, close the laptop, and head toward bed.`;
+}
+
+async function refreshBedtimeReminder() {
+  const result = await chrome.storage.local.get(['bedtimeReminderEnabled', 'bedtimeReminderTime']);
+  const settings = { ...DEFAULTS, ...result };
+  renderBedtimeReminder(settings);
+}
+
+function startBedtimeReminderRefresh() {
+  if (reminderIntervalId) {
+    clearInterval(reminderIntervalId);
+  }
+
+  reminderIntervalId = window.setInterval(() => {
+    refreshBedtimeReminder().catch(error => {
+      console.error('Failed to refresh bedtime reminder:', error);
+    });
+  }, 60000);
 }
 
 function updateDate() {
@@ -405,6 +493,7 @@ async function loadSettings() {
 
   // Apply visibility
   applyVisibility(settings);
+  renderBedtimeReminder(settings);
 
   // Apply background color for current theme
   const bgKey = getBgStorageKey();
@@ -1070,6 +1159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Start clock
   startClock();
+  startBedtimeReminderRefresh();
 
   // Load quote
   loadQuote();

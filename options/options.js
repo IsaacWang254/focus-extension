@@ -1324,6 +1324,10 @@ function populateSettings() {
   // Focus session presets
   populateFocusPresets();
 
+  // Bedtime reminder
+  document.getElementById('bedtime-reminder-enabled').checked = settings.bedtimeReminderEnabled || false;
+  document.getElementById('bedtime-reminder-time').value = settings.bedtimeReminderTime || '22:30';
+
   // Schedule
   populateSchedule();
 }
@@ -1706,6 +1710,10 @@ function setupEventListeners() {
   // Earned time toggle
   document.getElementById('earned-time-enabled').addEventListener('change', updateEarnedTimeOptions);
 
+  // Bedtime reminder toggle/input
+  document.getElementById('bedtime-reminder-enabled').addEventListener('change', markAsChanged);
+  document.getElementById('bedtime-reminder-time').addEventListener('change', markAsChanged);
+
   // Reset earned time
   document.getElementById('reset-earned-time').addEventListener('click', resetEarnedTimeBank);
 
@@ -1756,6 +1764,9 @@ async function saveSettings() {
     maxBankMinutes: parseInt(document.getElementById('earned-time-max-bank').value, 10) || 60,
     requireTasksToUnlock: document.getElementById('earned-time-required').checked
   };
+
+  settings.bedtimeReminderEnabled = document.getElementById('bedtime-reminder-enabled').checked;
+  settings.bedtimeReminderTime = document.getElementById('bedtime-reminder-time').value || '22:30';
 
   // Schedule settings
   const activeDays = [];
@@ -2225,6 +2236,8 @@ function gatherCurrentSettings() {
       maxBankMinutes: parseInt(document.getElementById('earned-time-max-bank').value, 10) || 60,
       requireTasksToUnlock: document.getElementById('earned-time-required').checked
     },
+    bedtimeReminderEnabled: document.getElementById('bedtime-reminder-enabled').checked,
+    bedtimeReminderTime: document.getElementById('bedtime-reminder-time').value || '22:30',
     schedule: {
       enabled: document.getElementById('schedule-enabled').checked,
       allowedTimes: settings.schedule?.allowedTimes || [],
