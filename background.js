@@ -100,6 +100,7 @@ const DEFAULT_SETTINGS = {
   },
   bedtimeReminderEnabled: false,
   bedtimeReminderTime: '22:30',
+  bedtimeReminderEndTime: '07:00',
   schedule: {
     enabled: false,
     // Times when sites are UNBLOCKED (allowed)
@@ -129,6 +130,8 @@ const DEFAULT_SETTINGS = {
     long: { workMinutes: 50, breakMinutes: 10, longBreakMinutes: 20, sessionsBeforeLongBreak: 3 }
   }
 };
+
+const BEDTIME_REMINDER_ALARM = 'bedtimeReminder';
 
 // Default profile structure
 const DEFAULT_PROFILE = {

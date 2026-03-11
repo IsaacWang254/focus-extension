@@ -1327,6 +1327,7 @@ function populateSettings() {
   // Bedtime reminder
   document.getElementById('bedtime-reminder-enabled').checked = settings.bedtimeReminderEnabled || false;
   document.getElementById('bedtime-reminder-time').value = settings.bedtimeReminderTime || '22:30';
+  document.getElementById('bedtime-reminder-end-time').value = settings.bedtimeReminderEndTime || '07:00';
 
   // Schedule
   populateSchedule();
@@ -1713,6 +1714,7 @@ function setupEventListeners() {
   // Bedtime reminder toggle/input
   document.getElementById('bedtime-reminder-enabled').addEventListener('change', markAsChanged);
   document.getElementById('bedtime-reminder-time').addEventListener('change', markAsChanged);
+  document.getElementById('bedtime-reminder-end-time').addEventListener('change', markAsChanged);
 
   // Reset earned time
   document.getElementById('reset-earned-time').addEventListener('click', resetEarnedTimeBank);
@@ -1767,6 +1769,7 @@ async function saveSettings() {
 
   settings.bedtimeReminderEnabled = document.getElementById('bedtime-reminder-enabled').checked;
   settings.bedtimeReminderTime = document.getElementById('bedtime-reminder-time').value || '22:30';
+  settings.bedtimeReminderEndTime = document.getElementById('bedtime-reminder-end-time').value || '07:00';
 
   // Schedule settings
   const activeDays = [];
@@ -2238,6 +2241,7 @@ function gatherCurrentSettings() {
     },
     bedtimeReminderEnabled: document.getElementById('bedtime-reminder-enabled').checked,
     bedtimeReminderTime: document.getElementById('bedtime-reminder-time').value || '22:30',
+    bedtimeReminderEndTime: document.getElementById('bedtime-reminder-end-time').value || '07:00',
     schedule: {
       enabled: document.getElementById('schedule-enabled').checked,
       allowedTimes: settings.schedule?.allowedTimes || [],

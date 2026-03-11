@@ -25,6 +25,7 @@ const DEFAULTS = {
   newtabBgColorDark: 'default',
   bedtimeReminderEnabled: false,
   bedtimeReminderTime: '22:30',
+  bedtimeReminderEndTime: '07:00',
 };
 
 const BG_PRESETS = {
@@ -267,15 +268,26 @@ function formatReminderTime(timeString) {
   });
 }
 
-function isPastBedtime(timeString, now = new Date()) {
-  const parsed = parseTimeString(timeString);
-  if (!parsed) {
+function isWithinReminderWindow(startTime, endTime, now = new Date()) {
+  const start = parseTimeString(startTime);
+  const end = parseTimeString(endTime);
+  if (!start || !end) {
     return false;
   }
 
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  const cutoffMinutes = parsed.hours * 60 + parsed.minutes;
-  return currentMinutes >= cutoffMinutes;
+  const startMinutes = start.hours * 60 + start.minutes;
+  const endMinutes = end.hours * 60 + end.minutes;
+
+  if (startMinutes === endMinutes) {
+    return true;
+  }
+
+  if (startMinutes < endMinutes) {
+    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+  }
+
+  return currentMinutes >= startMinutes || currentMinutes < endMinutes;
 }
 
 function renderBedtimeReminder(settings) {
@@ -286,8 +298,9 @@ function renderBedtimeReminder(settings) {
   }
 
   const enabled = !!settings.bedtimeReminderEnabled;
-  const time = settings.bedtimeReminderTime || DEFAULTS.bedtimeReminderTime;
-  const showReminder = enabled && isPastBedtime(time);
+  const startTime = settings.bedtimeReminderTime || DEFAULTS.bedtimeReminderTime;
+  const endTime = settings.bedtimeReminderEndTime || DEFAULTS.bedtimeReminderEndTime;
+  const showReminder = enabled && isWithinReminderWindow(startTime, endTime);
 
   reminderEl.classList.toggle('hidden', !showReminder);
 
@@ -295,13 +308,25 @@ function renderBedtimeReminder(settings) {
     return;
   }
 
-  textEl.textContent = `You planned to start winding down at ${formatReminderTime(time)}. Wrap up, close the laptop, and head toward bed.`;
+  textEl.textContent = `You planned to start winding down at ${formatReminderTime(startTime)} and stay off until ${formatReminderTime(endTime)}. Wrap up, close the laptop, and head toward bed.`;
 }
 
 async function refreshBedtimeReminder() {
-  const result = await chrome.storage.local.get(['bedtimeReminderEnabled', 'bedtimeReminderTime']);
-  const settings = { ...DEFAULTS, ...result };
+  const settings = await getBedtimeReminderSettings();
   renderBedtimeReminder(settings);
+}
+
+async function getBedtimeReminderSettings() {
+  const [{ settings = {} }, localSettings] = await Promise.all([
+    chrome.storage.local.get('settings'),
+    chrome.storage.local.get(['bedtimeReminderEnabled', 'bedtimeReminderTime', 'bedtimeReminderEndTime'])
+  ]);
+
+  return {
+    ...DEFAULTS,
+    ...settings,
+    ...localSettings
+  };
 }
 
 function startBedtimeReminderRefresh() {
@@ -476,8 +501,20 @@ async function loadWeather() {
 // =============================================================================
 
 async function loadSettings() {
-  const result = await chrome.storage.local.get(Object.keys(DEFAULTS));
-  const settings = { ...DEFAULTS, ...result };
+  const localDisplaySettings = await chrome.storage.local.get([
+    'newtabShowWeather',
+    'newtabShowQuotes',
+    'newtabShowCalendar',
+    'newtabShowTodos',
+    'newtabTempUnit',
+    'newtabBgColorLight',
+    'newtabBgColorDark'
+  ]);
+  const settings = {
+    ...DEFAULTS,
+    ...(await getBedtimeReminderSettings()),
+    ...localDisplaySettings
+  };
 
   // Apply toggle states
   document.getElementById('toggle-weather').checked = settings.newtabShowWeather;

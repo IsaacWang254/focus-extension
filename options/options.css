@@ -1574,6 +1574,15 @@ input.search-input {
   background-color: var(--accent);
 }
 
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: var(--time-picker-filter, none);
+  opacity: 0.9;
+}
+
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 .time-window-separator {
   font-size: 0.875rem;
   font-weight: 500;
