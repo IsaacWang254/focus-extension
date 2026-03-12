@@ -21,6 +21,27 @@
       <span id="mode-badge" class="badge">Blocklist</span>
     </div>
 
+    <div class="disable-confirm" id="disable-confirm" hidden>
+      <div class="disable-confirm-copy">
+        <span class="disable-confirm-title">Turn blocking off?</span>
+        <p class="disable-confirm-text">Type at least 100 characters explaining why you need to disable blocking.</p>
+      </div>
+      <textarea
+        id="disable-reason-input"
+        class="input disable-reason-input"
+        rows="4"
+        placeholder="I need to disable blocking because..."
+      ></textarea>
+      <div class="disable-reason-meta">
+        <span class="disable-reason-hint">Be specific. This only unlocks once you write it out.</span>
+        <span class="disable-reason-count"><span id="disable-reason-count">0</span> / 100</span>
+      </div>
+      <div class="disable-confirm-actions">
+        <button type="button" class="btn btn-danger" id="disable-confirm-btn" disabled>Disable blocking</button>
+        <button type="button" class="btn btn-secondary" id="disable-cancel-btn">Keep blocking</button>
+      </div>
+    </div>
+
     <div class="profile-row" id="profile-switcher">
       <select id="profile-select" class="profile-select">
         <!-- Profiles loaded dynamically -->

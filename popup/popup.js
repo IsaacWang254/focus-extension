@@ -12,6 +12,9 @@ let sessionUpdateInterval = null;
 let focusSessionInterval = null;
 let selectedPresetType = 'pomodoro';
 let cachedPresets = null;
+let disableInProgress = false;
+
+const DISABLE_REASON_MIN_LENGTH = 100;
 
 // =============================================================================
 // INITIALIZATION
@@ -166,6 +169,92 @@ async function updateUI() {
   document.getElementById('current-domain').textContent = currentDomain || '-';
   document.getElementById('current-domain').classList.toggle('blocked', isCurrentSiteBlocked());
   updateSiteActions();
+  setDisableConfirmationVisible(false);
+}
+
+function setDisableConfirmationVisible(visible) {
+  const confirmEl = document.getElementById('disable-confirm');
+  const toggleEl = document.getElementById('enabled-toggle');
+
+  if (!confirmEl || !toggleEl) {
+    return;
+  }
+
+  confirmEl.hidden = !visible;
+  toggleEl.checked = settings.enabled;
+
+  if (!visible) {
+    resetDisableConfirmation();
+  } else {
+    updateDisableReasonUI();
+    document.getElementById('disable-reason-input')?.focus();
+  }
+}
+
+function getDisableReasonLength() {
+  const reasonInput = document.getElementById('disable-reason-input');
+  return reasonInput?.value.trim().length || 0;
+}
+
+function resetDisableConfirmation() {
+  const reasonInput = document.getElementById('disable-reason-input');
+  const countEl = document.getElementById('disable-reason-count');
+  const confirmButton = document.getElementById('disable-confirm-btn');
+
+  if (reasonInput) {
+    reasonInput.value = '';
+  }
+
+  if (countEl) {
+    countEl.textContent = '0';
+  }
+
+  if (confirmButton) {
+    confirmButton.textContent = 'Disable blocking';
+    confirmButton.disabled = true;
+  }
+}
+
+function updateDisableReasonUI() {
+  const countEl = document.getElementById('disable-reason-count');
+  const confirmButton = document.getElementById('disable-confirm-btn');
+  const reasonLength = getDisableReasonLength();
+
+  if (countEl) {
+    countEl.textContent = String(reasonLength);
+  }
+
+  if (confirmButton && !disableInProgress) {
+    confirmButton.disabled = reasonLength < DISABLE_REASON_MIN_LENGTH;
+  }
+}
+
+async function disableBlockingWithReason() {
+  const reasonLength = getDisableReasonLength();
+  if (reasonLength < DISABLE_REASON_MIN_LENGTH) {
+    updateDisableReasonUI();
+    return;
+  }
+
+  disableInProgress = true;
+
+  const confirmButton = document.getElementById('disable-confirm-btn');
+  if (confirmButton) {
+    confirmButton.disabled = true;
+    confirmButton.textContent = 'Disabling...';
+  }
+
+  try {
+    const result = await chrome.runtime.sendMessage({ type: 'TOGGLE_ENABLED' });
+    settings.enabled = result.enabled;
+    disableInProgress = false;
+    await updateUI();
+  } catch (error) {
+    console.error('Failed to disable blocking:', error);
+    disableInProgress = false;
+    updateDisableReasonUI();
+    document.getElementById('enabled-toggle').checked = true;
+  }
 }
 
 function isCurrentSiteBlocked() {
@@ -364,9 +453,33 @@ function escapeHtml(text) {
 
 function setupEventListeners() {
   document.getElementById('enabled-toggle').addEventListener('change', async () => {
-    const result = await chrome.runtime.sendMessage({ type: 'TOGGLE_ENABLED' });
-    settings.enabled = result.enabled;
-    await updateUI();
+    const toggle = document.getElementById('enabled-toggle');
+
+    if (toggle.checked) {
+      if (settings.enabled) {
+        return;
+      }
+
+      const result = await chrome.runtime.sendMessage({ type: 'TOGGLE_ENABLED' });
+      settings.enabled = result.enabled;
+      await updateUI();
+      return;
+    }
+
+    toggle.checked = true;
+    setDisableConfirmationVisible(true);
+  });
+
+  document.getElementById('disable-cancel-btn').addEventListener('click', () => {
+    setDisableConfirmationVisible(false);
+  });
+
+  document.getElementById('disable-reason-input').addEventListener('input', () => {
+    updateDisableReasonUI();
+  });
+
+  document.getElementById('disable-confirm-btn').addEventListener('click', async () => {
+    await disableBlockingWithReason();
   });
 
   document.getElementById('block-site-btn').addEventListener('click', async () => {
