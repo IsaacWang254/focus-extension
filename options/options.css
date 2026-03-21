@@ -3388,6 +3388,93 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 }
 
 /* ============================================
+   Dashboard Theme
+   ============================================ */
+
+[data-theme="dashboard-light"] body,
+[data-theme="dashboard-dark"] body {
+  background-color: var(--background);
+}
+
+[data-theme="dashboard-light"] .sidebar,
+[data-theme="dashboard-dark"] .sidebar {
+  width: 208px;
+  background: var(--card);
+  border-right-color: var(--border);
+  box-shadow: none;
+}
+
+[data-theme="dashboard-light"] .main-wrapper,
+[data-theme="dashboard-dark"] .main-wrapper {
+  margin-left: 208px;
+}
+
+[data-theme="dashboard-light"] .container,
+[data-theme="dashboard-dark"] .container {
+  max-width: 920px;
+  padding-top: var(--space-8);
+}
+
+[data-theme="dashboard-light"] .header,
+[data-theme="dashboard-dark"] .header {
+  margin-bottom: var(--space-8);
+}
+
+[data-theme="dashboard-light"] .header h1,
+[data-theme="dashboard-dark"] .header h1 {
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="dashboard-light"] .subtitle,
+[data-theme="dashboard-dark"] .subtitle {
+  max-width: 36ch;
+}
+
+[data-theme="dashboard-light"] .sidebar-title,
+[data-theme="dashboard-dark"] .sidebar-title,
+[data-theme="dashboard-light"] .sidebar-group-label,
+[data-theme="dashboard-dark"] .sidebar-group-label {
+  letter-spacing: 0.12em;
+}
+
+[data-theme="dashboard-light"] .sidebar-link,
+[data-theme="dashboard-dark"] .sidebar-link {
+  margin: 0 var(--space-2);
+  border-left: 0;
+  border-radius: 10px;
+}
+
+[data-theme="dashboard-light"] .sidebar-link.active,
+[data-theme="dashboard-dark"] .sidebar-link.active {
+  background: var(--accent);
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+[data-theme="dashboard-light"] .search-wrapper,
+[data-theme="dashboard-dark"] .search-wrapper {
+  --search-right-padding: 92px;
+}
+
+[data-theme="dashboard-light"] .section,
+[data-theme="dashboard-dark"] .section {
+  padding: var(--space-5);
+}
+
+[data-theme="dashboard-light"] .section h2,
+[data-theme="dashboard-dark"] .section h2 {
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="dashboard-light"] .divider,
+[data-theme="dashboard-dark"] .divider {
+  opacity: 0.8;
+}
+
+/* ============================================
    Responsive
    ============================================ */
 
@@ -3464,5 +3551,10 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
   .nuclear-select {
     width: 100%;
+  }
+
+  [data-theme="dashboard-light"] .main-wrapper,
+  [data-theme="dashboard-dark"] .main-wrapper {
+    margin-left: 0;
   }
 }

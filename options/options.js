@@ -784,7 +784,7 @@ async function loadTheme() {
       await chrome.storage.local.set({ theme: 'light' });
     }
 
-    const resolved = brutalist ? (base === 'dark' ? 'brutalist-dark' : 'brutalist') : base;
+    const resolved = resolveThemeVariant(base, { brutalist });
     document.documentElement.setAttribute('data-theme', resolved);
     syncAccentColorSectionVisibility();
   } catch (e) {
@@ -792,12 +792,20 @@ async function loadTheme() {
   }
 }
 
+function resolveThemeVariant(base, { brutalist = false } = {}) {
+  if (brutalist) {
+    return base === 'dark' ? 'brutalist-dark' : 'brutalist';
+  }
+
+  return base === 'dark' ? 'dashboard-dark' : 'dashboard-light';
+}
+
 function setupThemeToggle() {
   const toggle = document.getElementById('theme-toggle');
   toggle.addEventListener('click', async () => {
     const root = document.documentElement;
 
-    // Read storage to get base theme and brutalist state
+    // Read storage to get base theme and active theme mode
     const result = await chrome.storage.local.get(['theme', 'brutalistEnabled']);
     const currentBase = result.theme || 'light';
     const brutalist = result.brutalistEnabled || false;
@@ -806,7 +814,7 @@ function setupThemeToggle() {
     const newBase = currentBase === 'dark' ? 'light' : 'dark';
 
     // Resolve the actual data-theme value
-    const resolved = brutalist ? (newBase === 'dark' ? 'brutalist-dark' : 'brutalist') : newBase;
+    const resolved = resolveThemeVariant(newBase, { brutalist });
     root.setAttribute('data-theme', resolved);
     syncAccentColorSectionVisibility();
 
@@ -831,7 +839,7 @@ function setupBrutalistToggle() {
     const result = await chrome.storage.local.get('theme');
     const base = result.theme || 'light';
 
-    const resolved = enabled ? (base === 'dark' ? 'brutalist-dark' : 'brutalist') : base;
+    const resolved = resolveThemeVariant(base, { brutalist: enabled });
     document.documentElement.setAttribute('data-theme', resolved);
     syncAccentColorSectionVisibility();
 
@@ -877,10 +885,9 @@ function syncAccentColorSectionVisibility() {
   const accentSection = document.getElementById('accent-color-section');
   if (!accentSection) return;
 
-  const hidden = isBrutalistThemeActive();
-  accentSection.hidden = hidden;
+  accentSection.hidden = true;
   accentSection.querySelectorAll('button, input').forEach(element => {
-    element.disabled = hidden;
+    element.disabled = true;
   });
 }
 
@@ -936,13 +943,13 @@ function contrastForeground(hex) {
 function applyAccentColor(hex) {
   if (!hex) return;
 
-  // Brutalist themes have their own greyscale accent — don't override
-  if (isBrutalistThemeActive()) {
+  const theme = document.documentElement.getAttribute('data-theme') || 'light';
+
+  // Graphite and brutalist themes manage their own palette.
+  if (isBrutalistThemeActive() || theme.startsWith('dashboard')) {
     clearAccentColorOverrides();
     return;
   }
-
-  const theme = document.documentElement.getAttribute('data-theme') || 'light';
   const isDark = theme === 'dark';
   const rgb = hexToRgb(hex);
   const root = document.documentElement.style;
@@ -1261,11 +1268,12 @@ function populateSettings() {
   loadDailyUsage();
 
   // Earned time
-  const earnedTime = settings.earnedTime || { enabled: false, minutesPerTask: 5, maxBankMinutes: 60, requireTasksToUnlock: false };
+  const earnedTime = settings.earnedTime || { enabled: false, minutesPerTask: 5, maxBankMinutes: 60, requireTasksToUnlock: false, addToActiveUnblock: false };
   document.getElementById('earned-time-enabled').checked = earnedTime.enabled;
   document.getElementById('earned-time-per-task').value = earnedTime.minutesPerTask || 5;
   document.getElementById('earned-time-max-bank').value = earnedTime.maxBankMinutes || 60;
   document.getElementById('earned-time-required').checked = earnedTime.requireTasksToUnlock || false;
+  document.getElementById('earned-time-add-to-unblock').checked = earnedTime.addToActiveUnblock || false;
   updateEarnedTimeOptions();
   loadEarnedTimeBank();
 
@@ -1314,12 +1322,12 @@ function populateSettings() {
   }
 
   // Appearance settings - Brutalist Mode
-  chrome.storage.local.get('brutalistEnabled').then(storageResult => {
+  chrome.storage.local.get(['brutalistEnabled']).then(storageResult => {
     const brutalistToggle = document.getElementById('brutalist-enabled');
     if (brutalistToggle) {
       brutalistToggle.checked = storageResult.brutalistEnabled || false;
     }
-  }).catch(e => console.error('Failed to load brutalist setting:', e));
+  }).catch(e => console.error('Failed to load appearance settings:', e));
 
   // Focus session presets
   populateFocusPresets();
@@ -1710,6 +1718,7 @@ function setupEventListeners() {
 
   // Earned time toggle
   document.getElementById('earned-time-enabled').addEventListener('change', updateEarnedTimeOptions);
+  document.getElementById('earned-time-add-to-unblock').addEventListener('change', markAsChanged);
 
   // Bedtime reminder toggle/input
   document.getElementById('bedtime-reminder-enabled').addEventListener('change', markAsChanged);
@@ -1764,7 +1773,8 @@ async function saveSettings() {
     enabled: document.getElementById('earned-time-enabled').checked,
     minutesPerTask: parseInt(document.getElementById('earned-time-per-task').value, 10) || 5,
     maxBankMinutes: parseInt(document.getElementById('earned-time-max-bank').value, 10) || 60,
-    requireTasksToUnlock: document.getElementById('earned-time-required').checked
+    requireTasksToUnlock: document.getElementById('earned-time-required').checked,
+    addToActiveUnblock: document.getElementById('earned-time-add-to-unblock').checked
   };
 
   settings.bedtimeReminderEnabled = document.getElementById('bedtime-reminder-enabled').checked;
@@ -2237,7 +2247,8 @@ function gatherCurrentSettings() {
       enabled: document.getElementById('earned-time-enabled').checked,
       minutesPerTask: parseInt(document.getElementById('earned-time-per-task').value, 10) || 5,
       maxBankMinutes: parseInt(document.getElementById('earned-time-max-bank').value, 10) || 60,
-      requireTasksToUnlock: document.getElementById('earned-time-required').checked
+      requireTasksToUnlock: document.getElementById('earned-time-required').checked,
+      addToActiveUnblock: document.getElementById('earned-time-add-to-unblock').checked
     },
     bedtimeReminderEnabled: document.getElementById('bedtime-reminder-enabled').checked,
     bedtimeReminderTime: document.getElementById('bedtime-reminder-time').value || '22:30',

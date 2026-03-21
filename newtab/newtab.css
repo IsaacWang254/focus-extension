@@ -870,6 +870,302 @@ body {
 }
 
 /* ============================================
+   Dashboard Theme
+   ============================================ */
+
+[data-theme="dashboard-light"] .top-bar,
+[data-theme="dashboard-dark"] .top-bar {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+  padding: var(--space-5) var(--space-5) 0;
+}
+
+[data-theme="dashboard-light"] .top-bar-actions,
+[data-theme="dashboard-dark"] .top-bar-actions {
+  pointer-events: auto;
+  gap: 10px;
+}
+
+[data-theme="dashboard-light"] #settings-dropdown .dropdown-menu-right,
+[data-theme="dashboard-dark"] #settings-dropdown .dropdown-menu-right {
+  margin-top: 10px;
+  min-width: 240px;
+  padding: 0;
+}
+
+[data-theme="dashboard-light"] .settings-panel,
+[data-theme="dashboard-dark"] .settings-panel {
+  padding: 10px;
+  min-width: 240px;
+}
+
+[data-theme="dashboard-light"] .settings-title,
+[data-theme="dashboard-dark"] .settings-title {
+  padding: 8px 10px 6px;
+  margin-bottom: 4px;
+  letter-spacing: 0.12em;
+}
+
+[data-theme="dashboard-light"] .settings-row,
+[data-theme="dashboard-dark"] .settings-row {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+
+[data-theme="dashboard-light"] .settings-row:hover,
+[data-theme="dashboard-dark"] .settings-row:hover {
+  background-color: var(--muted);
+  border-color: var(--border);
+}
+
+[data-theme="dashboard-light"] .main,
+[data-theme="dashboard-dark"] .main {
+  max-width: 1040px;
+  padding-top: calc(var(--space-12) + var(--space-8));
+}
+
+[data-theme="dashboard-light"] .hero,
+[data-theme="dashboard-dark"] .hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: var(--space-6);
+  text-align: center;
+}
+
+[data-theme="dashboard-light"] .clock,
+[data-theme="dashboard-dark"] .clock {
+  font-size: clamp(4.2rem, 9vw, 6.8rem);
+  line-height: 0.9;
+  letter-spacing: -0.06em;
+  margin-bottom: 0;
+}
+
+[data-theme="dashboard-light"] .greeting,
+[data-theme="dashboard-dark"] .greeting {
+  font-size: 0.98rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+[data-theme="dashboard-light"] .weather-section,
+[data-theme="dashboard-dark"] .weather-section,
+[data-theme="dashboard-light"] .quote-section,
+[data-theme="dashboard-dark"] .quote-section {
+  width: 100%;
+  max-width: none;
+  justify-content: center;
+  text-align: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+[data-theme="dashboard-light"] .weather-section,
+[data-theme="dashboard-dark"] .weather-section {
+  margin-bottom: var(--space-6);
+  min-height: 0;
+}
+
+[data-theme="dashboard-light"] .weather-content,
+[data-theme="dashboard-dark"] .weather-content {
+  justify-content: center;
+  width: auto;
+  gap: 10px;
+}
+
+[data-theme="dashboard-light"] .weather-temp,
+[data-theme="dashboard-dark"] .weather-temp,
+[data-theme="dashboard-light"] .weather-desc,
+[data-theme="dashboard-dark"] .weather-desc,
+[data-theme="dashboard-light"] .weather-highlow,
+[data-theme="dashboard-dark"] .weather-highlow {
+  line-height: 1.1;
+}
+
+[data-theme="dashboard-light"] .quote-text,
+[data-theme="dashboard-dark"] .quote-text {
+  max-width: 48ch;
+  font-style: normal;
+  font-size: 0.9rem;
+  color: var(--muted-foreground);
+}
+
+[data-theme="dashboard-light"] .quote-author,
+[data-theme="dashboard-dark"] .quote-author {
+  margin-top: 6px;
+}
+
+[data-theme="dashboard-light"] .content-panels,
+[data-theme="dashboard-dark"] .content-panels {
+  gap: var(--space-5);
+}
+
+[data-theme="dashboard-light"] .panel,
+[data-theme="dashboard-dark"] .panel {
+  background: var(--card);
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+
+[data-theme="dashboard-light"] .panel-header,
+[data-theme="dashboard-dark"] .panel-header {
+  padding: 14px 18px;
+}
+
+[data-theme="dashboard-light"] .panel-body,
+[data-theme="dashboard-dark"] .panel-body {
+  padding: 0 18px 18px;
+}
+
+[data-theme="dashboard-light"] .panel-title,
+[data-theme="dashboard-dark"] .panel-title {
+  font-size: 0.86rem;
+  letter-spacing: 0;
+}
+
+[data-theme="dashboard-light"] .panel-date,
+[data-theme="dashboard-dark"] .panel-date,
+[data-theme="dashboard-light"] .panel-count,
+[data-theme="dashboard-dark"] .panel-count {
+  font-weight: 600;
+}
+
+[data-theme="dashboard-light"] .weather-temp,
+[data-theme="dashboard-dark"] .weather-temp {
+  font-size: 1.25rem;
+}
+
+[data-theme="dashboard-light"] .temp-unit-toggle,
+[data-theme="dashboard-dark"] .temp-unit-toggle {
+  border-color: var(--foreground);
+  background-color: var(--background);
+}
+
+[data-theme="dashboard-light"] .temp-unit-btn,
+[data-theme="dashboard-dark"] .temp-unit-btn {
+  color: var(--muted-foreground);
+  background-color: var(--background);
+}
+
+[data-theme="dashboard-light"] .temp-unit-btn:not(:last-child),
+[data-theme="dashboard-dark"] .temp-unit-btn:not(:last-child) {
+  border-right-color: var(--foreground);
+}
+
+[data-theme="dashboard-light"] .temp-unit-btn.selected,
+[data-theme="dashboard-dark"] .temp-unit-btn.selected {
+  background-color: var(--foreground);
+  color: var(--background);
+}
+
+[data-theme="dashboard-light"] .temp-unit-btn:hover:not(.selected),
+[data-theme="dashboard-dark"] .temp-unit-btn:hover:not(.selected) {
+  background-color: var(--muted);
+  color: var(--foreground);
+}
+
+[data-theme="dashboard-light"] .todo-checkbox,
+[data-theme="dashboard-dark"] .todo-checkbox {
+  border-color: var(--muted-foreground);
+  background-color: var(--background);
+}
+
+[data-theme="dashboard-light"] .todo-checkbox.priority-urgent,
+[data-theme="dashboard-dark"] .todo-checkbox.priority-urgent {
+  border-color: #ef4444;
+}
+
+[data-theme="dashboard-light"] .todo-checkbox.priority-high,
+[data-theme="dashboard-dark"] .todo-checkbox.priority-high {
+  border-color: #f59e0b;
+}
+
+[data-theme="dashboard-light"] .todo-checkbox.priority-medium,
+[data-theme="dashboard-dark"] .todo-checkbox.priority-medium {
+  border-color: #3b82f6;
+}
+
+[data-theme="dashboard-light"] .todo-checkbox:hover,
+[data-theme="dashboard-dark"] .todo-checkbox:hover {
+  border-color: var(--foreground);
+  background-color: var(--muted);
+}
+
+[data-theme="dashboard-light"] .todo-checkbox.priority-urgent:hover,
+[data-theme="dashboard-dark"] .todo-checkbox.priority-urgent:hover {
+  border-color: #ef4444;
+  background-color: #fee2e2;
+}
+
+[data-theme="dashboard-dark"] .todo-checkbox.priority-urgent:hover {
+  background-color: #3a1d1d;
+}
+
+[data-theme="dashboard-light"] .todo-checkbox.priority-high:hover,
+[data-theme="dashboard-dark"] .todo-checkbox.priority-high:hover {
+  border-color: #f59e0b;
+  background-color: #fef3c7;
+}
+
+[data-theme="dashboard-dark"] .todo-checkbox.priority-high:hover {
+  background-color: #3b2a16;
+}
+
+[data-theme="dashboard-light"] .todo-checkbox.priority-medium:hover,
+[data-theme="dashboard-dark"] .todo-checkbox.priority-medium:hover {
+  border-color: #3b82f6;
+  background-color: #dbeafe;
+}
+
+[data-theme="dashboard-dark"] .todo-checkbox.priority-medium:hover {
+  background-color: #172554;
+}
+
+[data-theme="dashboard-light"] .todo-checkbox.checked,
+[data-theme="dashboard-dark"] .todo-checkbox.checked,
+[data-theme="dashboard-light"] .completed-item-check,
+[data-theme="dashboard-dark"] .completed-item-check {
+  background-color: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
+}
+
+[data-theme="dashboard-light"] .todo-checkbox.checked::after,
+[data-theme="dashboard-dark"] .todo-checkbox.checked::after {
+  border-color: var(--background);
+}
+
+[data-theme="dashboard-light"] .panel-count,
+[data-theme="dashboard-dark"] .panel-count {
+  background-color: var(--muted);
+  color: var(--foreground);
+}
+
+[data-theme="dashboard-light"] .show-more-btn,
+[data-theme="dashboard-dark"] .show-more-btn {
+  border-color: var(--border);
+}
+
+[data-theme="dashboard-light"] .completed-item-content,
+[data-theme="dashboard-light"] .todo-item.subtask .todo-content,
+[data-theme="dashboard-light"] .event-time {
+  color: #5f5f5f;
+}
+
+[data-theme="dashboard-dark"] .completed-item-content,
+[data-theme="dashboard-dark"] .todo-item.subtask .todo-content,
+[data-theme="dashboard-dark"] .event-time {
+  color: #c4c4c8;
+}
+
+/* ============================================
    Responsive
    ============================================ */
 

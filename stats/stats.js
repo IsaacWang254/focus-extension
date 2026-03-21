@@ -16,6 +16,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load theme
   await loadTheme();
 
+  // Keep the page in sync if theme settings change while stats is open
+  chrome.storage.onChanged.addListener(handleStorageThemeChange);
+
   // Initialize icons
   initializeIcons();
 
@@ -28,6 +31,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load all stats
   await loadAllStats();
 });
+
+function handleStorageThemeChange(changes, areaName) {
+  if (areaName !== 'local') return;
+
+  if (changes.theme || changes.brutalistEnabled || changes.accentColor) {
+    loadTheme();
+  }
+}
 
 // Initialize SVG icons
 function initializeIcons() {
@@ -162,13 +173,21 @@ async function loadTheme() {
     const base = result.theme || 'light';
     const brutalist = result.brutalistEnabled || false;
     if (base && base !== 'auto') {
-      const resolved = brutalist ? (base === 'dark' ? 'brutalist-dark' : 'brutalist') : base;
+      const resolved = resolveThemeVariant(base, { brutalist });
       document.documentElement.setAttribute('data-theme', resolved);
     }
     await applyAccentColorFromStorage();
   } catch (e) {
     console.error('Failed to load theme:', e);
   }
+}
+
+function resolveThemeVariant(base, { brutalist = false } = {}) {
+  if (brutalist) {
+    return base === 'dark' ? 'brutalist-dark' : 'brutalist';
+  }
+
+  return base === 'dark' ? 'dashboard-dark' : 'dashboard-light';
 }
 
 /**
@@ -179,7 +198,7 @@ async function applyAccentColorFromStorage() {
     const result = await chrome.storage.local.get('accentColor');
     const hex = result.accentColor || '#6366f1';
     const theme = document.documentElement.getAttribute('data-theme') || 'light';
-    if (theme.startsWith('brutalist')) {
+    if (theme.startsWith('brutalist') || theme.startsWith('dashboard')) {
       clearAccentColorOverrides();
       return;
     }

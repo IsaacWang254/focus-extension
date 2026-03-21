@@ -87,9 +87,17 @@ async function loadTheme() {
     base = 'light';
     await chrome.storage.local.set({ theme: 'light' });
   }
-  const resolved = brutalist ? (base === 'dark' ? 'brutalist-dark' : 'brutalist') : base;
+  const resolved = resolveThemeVariant(base, { brutalist });
   document.documentElement.setAttribute('data-theme', resolved);
   await applyAccentColorFromStorage();
+}
+
+function resolveThemeVariant(base, { brutalist = false } = {}) {
+  if (brutalist) {
+    return base === 'dark' ? 'brutalist-dark' : 'brutalist';
+  }
+
+  return base === 'dark' ? 'dashboard-dark' : 'dashboard-light';
 }
 
 /**
@@ -100,7 +108,7 @@ async function applyAccentColorFromStorage() {
     const result = await chrome.storage.local.get('accentColor');
     const hex = result.accentColor || '#6366f1';
     const theme = document.documentElement.getAttribute('data-theme') || 'light';
-    if (theme.startsWith('brutalist')) {
+    if (theme.startsWith('brutalist') || theme.startsWith('dashboard')) {
       clearAccentColorOverrides();
       return;
     }
@@ -156,7 +164,7 @@ function getCurrentTheme() {
 
 function getBgStorageKey() {
   const theme = getCurrentTheme();
-  return (theme === 'dark' || theme === 'brutalist-dark') ? 'newtabBgColorDark' : 'newtabBgColorLight';
+  return (theme === 'dark' || theme === 'brutalist-dark' || theme === 'dashboard-dark') ? 'newtabBgColorDark' : 'newtabBgColorLight';
 }
 
 function setupThemeToggle() {
@@ -173,7 +181,7 @@ function setupThemeToggle() {
     const newBase = currentBase === 'dark' ? 'light' : 'dark';
 
     // Resolve the actual data-theme value
-    const resolved = brutalist ? (newBase === 'dark' ? 'brutalist-dark' : 'brutalist') : newBase;
+    const resolved = resolveThemeVariant(newBase, { brutalist });
     root.setAttribute('data-theme', resolved);
     await chrome.storage.local.set({ theme: newBase });
 
@@ -628,6 +636,11 @@ function setupSettings() {
 // =============================================================================
 
 function applyBgColor(color) {
+  if (getCurrentTheme().startsWith('dashboard')) {
+    document.body.style.backgroundColor = '';
+    return;
+  }
+
   if (color === 'default') {
     document.body.style.backgroundColor = '';
   } else {
@@ -637,8 +650,15 @@ function applyBgColor(color) {
 
 function renderSwatches(selectedColor) {
   const container = document.getElementById('color-swatches');
+  if (!container) return;
+
+  if (getCurrentTheme().startsWith('dashboard')) {
+    container.innerHTML = '';
+    return;
+  }
+
   const theme = getCurrentTheme();
-  const presetKey = (theme === 'dark' || theme === 'brutalist-dark') ? 'dark' : 'light';
+  const presetKey = (theme === 'dark' || theme === 'brutalist-dark' || theme === 'dashboard-dark') ? 'dark' : 'light';
   const presets = BG_PRESETS[presetKey] || BG_PRESETS.light;
 
   container.innerHTML = '';
@@ -670,7 +690,7 @@ function renderSwatches(selectedColor) {
   const customInput = document.createElement('input');
   customInput.type = 'color';
   customInput.id = 'custom-color-input';
-  customInput.value = theme === 'dark' ? '#1a1a2e' : '#ffffff';
+  customInput.value = (theme === 'dark' || theme === 'dashboard-dark') ? '#1a1a2e' : '#ffffff';
 
   // If the selected color is custom (not default and not a preset), mark it
   const isPreset = selectedColor === 'default' || presets.some(p => p.color === selectedColor);
@@ -712,6 +732,11 @@ function setSwatchSelected(color) {
 }
 
 async function refreshBgColor() {
+  if (getCurrentTheme().startsWith('dashboard')) {
+    document.body.style.backgroundColor = '';
+    return;
+  }
+
   const key = getBgStorageKey();
   const result = await chrome.storage.local.get(key);
   const color = result[key] || 'default';
@@ -721,6 +746,7 @@ async function refreshBgColor() {
 
 function setupBgColorPicker() {
   const container = document.getElementById('color-swatches');
+  if (!container) return;
 
   // Delegated click for preset swatches (not custom)
   container.addEventListener('click', async (e) => {
@@ -1124,6 +1150,11 @@ async function completeTask(taskId, li, checkbox) {
 
   try {
     await todoist.completeTask(taskId);
+
+    const rewardResult = await chrome.runtime.sendMessage({ type: 'ADD_EARNED_TIME', taskCount: 1 });
+    if (rewardResult && rewardResult.added > 0) {
+      console.log('Task reward applied:', rewardResult);
+    }
 
     // Re-fetch completed tasks from Todoist API
     fetchCompletedToday();

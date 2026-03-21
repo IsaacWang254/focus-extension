@@ -364,12 +364,20 @@ async function loadTheme() {
       await chrome.storage.local.set({ theme: 'light' });
     }
 
-    const resolved = brutalist ? (base === 'dark' ? 'brutalist-dark' : 'brutalist') : base;
+    const resolved = resolveThemeVariant(base, { brutalist });
     document.documentElement.setAttribute('data-theme', resolved);
     await applyAccentColorFromStorage();
   } catch (e) {
     console.error('Failed to load theme:', e);
   }
+}
+
+function resolveThemeVariant(base, { brutalist = false } = {}) {
+  if (brutalist) {
+    return base === 'dark' ? 'brutalist-dark' : 'brutalist';
+  }
+
+  return base === 'dark' ? 'dashboard-dark' : 'dashboard-light';
 }
 
 /**
@@ -380,7 +388,7 @@ async function applyAccentColorFromStorage() {
     const result = await chrome.storage.local.get('accentColor');
     const hex = result.accentColor || '#6366f1';
     const theme = document.documentElement.getAttribute('data-theme') || 'light';
-    if (theme.startsWith('brutalist')) {
+    if (theme.startsWith('brutalist') || theme.startsWith('dashboard')) {
       clearAccentColorOverrides();
       return;
     }
@@ -444,7 +452,7 @@ function setupThemeToggle() {
     const newBase = currentBase === 'dark' ? 'light' : 'dark';
 
     // Resolve the actual data-theme value
-    const resolved = brutalist ? (newBase === 'dark' ? 'brutalist-dark' : 'brutalist') : newBase;
+    const resolved = resolveThemeVariant(newBase, { brutalist });
     root.setAttribute('data-theme', resolved);
 
     // Save the base theme
@@ -743,9 +751,11 @@ async function completeTask(taskId, listItem, checkbox) {
         // Update local earned time info
         earnedTimeInfo.minutes = result.minutes;
         earnedTimeInfo.tasksCompleted = result.tasksCompleted;
+        earnedTimeInfo.totalEarned = result.totalEarned;
+        earnedTimeInfo.totalUsed = result.totalUsed;
 
-        // Show toast notification with earned time
-        showToast(`<strong>+${result.added} min</strong> earned! Bank: ${result.minutes} min`, 'success');
+        const rewardMessage = getEarnedTimeToastMessage(result);
+        showToast(rewardMessage, 'success');
 
         // Update the earned time info card
         await updateEarnedTimeInfoCard();
@@ -810,6 +820,27 @@ async function completeTask(taskId, listItem, checkbox) {
     showToast('Failed to complete task. Please try again.', 'error');
     console.error('Failed to complete task:', error);
   }
+}
+
+function formatMinutes(value) {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? `${rounded}` : `${rounded.toFixed(1)}`;
+}
+
+function getEarnedTimeToastMessage(result) {
+  const totalAdded = formatMinutes(result.added || 0);
+  const sessionAdded = formatMinutes(result.sessionAdded || 0);
+  const bankAdded = formatMinutes(result.bankAdded || 0);
+
+  if (result.rewardType === 'session') {
+    return `<strong>+${totalAdded} min</strong> added to your current unblock`;
+  }
+
+  if (result.rewardType === 'split') {
+    return `<strong>+${sessionAdded} min</strong> added to this unblock, <strong>+${bankAdded} min</strong> banked`;
+  }
+
+  return `<strong>+${totalAdded} min</strong> earned! Bank: ${formatMinutes(result.minutes || 0)} min`;
 }
 
 // =============================================================================

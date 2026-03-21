@@ -72,12 +72,20 @@ async function loadTheme() {
     const base = result.theme || 'light';
     const brutalist = result.brutalistEnabled || false;
     if (!result.theme) await chrome.storage.local.set({ theme: 'light' });
-    const resolved = brutalist ? (base === 'dark' ? 'brutalist-dark' : 'brutalist') : base;
+    const resolved = resolveThemeVariant(base, { brutalist });
     document.documentElement.setAttribute('data-theme', resolved);
     await applyAccentColorFromStorage();
   } catch (e) {
     console.error('Failed to load theme:', e);
   }
+}
+
+function resolveThemeVariant(base, { brutalist = false } = {}) {
+  if (brutalist) {
+    return base === 'dark' ? 'brutalist-dark' : 'brutalist';
+  }
+
+  return base === 'dark' ? 'dashboard-dark' : 'dashboard-light';
 }
 
 /**
@@ -88,7 +96,7 @@ async function applyAccentColorFromStorage() {
     const result = await chrome.storage.local.get('accentColor');
     const hex = result.accentColor || '#6366f1';
     const theme = document.documentElement.getAttribute('data-theme') || 'light';
-    if (theme.startsWith('brutalist')) {
+    if (theme.startsWith('brutalist') || theme.startsWith('dashboard')) {
       clearAccentColorOverrides();
       return;
     }

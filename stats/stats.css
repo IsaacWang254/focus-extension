@@ -1505,3 +1505,81 @@ html {
   padding: var(--space-6) 0;
   text-align: center;
 }
+
+/* ============================================
+   Dashboard Theme
+   ============================================ */
+
+[data-theme="dashboard-light"] body,
+[data-theme="dashboard-dark"] body {
+  background-color: var(--background);
+}
+
+[data-theme="dashboard-light"] .stats-sidebar,
+[data-theme="dashboard-dark"] .stats-sidebar {
+  background: var(--card);
+  box-shadow: none;
+}
+
+[data-theme="dashboard-light"] .sidebar-link,
+[data-theme="dashboard-dark"] .sidebar-link {
+  margin: 0 var(--space-2);
+  border-left: 0;
+  border-radius: 10px;
+}
+
+[data-theme="dashboard-light"] .sidebar-link.active,
+[data-theme="dashboard-dark"] .sidebar-link.active,
+[data-theme="dashboard-light"] .sidebar-link-sub.active,
+[data-theme="dashboard-dark"] .sidebar-link-sub.active {
+  background: var(--accent);
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+[data-theme="dashboard-light"] .sidebar-link.active .sidebar-icon,
+[data-theme="dashboard-dark"] .sidebar-link.active .sidebar-icon {
+  color: var(--foreground);
+}
+
+[data-theme="dashboard-light"] .stat-card,
+[data-theme="dashboard-dark"] .stat-card,
+[data-theme="dashboard-light"] .section,
+[data-theme="dashboard-dark"] .section,
+[data-theme="dashboard-light"] .history-permission,
+[data-theme="dashboard-dark"] .history-permission,
+[data-theme="dashboard-light"] .reason-item,
+[data-theme="dashboard-dark"] .reason-item,
+[data-theme="dashboard-light"] .productivity-score-card,
+[data-theme="dashboard-dark"] .productivity-score-card,
+[data-theme="dashboard-light"] .top-site-item,
+[data-theme="dashboard-dark"] .top-site-item,
+[data-theme="dashboard-light"] .suggestion-item,
+[data-theme="dashboard-dark"] .suggestion-item,
+[data-theme="dashboard-light"] .insight-card,
+[data-theme="dashboard-dark"] .insight-card,
+[data-theme="dashboard-light"] .achievement-card,
+[data-theme="dashboard-dark"] .achievement-card {
+  background: var(--card);
+}
+
+[data-theme="dashboard-light"] .sidebar-badge,
+[data-theme="dashboard-dark"] .sidebar-badge,
+[data-theme="dashboard-light"] .achievement-badge,
+[data-theme="dashboard-dark"] .achievement-badge,
+[data-theme="dashboard-light"] .productivity-sublabel,
+[data-theme="dashboard-dark"] .productivity-sublabel {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+[data-theme="dashboard-light"] .stat-icon,
+[data-theme="dashboard-dark"] .stat-icon {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+[data-theme="dashboard-light"] .history-permission-btn,
+[data-theme="dashboard-dark"] .history-permission-btn {
+  color: var(--indigo-foreground);
+}

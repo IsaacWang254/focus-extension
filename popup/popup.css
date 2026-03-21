@@ -30,10 +30,20 @@ body {
   justify-content: space-between;
 }
 
+#main-toggle {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .header h1 {
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--foreground);
+}
+
+.header .toggle-slider {
+  box-sizing: border-box;
 }
 
 .toggle input:checked + .toggle-slider {
@@ -464,4 +474,96 @@ body {
 .btn-danger:hover:not(:disabled) {
   background-color: var(--destructive);
   color: var(--destructive-foreground);
+}
+
+/* Dashboard Theme */
+[data-theme="dashboard-light"] body,
+[data-theme="dashboard-dark"] body {
+  background: var(--background);
+}
+
+[data-theme="dashboard-light"] .popup,
+[data-theme="dashboard-dark"] .popup {
+  background: var(--card);
+}
+
+[data-theme="dashboard-light"] .header h1,
+[data-theme="dashboard-dark"] .header h1 {
+  letter-spacing: -0.02em;
+}
+
+[data-theme="dashboard-light"] #mode-badge,
+[data-theme="dashboard-dark"] #mode-badge {
+  background: var(--muted);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+
+[data-theme="dashboard-light"] #mode-badge.allowlist,
+[data-theme="dashboard-dark"] #mode-badge.allowlist,
+[data-theme="dashboard-light"] .focus-phase-badge,
+[data-theme="dashboard-dark"] .focus-phase-badge,
+[data-theme="dashboard-light"] .focus-phase-badge.break,
+[data-theme="dashboard-dark"] .focus-phase-badge.break,
+[data-theme="dashboard-light"] .focus-phase-badge.longBreak,
+[data-theme="dashboard-dark"] .focus-phase-badge.longBreak {
+  background: var(--muted);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+
+[data-theme="dashboard-light"] .btn-primary,
+[data-theme="dashboard-dark"] .btn-primary {
+  color: var(--indigo-foreground);
+}
+
+[data-theme="dashboard-light"] .btn-danger,
+[data-theme="dashboard-dark"] .btn-danger {
+  background-color: var(--muted);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+[data-theme="dashboard-light"] .btn-danger:hover:not(:disabled),
+[data-theme="dashboard-dark"] .btn-danger:hover:not(:disabled) {
+  background-color: var(--accent);
+  color: var(--foreground);
+}
+
+[data-theme="dashboard-light"] .status,
+[data-theme="dashboard-dark"] .status,
+[data-theme="dashboard-light"] .sessions-row,
+[data-theme="dashboard-dark"] .sessions-row,
+[data-theme="dashboard-light"] .alert-item,
+[data-theme="dashboard-dark"] .alert-item,
+[data-theme="dashboard-light"] .focus-preset-btn,
+[data-theme="dashboard-dark"] .focus-preset-btn {
+  color: var(--foreground);
+}
+
+[data-theme="dashboard-light"] #status-text::before,
+[data-theme="dashboard-dark"] #status-text::before {
+  background-color: var(--foreground);
+}
+
+[data-theme="dashboard-light"] .status.disabled #status-text::before,
+[data-theme="dashboard-dark"] .status.disabled #status-text::before {
+  background-color: var(--muted-foreground);
+}
+
+[data-theme="dashboard-light"] .focus-preset-btn.selected,
+[data-theme="dashboard-dark"] .focus-preset-btn.selected {
+  background-color: var(--muted);
+  border-color: var(--foreground);
+  color: var(--foreground);
+}
+
+[data-theme="dashboard-light"] .focus-preset-btn.selected .preset-label,
+[data-theme="dashboard-dark"] .focus-preset-btn.selected .preset-label,
+[data-theme="dashboard-light"] .alert-item.locked,
+[data-theme="dashboard-dark"] .alert-item.locked,
+[data-theme="dashboard-light"] .alert-item.incognito-alert,
+[data-theme="dashboard-dark"] .alert-item.incognito-alert {
+  color: var(--foreground);
+  background-color: var(--muted);
 }

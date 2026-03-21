@@ -97,6 +97,7 @@ const DEFAULT_SETTINGS = {
     minutesPerTask: 5, // Minutes earned per completed task
     maxBankMinutes: 60, // Maximum banked minutes
     requireTasksToUnlock: false, // If true, must have earned time to unblock
+    addToActiveUnblock: false, // If true, completed tasks extend active timed unblocks before banking leftovers
   },
   bedtimeReminderEnabled: false,
   bedtimeReminderTime: '22:30',
@@ -1025,7 +1026,7 @@ async function handleMessage(message, sender) {
       return await getCompleteTodoProgress();
 
     case 'ADD_EARNED_TIME':
-      return await addEarnedTime(message.taskCount || 1);
+      return await rewardCompletedTasks(message.taskCount || 1);
 
     case 'USE_EARNED_TIME':
       return await useEarnedTime(message.minutes);
@@ -3791,35 +3792,119 @@ async function getEarnedTimeBank() {
 }
 
 /**
- * Add earned time from completing a task
- * @param {number} taskCount - Number of tasks completed (default 1)
- * @returns {Promise<{minutes: number, tasksCompleted: number, totalEarned: number, totalUsed: number, added: number}>}
+ * Extend any active timed unblocks by the given number of minutes.
+ * @param {number} minutesToAdd - Minutes to add to active timed unblocks
+ * @returns {Promise<{added: number, extendedDomains: string[]}>}
  */
-async function addEarnedTime(taskCount = 1) {
-  const settings = await getSettings();
-  const earnedTimeSettings = settings.earnedTime || { enabled: false, minutesPerTask: 5, maxBankMinutes: 60 };
-
-  if (!earnedTimeSettings.enabled) {
-    return { minutes: 0, tasksCompleted: 0, totalEarned: 0, totalUsed: 0, added: 0 };
+async function extendActiveTimedUnblocks(minutesToAdd) {
+  if (minutesToAdd <= 0) {
+    return { added: 0, extendedDomains: [] };
   }
 
+  const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
+  const settings = await getSettings();
+  const now = Date.now();
+  const requestedMs = minutesToAdd * 60 * 1000;
+  const windowEnd = getCurrentWindowEndTime(settings.schedule);
+
+  let maxAddedMs = 0;
+  const extendedDomains = [];
+
+  for (const [domain, expiry] of Object.entries(tempUnblocks)) {
+    if (expiry === 'unlimited' || expiry <= now) {
+      continue;
+    }
+
+    let newExpiry = expiry + requestedMs;
+    if (windowEnd) {
+      newExpiry = Math.min(newExpiry, windowEnd);
+    }
+
+    if (newExpiry <= expiry) {
+      continue;
+    }
+
+    tempUnblocks[domain] = newExpiry;
+    extendedDomains.push(domain);
+    maxAddedMs = Math.max(maxAddedMs, newExpiry - expiry);
+
+    chrome.alarms.clear(`reblock_${domain}`);
+    chrome.alarms.create(`reblock_${domain}`, { when: newExpiry });
+  }
+
+  if (extendedDomains.length === 0) {
+    return { added: 0, extendedDomains: [] };
+  }
+
+  await chrome.storage.local.set({ tempUnblocks });
+  await updateBadgeTimer();
+
+  const addedMinutes = Math.round((maxAddedMs / 60000) * 10) / 10;
+  console.log(`Extended active timed unblocks by ${addedMinutes} minutes: ${extendedDomains.join(', ')}`);
+
+  return { added: addedMinutes, extendedDomains };
+}
+
+/**
+ * Reward completed tasks with banked time and/or active session extensions.
+ * @param {number} taskCount - Number of tasks completed (default 1)
+ * @returns {Promise<{minutes: number, tasksCompleted: number, totalEarned: number, totalUsed: number, added: number, bankAdded: number, sessionAdded: number, rewardType: string}>}
+ */
+async function rewardCompletedTasks(taskCount = 1) {
+  const settings = await getSettings();
+  const earnedTimeSettings = settings.earnedTime || {
+    enabled: false,
+    minutesPerTask: 5,
+    maxBankMinutes: 60,
+    requireTasksToUnlock: false,
+    addToActiveUnblock: false
+  };
+
+  if (!earnedTimeSettings.enabled) {
+    return {
+      minutes: 0,
+      tasksCompleted: 0,
+      totalEarned: 0,
+      totalUsed: 0,
+      added: 0,
+      bankAdded: 0,
+      sessionAdded: 0,
+      rewardType: 'disabled'
+    };
+  }
+
+  const requestedMinutes = taskCount * earnedTimeSettings.minutesPerTask;
+  const sessionResult = earnedTimeSettings.addToActiveUnblock
+    ? await extendActiveTimedUnblocks(requestedMinutes)
+    : { added: 0, extendedDomains: [] };
+
   const bank = await getEarnedTimeBank();
-  const minutesToAdd = taskCount * earnedTimeSettings.minutesPerTask;
+  const minutesToAdd = Math.max(0, requestedMinutes - sessionResult.added);
   const maxBank = earnedTimeSettings.maxBankMinutes || 60;
 
   // Add minutes, capped at max bank
   const newMinutes = Math.min(bank.minutes + minutesToAdd, maxBank);
-  const actuallyAdded = newMinutes - bank.minutes;
+  const bankAdded = newMinutes - bank.minutes;
+  const totalAdded = sessionResult.added + bankAdded;
+
+  let rewardType = 'none';
+  if (sessionResult.added > 0 && bankAdded > 0) {
+    rewardType = 'split';
+  } else if (sessionResult.added > 0) {
+    rewardType = 'session';
+  } else if (bankAdded > 0) {
+    rewardType = 'bank';
+  }
 
   const newBank = {
     minutes: newMinutes,
     tasksCompleted: bank.tasksCompleted + taskCount,
-    totalEarned: (bank.totalEarned || 0) + actuallyAdded,
-    totalUsed: bank.totalUsed || 0
+    totalEarned: (bank.totalEarned || 0) + totalAdded,
+    totalUsed: (bank.totalUsed || 0) + sessionResult.added
   };
 
   await chrome.storage.local.set({ earnedTimeBank: newBank });
-  console.log(`Earned time: +${actuallyAdded} minutes (bank: ${newBank.minutes}/${maxBank} min)`);
+  console.log(`Earned time reward: +${totalAdded} minutes (bank: ${newBank.minutes}/${maxBank} min, active session: +${sessionResult.added} min)`);
 
   // Award XP for completing todos
   for (let i = 0; i < taskCount; i++) {
@@ -3829,7 +3914,14 @@ async function addEarnedTime(taskCount = 1) {
   // Check for todo-related achievements
   await checkAchievements();
 
-  return { ...newBank, added: actuallyAdded };
+  return {
+    ...newBank,
+    added: totalAdded,
+    bankAdded,
+    sessionAdded: sessionResult.added,
+    rewardType,
+    extendedDomains: sessionResult.extendedDomains
+  };
 }
 
 /**
@@ -3863,7 +3955,7 @@ async function useEarnedTime(minutes) {
  */
 async function getEarnedTimeInfo() {
   const settings = await getSettings();
-  const earnedTimeSettings = settings.earnedTime || { enabled: false, minutesPerTask: 5, maxBankMinutes: 60, requireTasksToUnlock: false };
+  const earnedTimeSettings = settings.earnedTime || { enabled: false, minutesPerTask: 5, maxBankMinutes: 60, requireTasksToUnlock: false, addToActiveUnblock: false };
 
   if (!earnedTimeSettings.enabled) {
     return {
@@ -3874,7 +3966,8 @@ async function getEarnedTimeInfo() {
       totalUsed: 0,
       minutesPerTask: 5,
       maxBankMinutes: 60,
-      requireTasksToUnlock: false
+      requireTasksToUnlock: false,
+      addToActiveUnblock: false
     };
   }
 
@@ -3888,7 +3981,8 @@ async function getEarnedTimeInfo() {
     totalUsed: bank.totalUsed || 0,
     minutesPerTask: earnedTimeSettings.minutesPerTask,
     maxBankMinutes: earnedTimeSettings.maxBankMinutes,
-    requireTasksToUnlock: earnedTimeSettings.requireTasksToUnlock
+    requireTasksToUnlock: earnedTimeSettings.requireTasksToUnlock,
+    addToActiveUnblock: earnedTimeSettings.addToActiveUnblock || false
   };
 }
 
