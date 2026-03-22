@@ -108,6 +108,42 @@ function getReasonValidation(text, minLength) {
   };
 }
 
+function preventBulkTextEntry(input, { maxLengthDelta = 1 } = {}) {
+  if (!input) {
+    return;
+  }
+
+  let lastValue = input.value || '';
+
+  input.addEventListener('paste', (event) => {
+    event.preventDefault();
+  });
+
+  input.addEventListener('drop', (event) => {
+    event.preventDefault();
+  });
+
+  input.addEventListener('beforeinput', (event) => {
+    if (event.inputType === 'insertFromPaste' || event.inputType === 'insertFromDrop') {
+      event.preventDefault();
+    }
+  });
+
+  input.addEventListener('input', () => {
+    const currentValue = input.value;
+    const delta = currentValue.length - lastValue.length;
+
+    if (delta > maxLengthDelta) {
+      input.value = lastValue;
+      input.classList.add('error');
+      setTimeout(() => input.classList.remove('error'), 300);
+      return;
+    }
+
+    lastValue = input.value;
+  });
+}
+
 function getIcon(name, fallback = '') {
   if (typeof Icons !== 'undefined' && Icons && Icons[name]) {
     return Icons[name];
@@ -1964,33 +2000,8 @@ function setupEventListeners() {
 
   // Type phrase input
   const phraseInput = document.getElementById('phrase-input');
-  let lastPhraseLength = 0;
-
-  // Prevent paste
-  phraseInput.addEventListener('paste', (e) => {
-    e.preventDefault();
-  });
-
-  // Prevent drop (drag and drop text)
-  phraseInput.addEventListener('drop', (e) => {
-    e.preventDefault();
-  });
-
-  // Detect bulk input (e.g., autofill, paste workarounds)
+  preventBulkTextEntry(phraseInput);
   phraseInput.addEventListener('input', () => {
-    const currentLength = phraseInput.value.length;
-    const lengthDiff = currentLength - lastPhraseLength;
-
-    // If more than 2 characters were added at once, it's likely paste/autofill
-    if (lengthDiff > 2) {
-      phraseInput.value = phraseInput.value.slice(0, lastPhraseLength);
-      phraseInput.classList.add('error');
-      setTimeout(() => phraseInput.classList.remove('error'), 300);
-      return;
-    }
-
-    lastPhraseLength = phraseInput.value.length;
-
     // Get required phrase (either custom phrase or random string)
     const phraseSettings = settings.unblockMethods.typePhrase;
     const useRandomString = phraseSettings.useRandomString;
@@ -2017,6 +2028,7 @@ function setupEventListeners() {
 
   // Math input
   const mathInput = document.getElementById('math-input');
+  preventBulkTextEntry(mathInput);
   mathInput.addEventListener('input', () => {
     const answer = parseInt(mathInput.value, 10);
 
@@ -2050,11 +2062,11 @@ function setupEventListeners() {
   document.getElementById('new-phrase').addEventListener('click', () => {
     const length = settings.unblockMethods.typePhrase.randomLength || 30;
     generateRandomPhrase(length);
-    lastPhraseLength = 0; // Reset the paste detection counter
   });
 
   // Password input
   const passwordInput = document.getElementById('password-input');
+  preventBulkTextEntry(passwordInput);
   passwordInput.addEventListener('input', () => {
     const correct = settings.unblockMethods.password.value;
     const entered = passwordInput.value;
@@ -2075,6 +2087,7 @@ function setupEventListeners() {
   const reasonCharCount = document.getElementById('reason-char-count');
   const reasonValidationMessage = document.getElementById('reason-validation-message');
 
+  preventBulkTextEntry(reasonInput);
   reasonInput.addEventListener('input', () => {
     const text = reasonInput.value;
     const charCount = text.length;

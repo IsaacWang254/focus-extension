@@ -15,6 +15,12 @@ let cachedPresets = null;
 let disableInProgress = false;
 
 const DISABLE_REASON_MIN_LENGTH = 100;
+const COMMON_REASON_WORDS = new Set([
+  'a', 'about', 'after', 'am', 'an', 'and', 'because', 'before', 'but', 'for',
+  'from', 'have', 'i', 'if', 'in', 'into', 'is', 'it', 'just', 'me', 'my',
+  'need', 'now', 'of', 'on', 'or', 'our', 'quick', 'really', 'so', 'that',
+  'the', 'this', 'to', 'today', 'urgent', 'we', 'with', 'work'
+]);
 
 // =============================================================================
 // INITIALIZATION
@@ -199,15 +205,119 @@ function setDisableConfirmationVisible(visible) {
   }
 }
 
-function getDisableReasonLength() {
-  const reasonInput = document.getElementById('disable-reason-input');
-  return reasonInput?.value.trim().length || 0;
+function getDisableReasonValidation(text, minLength) {
+  const trimmed = text.trim();
+
+  if (trimmed.length < minLength) {
+    return {
+      isValid: false,
+      message: `Write at least ${minLength} characters and use real words.`
+    };
+  }
+
+  if (/(.)\1{5,}/.test(trimmed)) {
+    return {
+      isValid: false,
+      message: 'Avoid repeated characters like "aaaaaa".'
+    };
+  }
+
+  const words = trimmed.match(/[A-Za-z]+(?:['-][A-Za-z]+)*/g) || [];
+  if (words.length < 8) {
+    return {
+      isValid: false,
+      message: 'Write at least 8 words.'
+    };
+  }
+
+  const uniqueWords = new Set(words.map(word => word.toLowerCase()));
+  if (uniqueWords.size < 5) {
+    return {
+      isValid: false,
+      message: 'Use a few different words, not the same one repeated.'
+    };
+  }
+
+  const lettersOnly = trimmed.replace(/[^A-Za-z]/g, '');
+  if (!lettersOnly) {
+    return {
+      isValid: false,
+      message: 'Use letters and words, not only symbols or numbers.'
+    };
+  }
+
+  const lettersRatio = lettersOnly.length / trimmed.length;
+  if (lettersRatio < 0.65) {
+    return {
+      isValid: false,
+      message: 'Use mostly words instead of numbers or symbols.'
+    };
+  }
+
+  const vowelCount = (lettersOnly.match(/[AEIOUYaeiouy]/g) || []).length;
+  const vowelRatio = vowelCount / lettersOnly.length;
+  if (vowelRatio < 0.22 || vowelRatio > 0.75) {
+    return {
+      isValid: false,
+      message: 'Write a natural sentence with readable words.'
+    };
+  }
+
+  const commonWordMatches = words.filter(word => COMMON_REASON_WORDS.has(word.toLowerCase())).length;
+  if (commonWordMatches < 2) {
+    return {
+      isValid: false,
+      message: 'Write a short sentence in plain language.'
+    };
+  }
+
+  return {
+    isValid: true,
+    message: 'Be specific and write in plain language. This only unlocks once you write it out.'
+  };
+}
+
+function preventBulkTextEntry(input, { maxLengthDelta = 1 } = {}) {
+  if (!input) {
+    return;
+  }
+
+  let lastValue = input.value || '';
+
+  input.addEventListener('paste', (event) => {
+    event.preventDefault();
+  });
+
+  input.addEventListener('drop', (event) => {
+    event.preventDefault();
+  });
+
+  input.addEventListener('beforeinput', (event) => {
+    if (event.inputType === 'insertFromPaste' || event.inputType === 'insertFromDrop') {
+      event.preventDefault();
+    }
+  });
+
+  input.addEventListener('input', () => {
+    const currentValue = input.value;
+    const delta = currentValue.length - lastValue.length;
+
+    if (delta > maxLengthDelta) {
+      input.value = lastValue;
+      input.classList.add('error');
+      setTimeout(() => input.classList.remove('error'), 300);
+      return;
+    }
+
+    lastValue = input.value;
+  });
 }
 
 function resetDisableConfirmation() {
   const reasonInput = document.getElementById('disable-reason-input');
   const countEl = document.getElementById('disable-reason-count');
   const confirmButton = document.getElementById('disable-confirm-btn');
+  const hintEl = document.getElementById('disable-reason-hint');
 
   if (reasonInput) {
     reasonInput.value = '';
@@ -221,25 +331,38 @@ function resetDisableConfirmation() {
     confirmButton.textContent = 'Disable blocking';
     confirmButton.disabled = true;
   }
+
+  if (hintEl) {
+    hintEl.textContent = 'Be specific and write in plain language. This only unlocks once you write it out.';
+  }
 }
 
 function updateDisableReasonUI() {
   const countEl = document.getElementById('disable-reason-count');
   const confirmButton = document.getElementById('disable-confirm-btn');
-  const reasonLength = getDisableReasonLength();
+  const reasonInput = document.getElementById('disable-reason-input');
+  const hintEl = document.getElementById('disable-reason-hint');
+  const reasonText = reasonInput?.value || '';
+  const reasonLength = reasonText.trim().length;
+  const validation = getDisableReasonValidation(reasonText, DISABLE_REASON_MIN_LENGTH);
 
   if (countEl) {
     countEl.textContent = String(reasonLength);
   }
 
+  if (hintEl) {
+    hintEl.textContent = validation.message;
+  }
+
   if (confirmButton && !disableInProgress) {
-    confirmButton.disabled = reasonLength < DISABLE_REASON_MIN_LENGTH;
+    confirmButton.disabled = !validation.isValid;
   }
 }
 
 async function disableBlockingWithReason() {
-  const reasonLength = getDisableReasonLength();
-  if (reasonLength < DISABLE_REASON_MIN_LENGTH) {
+  const reasonInput = document.getElementById('disable-reason-input');
+  const validation = getDisableReasonValidation(reasonInput?.value || '', DISABLE_REASON_MIN_LENGTH);
+  if (!validation.isValid) {
     updateDisableReasonUI();
     return;
   }
@@ -482,7 +605,9 @@ function setupEventListeners() {
     setDisableConfirmationVisible(false);
   });
 
-  document.getElementById('disable-reason-input').addEventListener('input', () => {
+  const disableReasonInput = document.getElementById('disable-reason-input');
+  preventBulkTextEntry(disableReasonInput);
+  disableReasonInput.addEventListener('input', () => {
     updateDisableReasonUI();
   });
 
