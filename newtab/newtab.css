@@ -202,6 +202,7 @@ body {
    ============================================ */
 
 .main {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -245,11 +246,16 @@ body {
    ============================================ */
 
 .bedtime-reminder {
+  position: fixed;
+  top: calc(var(--space-4) + 52px);
+  left: 50%;
+  z-index: 40;
+  transform: translateX(-50%);
   display: flex;
   align-items: flex-start;
   gap: var(--space-4);
-  width: min(100%, 720px);
-  margin: 0 auto var(--space-5);
+  width: min(calc(100vw - (var(--space-6) * 2)), 720px);
+  margin: 0;
   padding: var(--space-5);
   border: 1px solid rgba(245, 158, 11, 0.28);
   border-radius: calc(var(--radius-lg) + 4px);
@@ -302,6 +308,11 @@ body {
   color: var(--muted-foreground);
 }
 
+.bedtime-reminder-elapsed {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
 [data-theme='dark'] .bedtime-reminder,
 [data-theme='brutalist-dark'] .bedtime-reminder {
   border-color: rgba(251, 191, 36, 0.22);
@@ -317,6 +328,24 @@ body {
 [data-theme='dark'] .bedtime-reminder-eyebrow,
 [data-theme='brutalist-dark'] .bedtime-reminder-eyebrow {
   color: #fbbf24;
+}
+
+[data-theme='dashboard-light'] .bedtime-reminder,
+[data-theme='dashboard-dark'] .bedtime-reminder {
+  border-color: var(--border);
+  background: var(--card);
+  box-shadow: none;
+}
+
+[data-theme='dashboard-light'] .bedtime-reminder-icon,
+[data-theme='dashboard-dark'] .bedtime-reminder-icon {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+[data-theme='dashboard-light'] .bedtime-reminder-eyebrow,
+[data-theme='dashboard-dark'] .bedtime-reminder-eyebrow {
+  color: var(--muted-foreground);
 }
 
 /* ============================================
@@ -1183,7 +1212,8 @@ body {
   }
 
   .bedtime-reminder {
-    width: 100%;
+    top: calc(var(--space-4) + 48px);
+    width: calc(100vw - (var(--space-4) * 2));
     padding: var(--space-4);
     gap: var(--space-3);
   }

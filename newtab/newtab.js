@@ -298,6 +298,41 @@ function isWithinReminderWindow(startTime, endTime, now = new Date()) {
   return currentMinutes >= startMinutes || currentMinutes < endMinutes;
 }
 
+function getReminderElapsedMinutes(startTime, now = new Date()) {
+  const start = parseTimeString(startTime);
+  if (!start) {
+    return null;
+  }
+
+  let currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const startMinutes = start.hours * 60 + start.minutes;
+
+  if (currentMinutes < startMinutes) {
+    currentMinutes += 24 * 60;
+  }
+
+  return currentMinutes - startMinutes;
+}
+
+function formatElapsedDuration(totalMinutes) {
+  if (typeof totalMinutes !== 'number' || totalMinutes < 0) {
+    return '';
+  }
+
+  if (totalMinutes < 60) {
+    return `${totalMinutes} minute${totalMinutes === 1 ? '' : 's'}`;
+  }
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (minutes === 0) {
+    return `${hours} hour${hours === 1 ? '' : 's'}`;
+  }
+
+  return `${hours} hour${hours === 1 ? '' : 's'} ${minutes} minute${minutes === 1 ? '' : 's'}`;
+}
+
 function renderBedtimeReminder(settings) {
   const reminderEl = document.getElementById('bedtime-reminder');
   const textEl = document.getElementById('bedtime-reminder-text');
@@ -313,6 +348,14 @@ function renderBedtimeReminder(settings) {
   reminderEl.classList.toggle('hidden', !showReminder);
 
   if (!showReminder) {
+    return;
+  }
+
+  const elapsedMinutes = getReminderElapsedMinutes(startTime);
+  const elapsedText = formatElapsedDuration(elapsedMinutes);
+
+  if (elapsedText) {
+    textEl.innerHTML = `You are <span class="bedtime-reminder-elapsed">${elapsedText}</span> past your planned shutdown time of ${formatReminderTime(startTime)}. Stay off until ${formatReminderTime(endTime)}.`;
     return;
   }
 
