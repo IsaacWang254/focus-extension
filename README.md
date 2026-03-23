@@ -1,5 +1,9 @@
 ## Focus Extension
 
+<p align="center">
+  <img src="./icons/icon128.png" alt="Focus Extension icon" width="128" height="128">
+</p>
+
 Chrome extension for blocking distracting sites and replacing them with a focused dashboard that shows your Todoist tasks, calendar, and helpful context.
 
 ### Features
