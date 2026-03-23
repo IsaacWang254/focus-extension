@@ -1880,9 +1880,20 @@ async function updateBadgeTimer() {
   const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
   const settings = await getSettings();
 
+  const setBadgeAppearance = async (text, backgroundColor, textColor = null) => {
+    await chrome.action.setBadgeText({ text });
+
+    if (backgroundColor) {
+      await chrome.action.setBadgeBackgroundColor({ color: backgroundColor });
+    }
+
+    if (textColor) {
+      await chrome.action.setBadgeTextColor({ color: textColor });
+    }
+  };
+
   if (!settings.enabled) {
-    await chrome.action.setBadgeText({ text: 'OFF' });
-    await chrome.action.setBadgeBackgroundColor({ color: '#666666' });
+    await setBadgeAppearance('OFF', '#F5F5F4', '#1C1917');
     return;
   }
 
@@ -1900,8 +1911,7 @@ async function updateBadgeTimer() {
       badgeText = `${remainingMins}m`;
     }
 
-    await chrome.action.setBadgeText({ text: badgeText });
-    await chrome.action.setBadgeBackgroundColor({ color: '#dc2626' }); // Red for nuclear
+    await setBadgeAppearance(badgeText, '#dc2626', '#FFFFFF'); // Red for nuclear
 
     // Schedule next update
     chrome.alarms.create('updateBadge', { delayInMinutes: 1 / 6 }); // Every 10s
@@ -1949,14 +1959,13 @@ async function updateBadgeTimer() {
       badgeColor = '#4CAF50'; // Green - plenty of time
     }
 
-    await chrome.action.setBadgeText({ text: badgeText });
-    await chrome.action.setBadgeBackgroundColor({ color: badgeColor });
+    const badgeTextColor = remainingSeconds <= 300 ? '#1C1917' : '#FFFFFF';
+    await setBadgeAppearance(badgeText, badgeColor, badgeTextColor);
 
     // Schedule next update
     chrome.alarms.create('updateBadge', { delayInMinutes: remainingSeconds <= 60 ? 1 / 60 : 1 / 6 }); // Every 1s or 10s
   } else if (hasUnlimited) {
-    await chrome.action.setBadgeText({ text: '∞' });
-    await chrome.action.setBadgeBackgroundColor({ color: '#2196F3' }); // Blue
+    await setBadgeAppearance('∞', '#2196F3', '#FFFFFF'); // Blue
   } else {
     // No active timers
     await chrome.action.setBadgeText({ text: '' });
