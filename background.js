@@ -1088,6 +1088,9 @@ async function handleMessage(message, sender) {
     case 'GET_ALL_TIME_STATS':
       return await getAllTimeStats();
 
+    case 'GET_BLOCKING_SUMMARY':
+      return await getBlockingSummary();
+
     // Category operations
     case 'GET_CATEGORIES':
       return await getCategories();
@@ -1730,6 +1733,7 @@ async function temporaryUnblock(site, minutes, useEarnedTimeFlag = false) {
 
   // Record this unblock for streak tracking
   await recordUnblockForStreak(domain, actualMinutes);
+  await decrementBlockedPageCounter();
 
   return { success: true, unblockUntil: expiryTime, unlimited: expiryTime === 'unlimited', earnedTimeUsed: earnedTimeToUse > 0 };
 }
@@ -2751,6 +2755,50 @@ async function getAllTimeStats() {
   };
 }
 
+async function getBlockedPageCounter() {
+  const result = await chrome.storage.local.get('blockedPageCounter');
+  return result.blockedPageCounter || 0;
+}
+
+async function incrementBlockedPageCounter() {
+  const current = await getBlockedPageCounter();
+  const nextValue = current + 1;
+  await chrome.storage.local.set({ blockedPageCounter: nextValue });
+  return nextValue;
+}
+
+async function decrementBlockedPageCounter() {
+  const current = await getBlockedPageCounter();
+  const nextValue = Math.max(0, current - 1);
+  await chrome.storage.local.set({ blockedPageCounter: nextValue });
+  return nextValue;
+}
+
+async function getBlockingSummary() {
+  const [settings, displayedBlockCount, lifetimeBlockAttempts, unblockReasons] = await Promise.all([
+    getSettings(),
+    getBlockedPageCounter(),
+    getTotalBlockAttempts(),
+    getUnblockReasons()
+  ]);
+
+  const totalUnblocks = unblockReasons?.totalCount || 0;
+  const resistedCount = Math.max(0, displayedBlockCount);
+  const domainStats = unblockReasons?.domainStats || {};
+  const topUnblockedEntry = Object.entries(domainStats)
+    .sort((a, b) => b[1] - a[1])[0] || null;
+
+  return {
+    blockedSiteCount: settings?.blockedSites?.length || 0,
+    totalBlockAttempts: displayedBlockCount,
+    lifetimeBlockAttempts,
+    totalUnblocks,
+    resistedCount,
+    topUnblockedDomain: topUnblockedEntry?.[0] || null,
+    topUnblockedCount: topUnblockedEntry?.[1] || 0
+  };
+}
+
 // =============================================================================
 // MOTIVATIONAL QUOTES
 // =============================================================================
@@ -3605,6 +3653,7 @@ async function incrementBlockAttempts() {
   const current = await getTotalBlockAttempts();
   const newTotal = current + 1;
   await chrome.storage.local.set({ totalBlockAttempts: newTotal });
+  await incrementBlockedPageCounter();
 
   // Check achievements after incrementing
   await checkBlockingAchievements();

@@ -20,6 +20,7 @@ const DEFAULTS = {
   newtabShowQuotes: true,
   newtabShowCalendar: true,
   newtabShowTodos: true,
+  newtabShowFocusSnapshot: true,
   newtabTempUnit: 'C', // 'C' or 'F'
   newtabBgColorLight: 'default',
   newtabBgColorDark: 'default',
@@ -557,6 +558,7 @@ async function loadSettings() {
     'newtabShowQuotes',
     'newtabShowCalendar',
     'newtabShowTodos',
+    'newtabShowFocusSnapshot',
     'newtabTempUnit',
     'newtabBgColorLight',
     'newtabBgColorDark'
@@ -572,6 +574,7 @@ async function loadSettings() {
   document.getElementById('toggle-quotes').checked = settings.newtabShowQuotes;
   document.getElementById('toggle-calendar').checked = settings.newtabShowCalendar;
   document.getElementById('toggle-todos').checked = settings.newtabShowTodos;
+  document.getElementById('toggle-focus-snapshot').checked = settings.newtabShowFocusSnapshot;
 
   // Apply temp unit toggle
   const unit = settings.newtabTempUnit || 'C';
@@ -593,6 +596,7 @@ async function loadSettings() {
 function applyVisibility(settings) {
   const weatherSection = document.getElementById('weather-section');
   const quoteSection = document.getElementById('quote-section');
+  const focusSnapshot = document.getElementById('focus-snapshot');
   const calendarPanel = document.getElementById('calendar-panel');
   const todosPanel = document.getElementById('todos-panel');
   const completedPanel = document.getElementById('completed-panel');
@@ -600,6 +604,7 @@ function applyVisibility(settings) {
 
   weatherSection.classList.toggle('hidden', !settings.newtabShowWeather);
   quoteSection.classList.toggle('hidden', !settings.newtabShowQuotes);
+  focusSnapshot.classList.toggle('hidden', !settings.newtabShowFocusSnapshot);
   calendarPanel.classList.toggle('hidden', !settings.newtabShowCalendar);
   todosPanel.classList.toggle('hidden', !settings.newtabShowTodos);
 
@@ -640,6 +645,7 @@ function setupSettings() {
     { id: 'toggle-quotes', key: 'newtabShowQuotes' },
     { id: 'toggle-calendar', key: 'newtabShowCalendar' },
     { id: 'toggle-todos', key: 'newtabShowTodos' },
+    { id: 'toggle-focus-snapshot', key: 'newtabShowFocusSnapshot' },
   ];
 
   for (const { id, key } of toggles) {
@@ -651,6 +657,10 @@ function setupSettings() {
       const result = await chrome.storage.local.get(Object.keys(DEFAULTS));
       const settings = { ...DEFAULTS, ...result };
       applyVisibility(settings);
+
+      if (key === 'newtabShowFocusSnapshot') {
+        await loadFocusSnapshot(settings);
+      }
     });
   }
 
@@ -1250,6 +1260,28 @@ function setupShowMore() {
   });
 }
 
+async function loadFocusSnapshot(preloadedDisplaySettings = null) {
+  const displaySettings = preloadedDisplaySettings || {
+    ...DEFAULTS,
+    ...(await chrome.storage.local.get([
+      'newtabShowFocusSnapshot'
+    ]))
+  };
+
+  if (!displaySettings.newtabShowFocusSnapshot) {
+    return;
+  }
+
+  try {
+    const blockingSummary = await chrome.runtime.sendMessage({ type: 'GET_BLOCKING_SUMMARY' });
+    const totalBlockAttempts = blockingSummary?.totalBlockAttempts || 0;
+    document.getElementById('focus-snapshot-blocked').textContent = totalBlockAttempts;
+  } catch (error) {
+    console.error('Failed to load focus snapshot:', error);
+    document.getElementById('focus-snapshot-blocked').textContent = '-';
+  }
+}
+
 // =============================================================================
 // INIT
 // =============================================================================
@@ -1277,6 +1309,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load settings and apply visibility
   await loadSettings();
+  await loadFocusSnapshot();
 
   // Load data (in parallel)
   loadCalendar();

@@ -54,6 +54,13 @@
                 <span class="toggle-slider"></span>
               </label>
             </div>
+            <div class="settings-row">
+              <span class="settings-label">Show focus snapshot</span>
+              <label class="toggle">
+                <input type="checkbox" id="toggle-focus-snapshot" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
 
           </div>
         </div>
@@ -69,10 +76,38 @@
 
   <!-- Main content -->
   <main class="main">
-    <!-- Clock & Greeting -->
-    <div class="hero">
-      <div class="clock" id="clock">00:00</div>
-      <div class="greeting" id="greeting">Good morning</div>
+    <div class="page-corners">
+      <div class="corner-block corner-block-left">
+        <section class="focus-snapshot hidden" id="focus-snapshot">
+          <div class="focus-snapshot-inline">
+            <span class="focus-snapshot-inline-label">Sites blocked</span>
+            <span class="focus-snapshot-inline-value" id="focus-snapshot-blocked">0</span>
+          </div>
+        </section>
+      </div>
+
+      <div class="corner-block corner-block-right">
+        <div class="hero">
+          <div class="clock" id="clock">00:00</div>
+          <div class="greeting" id="greeting">Good morning</div>
+        </div>
+
+        <!-- Weather -->
+        <div class="weather-section" id="weather-section">
+          <div class="weather-loading" id="weather-loading">
+            <div class="spinner spinner-sm"></div>
+          </div>
+          <div class="weather-content hidden" id="weather-content">
+            <span class="weather-icon" id="weather-icon"></span>
+            <span class="weather-temp" id="weather-temp"></span>
+            <span class="weather-desc" id="weather-desc"></span>
+            <span class="weather-highlow" id="weather-highlow"></span>
+          </div>
+          <div class="weather-error hidden" id="weather-error">
+            <span class="text-muted text-sm" id="weather-error-text"></span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <section class="bedtime-reminder hidden" id="bedtime-reminder" aria-live="polite">
@@ -84,110 +119,96 @@
       </div>
     </section>
 
-    <!-- Weather -->
-    <div class="weather-section" id="weather-section">
-      <div class="weather-loading" id="weather-loading">
-        <div class="spinner spinner-sm"></div>
-      </div>
-      <div class="weather-content hidden" id="weather-content">
-        <span class="weather-icon" id="weather-icon"></span>
-        <span class="weather-temp" id="weather-temp"></span>
-        <span class="weather-desc" id="weather-desc"></span>
-        <span class="weather-highlow" id="weather-highlow"></span>
-      </div>
-      <div class="weather-error hidden" id="weather-error">
-        <span class="text-muted text-sm" id="weather-error-text"></span>
-      </div>
-    </div>
-
-    <!-- Motivational Quote -->
-    <div class="quote-section" id="quote-section">
-      <blockquote class="quote-text" id="quote-text"></blockquote>
-      <cite class="quote-author" id="quote-author"></cite>
-    </div>
-
-    <!-- Content panels -->
-    <div class="content-panels" id="content-panels">
-      <!-- Calendar panel -->
-      <div class="panel panel-calendar" id="calendar-panel">
-        <div class="panel-header">
-          <span class="panel-icon" id="calendar-icon"></span>
-          <div class="panel-header-text">
-            <h3 class="panel-title">Today's Schedule</h3>
-            <span class="panel-date" id="calendar-date"></span>
-          </div>
-        </div>
-        <div class="panel-body">
-          <!-- Calendar not connected state -->
-          <div class="connect-prompt" id="calendar-connect">
-            <p class="connect-text">Connect Google Calendar to see your schedule</p>
-            <button class="btn btn-secondary btn-small" id="calendar-connect-btn">Connect Calendar</button>
-          </div>
-          <!-- Calendar session expired state -->
-          <div class="connect-prompt hidden" id="calendar-reconnect">
-            <p class="connect-text connect-text-warning">Calendar session expired. Please reconnect.</p>
-            <button class="btn btn-secondary btn-small" id="calendar-reconnect-btn">Reconnect Calendar</button>
-          </div>
-          <!-- Calendar loading state -->
-          <div class="panel-loading hidden" id="calendar-loading">
-            <div class="spinner"></div>
-          </div>
-          <!-- Calendar empty state -->
-          <div class="panel-empty hidden" id="calendar-empty">
-            <p class="text-muted text-sm">No events today</p>
-          </div>
-          <!-- Calendar events list -->
-          <ul class="event-list" id="event-list"></ul>
-        </div>
+    <div class="center-stage">
+      <!-- Motivational Quote -->
+      <div class="quote-section" id="quote-section">
+        <blockquote class="quote-text" id="quote-text"></blockquote>
+        <cite class="quote-author" id="quote-author"></cite>
       </div>
 
-      <!-- Todos panel -->
-      <div class="panel panel-todos" id="todos-panel">
-        <div class="panel-header">
-          <span class="panel-icon" id="todos-icon"></span>
-          <h3 class="panel-title">Tasks</h3>
+      <!-- Content panels -->
+      <div class="content-panels" id="content-panels">
+        <!-- Calendar panel -->
+        <div class="panel panel-calendar" id="calendar-panel">
+          <div class="panel-header">
+            <span class="panel-icon" id="calendar-icon"></span>
+            <div class="panel-header-text">
+              <h3 class="panel-title">Today's Schedule</h3>
+              <span class="panel-date" id="calendar-date"></span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <!-- Calendar not connected state -->
+            <div class="connect-prompt" id="calendar-connect">
+              <p class="connect-text">Connect Google Calendar to see your schedule</p>
+              <button class="btn btn-secondary btn-small" id="calendar-connect-btn">Connect Calendar</button>
+            </div>
+            <!-- Calendar session expired state -->
+            <div class="connect-prompt hidden" id="calendar-reconnect">
+              <p class="connect-text connect-text-warning">Calendar session expired. Please reconnect.</p>
+              <button class="btn btn-secondary btn-small" id="calendar-reconnect-btn">Reconnect Calendar</button>
+            </div>
+            <!-- Calendar loading state -->
+            <div class="panel-loading hidden" id="calendar-loading">
+              <div class="spinner"></div>
+            </div>
+            <!-- Calendar empty state -->
+            <div class="panel-empty hidden" id="calendar-empty">
+              <p class="text-muted text-sm">No events today</p>
+            </div>
+            <!-- Calendar events list -->
+            <ul class="event-list" id="event-list"></ul>
+          </div>
         </div>
-        <div class="panel-body">
-          <!-- Todoist not connected state -->
-          <div class="connect-prompt" id="todos-connect">
-            <p class="connect-text">Connect Todoist to see your tasks</p>
-            <button class="btn btn-secondary btn-small" id="todos-connect-btn">Connect Todoist</button>
-          </div>
-          <!-- Todos loading state -->
-          <div class="panel-loading hidden" id="todos-loading">
-            <div class="spinner"></div>
-          </div>
-          <!-- Todos empty state -->
-          <div class="panel-empty hidden" id="todos-empty">
-            <p class="text-muted text-sm">No tasks for today</p>
-          </div>
-          <!-- Todos list -->
-          <ul class="todo-list" id="todo-list"></ul>
-          <!-- Show more button -->
-          <button class="btn btn-ghost btn-small show-more-btn hidden" id="todos-show-more">Show more</button>
-        </div>
-      </div>
 
-      <!-- Completed panel -->
-      <div class="panel panel-completed" id="completed-panel">
-        <div class="panel-header">
-          <span class="panel-icon" id="completed-icon"></span>
-          <div class="panel-header-text">
-            <h3 class="panel-title">Completed</h3>
-            <span class="panel-count" id="completed-count">0</span>
+        <!-- Todos panel -->
+        <div class="panel panel-todos" id="todos-panel">
+          <div class="panel-header">
+            <span class="panel-icon" id="todos-icon"></span>
+            <h3 class="panel-title">Tasks</h3>
+          </div>
+          <div class="panel-body">
+            <!-- Todoist not connected state -->
+            <div class="connect-prompt" id="todos-connect">
+              <p class="connect-text">Connect Todoist to see your tasks</p>
+              <button class="btn btn-secondary btn-small" id="todos-connect-btn">Connect Todoist</button>
+            </div>
+            <!-- Todos loading state -->
+            <div class="panel-loading hidden" id="todos-loading">
+              <div class="spinner"></div>
+            </div>
+            <!-- Todos empty state -->
+            <div class="panel-empty hidden" id="todos-empty">
+              <p class="text-muted text-sm">No tasks for today</p>
+            </div>
+            <!-- Todos list -->
+            <ul class="todo-list" id="todo-list"></ul>
+            <!-- Show more button -->
+            <button class="btn btn-ghost btn-small show-more-btn hidden" id="todos-show-more">Show more</button>
           </div>
         </div>
-        <div class="panel-body">
-          <!-- Completed loading state -->
-          <div class="panel-loading hidden" id="completed-loading">
-            <div class="spinner"></div>
+
+        <!-- Completed panel -->
+        <div class="panel panel-completed" id="completed-panel">
+          <div class="panel-header">
+            <span class="panel-icon" id="completed-icon"></span>
+            <div class="panel-header-text">
+              <h3 class="panel-title">Completed</h3>
+              <span class="panel-count" id="completed-count">0</span>
+            </div>
           </div>
-          <!-- Completed empty state -->
-          <div class="panel-empty" id="completed-empty">
-            <p class="text-muted text-sm">No tasks completed yet today</p>
+          <div class="panel-body">
+            <!-- Completed loading state -->
+            <div class="panel-loading hidden" id="completed-loading">
+              <div class="spinner"></div>
+            </div>
+            <!-- Completed empty state -->
+            <div class="panel-empty" id="completed-empty">
+              <p class="text-muted text-sm">No tasks completed yet today</p>
+            </div>
+            <!-- Completed list -->
+            <ul class="completed-list" id="completed-list"></ul>
           </div>
-          <!-- Completed list -->
-          <ul class="completed-list" id="completed-list"></ul>
         </div>
       </div>
     </div>
