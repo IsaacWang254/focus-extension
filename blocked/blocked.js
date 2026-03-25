@@ -1513,7 +1513,7 @@ async function setupUnblockMethods() {
   if (methods.timer.enabled) {
     document.getElementById('method-timer').style.display = 'block';
     anyMethodEnabled = true;
-    startTimer(methods.timer.minutes);
+    startTimer(getTimerDurationSeconds(methods.timer));
   }
 
   // Complete todo method
@@ -1714,8 +1714,26 @@ let timerRemainingSeconds = 0;
 let timerTotalSeconds = 0;
 let isPageVisible = !document.hidden && document.hasFocus();
 
-function startTimer(minutes) {
-  timerTotalSeconds = minutes * 60;
+function getTimerDurationSeconds(timerSettings) {
+  if (!timerSettings) return 5 * 60;
+
+  if (timerSettings.unit === 'seconds' && Number.isFinite(Number(timerSettings.value))) {
+    return Math.max(1, Math.round(Number(timerSettings.value)));
+  }
+
+  if (Number.isFinite(Number(timerSettings.value))) {
+    return Math.max(1, Math.round(Number(timerSettings.value) * 60));
+  }
+
+  if (Number.isFinite(Number(timerSettings.minutes))) {
+    return Math.max(1, Math.round(Number(timerSettings.minutes) * 60));
+  }
+
+  return 5 * 60;
+}
+
+function startTimer(totalSeconds) {
+  timerTotalSeconds = totalSeconds;
   timerRemainingSeconds = timerTotalSeconds;
 
   // Initialize progress bar to 0% width (shows empty track)

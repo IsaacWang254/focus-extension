@@ -696,6 +696,15 @@ input.search-input {
   max-width: 320px;
 }
 
+.timer-duration-input {
+  width: 5.5rem;
+  min-width: 5.5rem;
+  text-align: center;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
 .input-suffix {
   font-size: 0.75rem;
   color: var(--muted-foreground);

@@ -113,7 +113,7 @@ const DEFAULT_SETTINGS = {
     activeDays: [1, 2, 3, 4, 5] // Weekdays by default
   },
   unblockMethods: {
-    timer: { enabled: false, minutes: 5 },
+    timer: { enabled: false, unit: 'minutes', value: 5, minutes: 5 },
     completeTodo: { enabled: true, mode: 'single', requiredCount: 3 },
     typePhrase: { enabled: false, phrase: 'I want to waste my time', useRandomString: false, randomLength: 30 },
     typeReason: { enabled: true, minLength: 50 },
@@ -190,7 +190,7 @@ const DEFAULT_PROFILE = {
     activeDays: [1, 2, 3, 4, 5]
   },
   unblockMethods: {
-    timer: { enabled: false, minutes: 5 },
+    timer: { enabled: false, unit: 'minutes', value: 5, minutes: 5 },
     completeTodo: { enabled: true, mode: 'single', requiredCount: 3 },
     typePhrase: { enabled: false, phrase: 'I want to waste my time', useRandomString: false, randomLength: 30 },
     typeReason: { enabled: true, minLength: 50 },
@@ -213,7 +213,7 @@ const PROFILE_TEMPLATES = {
       { id: 'gaming', name: 'Gaming', icon: 'GM', sites: ['twitch.tv', 'discord.com', 'steampowered.com'], enabled: true }
     ],
     unblockMethods: {
-      timer: { enabled: true, minutes: 10 },
+      timer: { enabled: true, unit: 'minutes', value: 10, minutes: 10 },
       completeTodo: { enabled: false, mode: 'single', requiredCount: 3 },
       typePhrase: { enabled: true, phrase: 'I should be working right now', useRandomString: false, randomLength: 30 },
       typeReason: { enabled: false, minLength: 50 },
@@ -231,7 +231,7 @@ const PROFILE_TEMPLATES = {
       { id: 'entertainment', name: 'Entertainment', icon: 'EN', sites: ['youtube.com', 'netflix.com', 'twitch.tv', 'spotify.com'], enabled: true }
     ],
     unblockMethods: {
-      timer: { enabled: true, minutes: 15 },
+      timer: { enabled: true, unit: 'minutes', value: 15, minutes: 15 },
       completeTodo: { enabled: true, mode: 'single', requiredCount: 3 },
       typePhrase: { enabled: false, phrase: 'I want to waste my time', useRandomString: false, randomLength: 30 },
       typeReason: { enabled: true, minLength: 50 },
@@ -246,7 +246,7 @@ const PROFILE_TEMPLATES = {
     blockedSites: [],
     categories: [],
     unblockMethods: {
-      timer: { enabled: true, minutes: 1 },
+      timer: { enabled: true, unit: 'minutes', value: 1, minutes: 1 },
       completeTodo: { enabled: false, mode: 'single', requiredCount: 3 },
       typePhrase: { enabled: false, phrase: 'I want to waste my time', useRandomString: false, randomLength: 30 },
       typeReason: { enabled: false, minLength: 50 },

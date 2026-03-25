@@ -1278,8 +1278,9 @@ function populateSettings() {
   loadEarnedTimeBank();
 
   // Timer
-  document.getElementById('timer-enabled').checked = methods.timer.enabled;
-  document.getElementById('timer-minutes').value = methods.timer.minutes;
+  const normalizedTimer = normalizeTimerConfig(methods.timer, 5);
+  document.getElementById('timer-enabled').checked = normalizedTimer.enabled;
+  document.getElementById('timer-duration').value = formatTimerDuration(normalizedTimer.totalSeconds);
   updateMethodOptions('timer');
 
   // Complete todo
@@ -1602,6 +1603,99 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+const MAX_TIMER_SECONDS = 60 * 60;
+
+function clampTimerSeconds(totalSeconds, fallbackSeconds = 5 * 60) {
+  const safeSeconds = Number.isFinite(totalSeconds) ? Math.round(totalSeconds) : fallbackSeconds;
+  return Math.min(MAX_TIMER_SECONDS, Math.max(1, safeSeconds));
+}
+
+function formatTimerDuration(totalSeconds) {
+  const clamped = clampTimerSeconds(totalSeconds);
+  const minutes = Math.floor(clamped / 60);
+  const seconds = clamped % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function parseTimerDurationInput(value, fallbackSeconds = 5 * 60) {
+  const raw = String(value || '').trim();
+  if (!raw) return clampTimerSeconds(fallbackSeconds, fallbackSeconds);
+
+  let totalSeconds;
+  if (raw.includes(':')) {
+    const [minutesPart = '0', secondsPart = '0'] = raw.split(':', 2);
+    const minutes = parseInt(minutesPart.replace(/\D/g, ''), 10);
+    const seconds = parseInt(secondsPart.replace(/\D/g, ''), 10);
+    if (!Number.isFinite(minutes) && !Number.isFinite(seconds)) {
+      return clampTimerSeconds(fallbackSeconds, fallbackSeconds);
+    }
+    totalSeconds = (Number.isFinite(minutes) ? minutes : 0) * 60 + (Number.isFinite(seconds) ? seconds : 0);
+  } else {
+    const plainNumber = parseInt(raw.replace(/\D/g, ''), 10);
+    totalSeconds = Number.isFinite(plainNumber) ? plainNumber * 60 : fallbackSeconds;
+  }
+
+  return clampTimerSeconds(totalSeconds, fallbackSeconds);
+}
+
+function sanitizeTimerConfig(timer) {
+  let totalSeconds = Number(timer?.totalSeconds);
+
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) {
+    if (Number.isFinite(Number(timer?.seconds)) && Number(timer.seconds) > 0) {
+      totalSeconds = Number(timer.seconds);
+    } else if (timer?.unit === 'seconds' && Number.isFinite(Number(timer?.value))) {
+      totalSeconds = Number(timer.value);
+    } else if (Number.isFinite(Number(timer?.value))) {
+      totalSeconds = Number(timer.value) * 60;
+    } else if (Number.isFinite(Number(timer?.minutes))) {
+      totalSeconds = Number(timer.minutes) * 60;
+    } else {
+      totalSeconds = 5 * 60;
+    }
+  }
+
+  totalSeconds = clampTimerSeconds(totalSeconds);
+  const unit = totalSeconds % 60 === 0 ? 'minutes' : 'seconds';
+  const value = unit === 'minutes' ? totalSeconds / 60 : totalSeconds;
+
+  return {
+    enabled: timer?.enabled ?? false,
+    totalSeconds,
+    unit,
+    value,
+    seconds: totalSeconds,
+    minutes: totalSeconds / 60
+  };
+}
+
+function normalizeTimerConfig(timer, fallbackValue = 5) {
+  return sanitizeTimerConfig({
+    enabled: timer?.enabled ?? false,
+    totalSeconds: Number.isFinite(Number(timer?.totalSeconds)) && Number(timer.totalSeconds) > 0
+      ? Number(timer.totalSeconds)
+      : Number.isFinite(Number(timer?.seconds)) && Number(timer.seconds) > 0
+        ? Number(timer.seconds)
+        : timer?.unit === 'seconds' && Number.isFinite(Number(timer?.value)) && Number(timer.value) > 0
+          ? Number(timer.value)
+          : Number.isFinite(Number(timer?.value)) && Number(timer.value) > 0
+            ? Number(timer.value) * 60
+            : Number.isFinite(Number(timer?.minutes)) && Number(timer.minutes) > 0
+              ? Number(timer.minutes) * 60
+              : fallbackValue * 60
+  });
+}
+
+function setupTimerDurationInput(inputId, fallbackSeconds = 5 * 60) {
+  const input = document.getElementById(inputId);
+  if (!input || input.dataset.bound === 'true') return;
+
+  input.dataset.bound = 'true';
+  input.addEventListener('blur', () => {
+    input.value = formatTimerDuration(parseTimerDurationInput(input.value, fallbackSeconds));
+  });
+}
+
 // =============================================================================
 // EVENT LISTENERS
 // =============================================================================
@@ -1709,6 +1803,8 @@ function setupEventListeners() {
   document.getElementById('todo-mode').addEventListener('change', refreshTodoTaskProgressPreview);
   document.getElementById('todo-required-count').addEventListener('input', refreshTodoTaskProgressPreview);
   document.getElementById('todo-enabled').addEventListener('change', refreshTodoTaskProgressPreview);
+  setupTimerDurationInput('timer-duration');
+  setupTimerDurationInput('profile-timer-duration');
 
   // Phrase mode toggle (custom vs random)
   document.getElementById('phrase-use-random').addEventListener('change', updatePhraseMode);
@@ -1795,10 +1891,10 @@ async function saveSettings() {
 
   // Unblock methods
   settings.unblockMethods = {
-    timer: {
+    timer: sanitizeTimerConfig({
       enabled: document.getElementById('timer-enabled').checked,
-      minutes: parseInt(document.getElementById('timer-minutes').value, 10) || 5
-    },
+      totalSeconds: parseTimerDurationInput(document.getElementById('timer-duration').value, 5 * 60)
+    }),
     completeTodo: {
       enabled: document.getElementById('todo-enabled').checked,
       mode: document.getElementById('todo-mode').value === 'daily' ? 'daily' : 'single',
@@ -1823,13 +1919,8 @@ async function saveSettings() {
     }
   };
 
-  // Validate timer minutes
-  if (settings.unblockMethods.timer.minutes < 1) {
-    settings.unblockMethods.timer.minutes = 1;
-  }
-  if (settings.unblockMethods.timer.minutes > 60) {
-    settings.unblockMethods.timer.minutes = 60;
-  }
+  settings.unblockMethods.timer = sanitizeTimerConfig(settings.unblockMethods.timer);
+  document.getElementById('timer-duration').value = formatTimerDuration(settings.unblockMethods.timer.totalSeconds);
 
   // Privacy settings
   const historyAnalysisToggle = document.getElementById('history-analysis-enabled');
@@ -2259,10 +2350,10 @@ function gatherCurrentSettings() {
       activeDays: activeDays
     },
     unblockMethods: {
-      timer: {
+      timer: sanitizeTimerConfig({
         enabled: document.getElementById('timer-enabled').checked,
-        minutes: parseInt(document.getElementById('timer-minutes').value, 10) || 5
-      },
+        totalSeconds: parseTimerDurationInput(document.getElementById('timer-duration').value, 5 * 60)
+      }),
       completeTodo: {
         enabled: document.getElementById('todo-enabled').checked,
         mode: document.getElementById('todo-mode').value === 'daily' ? 'daily' : 'single',
@@ -3195,8 +3286,9 @@ async function openProfileModal(profileId) {
 
     // Populate unblock methods
     const methods = currentEditingProfile.unblockMethods || {};
-    document.getElementById('profile-timer-enabled').checked = methods.timer?.enabled ?? true;
-    document.getElementById('profile-timer-minutes').value = methods.timer?.minutes ?? 5;
+    const normalizedProfileTimer = normalizeTimerConfig(methods.timer, 5);
+    document.getElementById('profile-timer-enabled').checked = normalizedProfileTimer.enabled;
+    document.getElementById('profile-timer-duration').value = formatTimerDuration(normalizedProfileTimer.totalSeconds);
     document.getElementById('profile-phrase-enabled').checked = methods.typePhrase?.enabled ?? false;
     document.getElementById('profile-math-enabled').checked = methods.mathProblem?.enabled ?? false;
     document.getElementById('profile-todo-enabled').checked = methods.completeTodo?.enabled ?? false;
@@ -3214,7 +3306,7 @@ async function openProfileModal(profileId) {
       color: '#6366f1',
       blockedSites: [],
       unblockMethods: {
-        timer: { enabled: true, minutes: 5 },
+        timer: { enabled: true, unit: 'minutes', value: 5, minutes: 5 },
         typePhrase: { enabled: false, phrase: 'I want to waste my time' },
         mathProblem: { enabled: false },
         completeTodo: { enabled: false, mode: 'single', requiredCount: 3 },
@@ -3235,7 +3327,7 @@ async function openProfileModal(profileId) {
     renderProfileSites([]);
 
     document.getElementById('profile-timer-enabled').checked = true;
-    document.getElementById('profile-timer-minutes').value = 5;
+    document.getElementById('profile-timer-duration').value = '5:00';
     document.getElementById('profile-phrase-enabled').checked = false;
     document.getElementById('profile-math-enabled').checked = false;
     document.getElementById('profile-todo-enabled').checked = false;
@@ -3369,10 +3461,10 @@ async function saveProfile() {
 
   // Build unblock methods
   const unblockMethods = {
-    timer: {
+    timer: sanitizeTimerConfig({
       enabled: document.getElementById('profile-timer-enabled').checked,
-      minutes: parseInt(document.getElementById('profile-timer-minutes').value) || 5
-    },
+      totalSeconds: parseTimerDurationInput(document.getElementById('profile-timer-duration').value, 5 * 60)
+    }),
     typePhrase: {
       enabled: document.getElementById('profile-phrase-enabled').checked,
       phrase: currentEditingProfile.unblockMethods?.typePhrase?.phrase || 'I want to waste my time',
@@ -3396,6 +3488,8 @@ async function saveProfile() {
       value: currentEditingProfile.unblockMethods?.password?.value || ''
     }
   };
+
+  document.getElementById('profile-timer-duration').value = formatTimerDuration(unblockMethods.timer.totalSeconds);
 
   const profileData = {
     name,
