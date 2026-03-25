@@ -76,6 +76,22 @@ body {
   color: var(--foreground);
 }
 
+.background-controls {
+  padding: var(--space-2);
+}
+
+.background-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.background-status {
+  margin: var(--space-2) 0 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  line-height: 1.4;
+}
+
 .settings-icon {
   display: flex;
   align-items: center;
@@ -1014,6 +1030,11 @@ body {
 [data-theme="dashboard-dark"] .settings-panel {
   padding: 10px;
   min-width: 240px;
+}
+
+[data-theme="dashboard-light"] .background-controls,
+[data-theme="dashboard-dark"] .background-controls {
+  padding: 8px 10px 10px;
 }
 
 [data-theme="dashboard-light"] .settings-title,

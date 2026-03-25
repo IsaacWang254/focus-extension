@@ -24,6 +24,8 @@ const DEFAULTS = {
   newtabTempUnit: 'C', // 'C' or 'F'
   newtabBgColorLight: 'default',
   newtabBgColorDark: 'default',
+  newtabBgImageLight: '',
+  newtabBgImageDark: '',
   bedtimeReminderEnabled: false,
   bedtimeReminderTime: '22:30',
   bedtimeReminderEndTime: '07:00',
@@ -166,6 +168,11 @@ function getCurrentTheme() {
 function getBgStorageKey() {
   const theme = getCurrentTheme();
   return (theme === 'dark' || theme === 'brutalist-dark' || theme === 'dashboard-dark') ? 'newtabBgColorDark' : 'newtabBgColorLight';
+}
+
+function getBgImageStorageKey() {
+  const theme = getCurrentTheme();
+  return (theme === 'dark' || theme === 'brutalist-dark' || theme === 'dashboard-dark') ? 'newtabBgImageDark' : 'newtabBgImageLight';
 }
 
 function setupThemeToggle() {
@@ -561,7 +568,9 @@ async function loadSettings() {
     'newtabShowFocusSnapshot',
     'newtabTempUnit',
     'newtabBgColorLight',
-    'newtabBgColorDark'
+    'newtabBgColorDark',
+    'newtabBgImageLight',
+    'newtabBgImageDark'
   ]);
   const settings = {
     ...DEFAULTS,
@@ -589,7 +598,10 @@ async function loadSettings() {
   // Apply background color for current theme
   const bgKey = getBgStorageKey();
   const bgColor = settings[bgKey] || 'default';
-  applyBgColor(bgColor);
+  const bgImageKey = getBgImageStorageKey();
+  const bgImage = settings[bgImageKey] || '';
+  applyBackgroundAppearance(bgColor, bgImage);
+  updateBackgroundControls(bgImage);
   renderSwatches(bgColor);
 }
 
@@ -682,13 +694,19 @@ function setupSettings() {
 
   // Background color swatches
   setupBgColorPicker();
+  setupBgImagePicker();
 }
 
 // =============================================================================
 // BACKGROUND COLOR
 // =============================================================================
 
-function applyBgColor(color) {
+function applyBackgroundAppearance(color, image = '') {
+  document.body.style.backgroundImage = image ? `url("${image}")` : '';
+  document.body.style.backgroundSize = image ? 'cover' : '';
+  document.body.style.backgroundPosition = image ? 'center center' : '';
+  document.body.style.backgroundRepeat = image ? 'no-repeat' : '';
+
   if (getCurrentTheme().startsWith('dashboard')) {
     document.body.style.backgroundColor = '';
     return;
@@ -698,6 +716,19 @@ function applyBgColor(color) {
     document.body.style.backgroundColor = '';
   } else {
     document.body.style.backgroundColor = color;
+  }
+}
+
+function updateBackgroundControls(image = '') {
+  const status = document.getElementById('bg-image-status');
+  const removeButton = document.getElementById('remove-bg-image-btn');
+
+  if (status) {
+    status.textContent = image ? 'Custom image applied to this theme' : 'Using default background';
+  }
+
+  if (removeButton) {
+    removeButton.classList.toggle('hidden', !image);
   }
 }
 
@@ -760,7 +791,9 @@ function renderSwatches(selectedColor) {
     const color = e.target.value;
     const key = getBgStorageKey();
     await chrome.storage.local.set({ [key]: color });
-    applyBgColor(color);
+    const imageKey = getBgImageStorageKey();
+    const imageResult = await chrome.storage.local.get(imageKey);
+    applyBackgroundAppearance(color, imageResult[imageKey] || '');
     setSwatchSelected(color);
   });
 }
@@ -785,15 +818,13 @@ function setSwatchSelected(color) {
 }
 
 async function refreshBgColor() {
-  if (getCurrentTheme().startsWith('dashboard')) {
-    document.body.style.backgroundColor = '';
-    return;
-  }
-
   const key = getBgStorageKey();
-  const result = await chrome.storage.local.get(key);
+  const imageKey = getBgImageStorageKey();
+  const result = await chrome.storage.local.get([key, imageKey]);
   const color = result[key] || 'default';
-  applyBgColor(color);
+  const image = result[imageKey] || '';
+  applyBackgroundAppearance(color, image);
+  updateBackgroundControls(image);
   renderSwatches(color);
 }
 
@@ -809,8 +840,62 @@ function setupBgColorPicker() {
     const color = swatch.dataset.color;
     const key = getBgStorageKey();
     await chrome.storage.local.set({ [key]: color });
-    applyBgColor(color);
+    const imageKey = getBgImageStorageKey();
+    const imageResult = await chrome.storage.local.get(imageKey);
+    applyBackgroundAppearance(color, imageResult[imageKey] || '');
     setSwatchSelected(color);
+  });
+}
+
+function setupBgImagePicker() {
+  const uploadButton = document.getElementById('upload-bg-image-btn');
+  const removeButton = document.getElementById('remove-bg-image-btn');
+  const input = document.getElementById('bg-image-input');
+
+  if (!uploadButton || !removeButton || !input) return;
+
+  uploadButton.addEventListener('click', () => {
+    input.click();
+  });
+
+  input.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const imageData = await readFileAsDataUrl(file);
+      const imageKey = getBgImageStorageKey();
+      const colorKey = getBgStorageKey();
+      const colorResult = await chrome.storage.local.get(colorKey);
+      const color = colorResult[colorKey] || 'default';
+      await chrome.storage.local.set({ [imageKey]: imageData });
+      applyBackgroundAppearance(color, imageData);
+      updateBackgroundControls(imageData);
+    } catch (error) {
+      console.error('Failed to upload background image:', error);
+      updateBackgroundControls('');
+    } finally {
+      input.value = '';
+    }
+  });
+
+  removeButton.addEventListener('click', async () => {
+    const imageKey = getBgImageStorageKey();
+    const colorKey = getBgStorageKey();
+    const colorResult = await chrome.storage.local.get(colorKey);
+    const color = colorResult[colorKey] || 'default';
+    await chrome.storage.local.set({ [imageKey]: '' });
+    applyBackgroundAppearance(color, '');
+    updateBackgroundControls('');
+  });
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+    reader.readAsDataURL(file);
   });
 }
 
