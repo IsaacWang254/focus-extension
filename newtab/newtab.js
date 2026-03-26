@@ -1360,11 +1360,29 @@ async function loadFocusSnapshot(preloadedDisplaySettings = null) {
   try {
     const blockingSummary = await chrome.runtime.sendMessage({ type: 'GET_BLOCKING_SUMMARY' });
     const totalBlockAttempts = blockingSummary?.totalBlockAttempts || 0;
+    const estimatedSavedMinutes = totalBlockAttempts * 15;
     document.getElementById('focus-snapshot-blocked').textContent = totalBlockAttempts;
+    document.getElementById('focus-snapshot-saved').textContent = formatSavedTime(estimatedSavedMinutes);
   } catch (error) {
     console.error('Failed to load focus snapshot:', error);
     document.getElementById('focus-snapshot-blocked').textContent = '-';
+    document.getElementById('focus-snapshot-saved').textContent = '-';
   }
+}
+
+function formatSavedTime(minutes) {
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+
+  if (remainder === 0) {
+    return `${hours} hr`;
+  }
+
+  return `${hours}h ${remainder}m`;
 }
 
 // =============================================================================

@@ -305,64 +305,73 @@ body {
 
 .bedtime-reminder {
   position: fixed;
-  top: calc(var(--space-4) + 52px);
+  top: 50%;
   left: 50%;
-  z-index: 40;
-  transform: translateX(-50%);
+  z-index: 80;
+  transform: translate(-50%, -50%);
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
   gap: var(--space-4);
-  width: min(calc(100vw - (var(--space-6) * 2)), 720px);
+  width: min(calc(100vw - (var(--space-6) * 2)), 760px);
   margin: 0;
-  padding: var(--space-5);
-  border: 1px solid rgba(245, 158, 11, 0.28);
-  border-radius: calc(var(--radius-lg) + 4px);
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.14), rgba(249, 115, 22, 0.08));
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
-  animation: newtabFadeIn 0.4s ease;
+  padding: clamp(24px, 3vw, 32px);
+  border: 1px solid rgba(245, 158, 11, 0.34);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 251, 235, 0.94), rgba(255, 247, 237, 0.92)),
+    radial-gradient(circle at top, rgba(251, 191, 36, 0.18), transparent 58%);
+  box-shadow:
+    0 28px 80px rgba(15, 23, 42, 0.18),
+    0 0 0 1px rgba(255, 255, 255, 0.3) inset;
+  backdrop-filter: blur(18px);
+  animation: bedtimeReminderIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  text-align: center;
 }
 
 .bedtime-reminder-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 56px;
   flex-shrink: 0;
   border-radius: 999px;
   color: #f59e0b;
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 10px 24px rgba(245, 158, 11, 0.2);
 }
 
 .bedtime-reminder-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
 }
 
 .bedtime-reminder-copy {
   min-width: 0;
+  max-width: 58ch;
 }
 
 .bedtime-reminder-eyebrow {
-  margin: 0 0 var(--space-1);
-  font-size: 0.75rem;
+  margin: 0 0 8px;
+  font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #b45309;
 }
 
 .bedtime-reminder-title {
-  margin: 0 0 var(--space-1);
-  font-size: 1.35rem;
-  line-height: 1.2;
+  margin: 0 0 10px;
+  font-size: clamp(1.5rem, 2.8vw, 2rem);
+  line-height: 1.08;
   color: var(--foreground);
 }
 
 .bedtime-reminder-text {
   margin: 0;
-  font-size: 0.9375rem;
-  line-height: 1.6;
+  font-size: 1rem;
+  line-height: 1.7;
   color: var(--muted-foreground);
 }
 
@@ -373,14 +382,18 @@ body {
 
 [data-theme='dark'] .bedtime-reminder,
 [data-theme='brutalist-dark'] .bedtime-reminder {
-  border-color: rgba(251, 191, 36, 0.22);
-  background: linear-gradient(135deg, rgba(120, 53, 15, 0.38), rgba(146, 64, 14, 0.2));
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+  border-color: rgba(251, 191, 36, 0.28);
+  background:
+    linear-gradient(180deg, rgba(41, 24, 8, 0.9), rgba(59, 27, 10, 0.82)),
+    radial-gradient(circle at top, rgba(251, 191, 36, 0.14), transparent 58%);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(251, 191, 36, 0.08) inset;
 }
 
 [data-theme='dark'] .bedtime-reminder-icon,
 [data-theme='brutalist-dark'] .bedtime-reminder-icon {
-  background: rgba(15, 23, 42, 0.42);
+  background: rgba(15, 23, 42, 0.58);
 }
 
 [data-theme='dark'] .bedtime-reminder-eyebrow,
@@ -390,9 +403,11 @@ body {
 
 [data-theme='dashboard-light'] .bedtime-reminder,
 [data-theme='dashboard-dark'] .bedtime-reminder {
-  border-color: var(--border);
+  border-color: var(--foreground);
   background: var(--card);
-  box-shadow: none;
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, 0.18),
+    0 0 0 1px var(--border) inset;
 }
 
 [data-theme='dashboard-light'] .bedtime-reminder-icon,
@@ -536,28 +551,36 @@ body {
 
 .focus-snapshot-inline {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-start;
   justify-content: flex-start;
-  gap: 8px;
+  gap: clamp(18px, 2.2vw, 30px);
   min-height: 0;
   color: var(--muted-foreground);
   text-align: left;
 }
 
+.focus-snapshot-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
 .focus-snapshot-inline-label {
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-size: 0.76rem;
-  line-height: 1;
+  letter-spacing: 0;
+  font-size: 0.95rem;
+  line-height: 1.15;
+  opacity: 0.9;
 }
 
 .focus-snapshot-inline-value {
-  font-size: clamp(2.8rem, 5vw, 4.75rem);
-  font-weight: 700;
+  font-size: clamp(2.25rem, 4.2vw, 3.6rem);
+  font-weight: 500;
   color: var(--foreground);
-  letter-spacing: -0.05em;
-  line-height: 0.95;
+  letter-spacing: -0.04em;
+  line-height: 0.92;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1001,6 +1024,17 @@ body {
   }
 }
 
+@keyframes bedtimeReminderIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 14px)) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 /* ============================================
    Dashboard Theme
    ============================================ */
@@ -1332,6 +1366,16 @@ body {
     align-items: center;
   }
 
+  .focus-snapshot-inline {
+    gap: 18px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .focus-snapshot-metric {
+    align-items: center;
+  }
+
   .quote-section {
     position: static;
     left: auto;
@@ -1356,14 +1400,15 @@ body {
   }
 
   .focus-snapshot-inline-value {
-    font-size: 2.4rem;
+    font-size: 2.1rem;
   }
 
   .bedtime-reminder {
-    top: calc(var(--space-4) + 48px);
+    top: 50%;
     width: calc(100vw - (var(--space-4) * 2));
     padding: var(--space-4);
     gap: var(--space-3);
+    border-radius: 24px;
   }
 
   .bedtime-reminder-title {
