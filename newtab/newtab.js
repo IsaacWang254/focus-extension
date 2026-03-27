@@ -407,7 +407,10 @@ function updateDate() {
     month: 'long',
     day: 'numeric',
   });
-  document.getElementById('calendar-date').textContent = formatted;
+  const calendarDateEl = document.getElementById('calendar-date');
+  if (calendarDateEl) {
+    calendarDateEl.textContent = formatted;
+  }
 }
 
 // =============================================================================
@@ -672,6 +675,19 @@ function setupSettings() {
 
       if (key === 'newtabShowFocusSnapshot') {
         await loadFocusSnapshot(settings);
+        return;
+      }
+
+      if (value && key === 'newtabShowCalendar') {
+        await loadCalendar();
+        return;
+      }
+
+      if (value && key === 'newtabShowTodos') {
+        await Promise.allSettled([
+          loadTodos(),
+          fetchCompletedToday()
+        ]);
       }
     });
   }
@@ -904,10 +920,13 @@ function readFileAsDataUrl(file) {
 // =============================================================================
 
 async function loadCalendar() {
+  const titleEl = document.getElementById('calendar-title');
+  const dateEl = document.getElementById('calendar-date');
   const connectEl = document.getElementById('calendar-connect');
   const reconnectEl = document.getElementById('calendar-reconnect');
   const loadingEl = document.getElementById('calendar-loading');
   const emptyEl = document.getElementById('calendar-empty');
+  const emptyTextEl = document.getElementById('calendar-empty-text');
   const listEl = document.getElementById('event-list');
 
   try {
@@ -926,8 +945,10 @@ async function loadCalendar() {
     reconnectEl.classList.add('hidden');
     loadingEl.classList.remove('hidden');
 
-    // Fetch today's events
-    const events = await chrome.runtime.sendMessage({ type: 'GET_TODAY_EVENTS' });
+    // Fetch the new tab display payload so passed events disappear and
+    // the card can roll forward to tomorrow when today is done.
+    const payload = await getCalendarDisplayPayload();
+    const events = payload?.events || [];
 
     loadingEl.classList.add('hidden');
 
@@ -942,16 +963,56 @@ async function loadCalendar() {
       return;
     }
 
+    if (titleEl) {
+      titleEl.textContent = payload?.title || 'Today\'s Schedule';
+    }
+    if (dateEl) {
+      dateEl.textContent = payload?.displayDate || '';
+    }
+
     if (!events || events.length === 0) {
+      listEl.innerHTML = '';
+      if (emptyTextEl) {
+        emptyTextEl.textContent = 'No upcoming events';
+      }
       emptyEl.classList.remove('hidden');
       return;
     }
 
+    emptyEl.classList.add('hidden');
     renderEvents(events, listEl);
   } catch (err) {
     console.error('Failed to load calendar:', err);
     loadingEl.classList.add('hidden');
     emptyEl.classList.remove('hidden');
+  }
+}
+
+async function getCalendarDisplayPayload() {
+  try {
+    return await chrome.runtime.sendMessage({ type: 'GET_NEWTAB_EVENTS' });
+  } catch (error) {
+    const message = String(error?.message || error || '');
+    const shouldFallback =
+      message.includes('Unknown message type: GET_NEWTAB_EVENTS') ||
+      message.includes('Could not establish connection') ||
+      message.includes('Receiving end does not exist');
+
+    if (!shouldFallback) {
+      throw error;
+    }
+
+    const events = await chrome.runtime.sendMessage({ type: 'GET_TODAY_EVENTS' });
+    const now = new Date();
+    return {
+      title: 'Today\'s Schedule',
+      displayDate: now.toLocaleDateString(undefined, {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+      }),
+      events: events || []
+    };
   }
 }
 
@@ -1416,6 +1477,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load data (in parallel)
   loadCalendar();
+  window.setInterval(() => {
+    loadCalendar().catch(error => {
+      console.error('Failed to refresh calendar:', error);
+    });
+  }, 60000);
   loadTodos();
   loadWeather();
   fetchCompletedToday();

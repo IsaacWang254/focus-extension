@@ -1220,6 +1220,9 @@ async function handleMessage(message, sender) {
     case 'GET_TODAY_EVENTS':
       return await getTodayEvents();
 
+    case 'GET_NEWTAB_EVENTS':
+      return await getNewTabEvents();
+
     case 'GET_CURRENT_EVENTS':
       return await getCurrentEvents();
 
@@ -5723,6 +5726,7 @@ async function fetchUpcomingEventsWithToken(token, days) {
         const endTime = event.end?.dateTime || event.end?.date;
 
         if (!startTime || !endTime) continue;
+        if (isCompletedCalendarEventTitle(event.summary)) continue;
 
         // Per-event colorId overrides the calendar color
         const eventColor = event.colorId
@@ -5732,7 +5736,7 @@ async function fetchUpcomingEventsWithToken(token, days) {
         events.push({
           id: event.id,
           calendarId: calendarId,
-          title: event.summary || '(No title)',
+          title: (event.summary || '').trim() || '(No title)',
           description: event.description || '',
           start: startTime,
           end: endTime,
@@ -5828,10 +5832,79 @@ async function getTodayEvents() {
 }
 
 /**
+ * Get the events to show on the new tab card.
+ * Shows only remaining timed events for today; if none remain and there are
+ * no all-day events for today, it falls forward to tomorrow's events.
+ * @returns {Promise<{title: string, displayDate: string, events: Array}>}
+ */
+async function getNewTabEvents() {
+  const now = new Date();
+  const todayInfo = getDayInfo(now);
+  const tomorrowBase = new Date(todayInfo.startOfDay);
+  tomorrowBase.setDate(tomorrowBase.getDate() + 1);
+  const tomorrowInfo = getDayInfo(tomorrowBase);
+
+  const cachedEvents = await getCachedEvents();
+  const settings = await getCalendarSettings();
+
+  let events = cachedEvents;
+  let payload = buildNewTabEventsPayload(events, todayInfo, tomorrowInfo, now);
+
+  const cacheStale = !settings.lastSync || Date.now() - settings.lastSync > 300000;
+  if (cacheStale || payload.events.length === 0) {
+    const freshEvents = await fetchEventsForDisplayRange(todayInfo.startOfDay, tomorrowInfo.endOfDay);
+    if (!freshEvents.error) {
+      events = freshEvents;
+      payload = buildNewTabEventsPayload(events, todayInfo, tomorrowInfo, now);
+    }
+  }
+
+  return payload;
+}
+
+/**
  * Fetch today's events from all selected calendars using a given token.
  * @returns {Promise<{events: Array, failed: boolean, got401: boolean}>}
  */
 async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) {
+  return await fetchEventsForRangeWithToken(token, startOfDay, endOfDay, {
+    logLabel: 'today\'s events',
+    emptyTitleFallback: '(No title)'
+  });
+}
+
+async function fetchEventsForDisplayRange(startOfRange, endOfRange) {
+  let token = await getValidCalendarToken();
+  if (!token) {
+    return { error: 'Not connected to Google Calendar' };
+  }
+
+  let result = await fetchEventsForRangeWithToken(token, startOfRange, endOfRange, {
+    logLabel: 'new tab events',
+    emptyTitleFallback: '(No title)'
+  });
+
+  if (result.got401 && result.events.length === 0) {
+    const freshToken = await forceRefreshCalendarToken();
+    if (freshToken && freshToken !== token) {
+      result = await fetchEventsForRangeWithToken(freshToken, startOfRange, endOfRange, {
+        logLabel: 'new tab events',
+        emptyTitleFallback: '(No title)'
+      });
+    }
+  }
+
+  const events = result.events || [];
+  events.sort((a, b) => new Date(a.start) - new Date(b.start));
+
+  if (events.length > 0 || !result.failed) {
+    await saveCalendarSettings({ upcomingEvents: events, lastSync: Date.now() });
+  }
+
+  return events;
+}
+
+async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { logLabel, emptyTitleFallback }) {
   const settings = await getCalendarSettings();
   const calendarsToFetch = settings.selectedCalendars.length > 0
     ? settings.selectedCalendars
@@ -5844,8 +5917,8 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
     calColorMap[cal.id] = cal.color;
   }
 
-  const timeMin = startOfDay.toISOString();
-  const timeMax = endOfDay.toISOString();
+  const timeMin = startOfRange.toISOString();
+  const timeMax = endOfRange.toISOString();
 
   const allEvents = [];
   let fetchFailed = false;
@@ -5872,7 +5945,7 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
       }
 
       if (!response.ok) {
-        console.error(`Failed to fetch today's events from calendar ${calendarId}:`, response.status);
+        console.error(`Failed to fetch ${logLabel} from calendar ${calendarId}:`, response.status);
         fetchFailed = true;
         return;
       }
@@ -5887,7 +5960,7 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
         if (!startTime || !endTime) continue;
 
         const title = (event.summary || '').trim();
-        if (title.startsWith('✓') || title.startsWith('✔')) continue;
+        if (isCompletedCalendarEventTitle(title)) continue;
 
         // Per-event colorId overrides the calendar color
         const eventColor = event.colorId
@@ -5897,7 +5970,7 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
         allEvents.push({
           id: event.id,
           calendarId: calendarId,
-          title: title || '(No title)',
+          title: title || emptyTitleFallback,
           description: event.description || '',
           start: startTime,
           end: endTime,
@@ -5909,7 +5982,7 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
         });
       }
     } catch (e) {
-      console.error(`Error fetching today's events from calendar ${calendarId}:`, e);
+      console.error(`Error fetching ${logLabel} from calendar ${calendarId}:`, e);
       fetchFailed = true;
     }
   }));
@@ -5921,14 +5994,18 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
  * Filter a list of events down to those that fall on a given day.
  */
 function filterEventsForToday(events, todayStr, startOfDay, endOfDay) {
+  return filterEventsForDay(events, todayStr, startOfDay, endOfDay);
+}
+
+function filterEventsForDay(events, dayStr, startOfDay, endOfDay) {
   const filtered = (events || []).filter(event => {
     const title = (event.title || '').trim();
-    if (title.startsWith('✓') || title.startsWith('✔')) return false;
+    if (isCompletedCalendarEventTitle(title)) return false;
 
     if (event.isAllDay) {
       const eventStartDate = event.start.split('T')[0];
       const eventEndDate = event.end.split('T')[0];
-      return eventStartDate <= todayStr && eventEndDate > todayStr;
+      return eventStartDate <= dayStr && eventEndDate > dayStr;
     }
 
     const start = new Date(event.start).getTime();
@@ -5939,6 +6016,66 @@ function filterEventsForToday(events, todayStr, startOfDay, endOfDay) {
 
   filtered.sort((a, b) => new Date(a.start) - new Date(b.start));
   return filtered;
+}
+
+function isCompletedCalendarEventTitle(title) {
+  const trimmedTitle = (title || '').trim();
+  return trimmedTitle.startsWith('✓') || trimmedTitle.startsWith('✔');
+}
+
+function filterEventsForNewTabToday(events, dayInfo, now) {
+  return filterEventsForDay(events, dayInfo.dayStr, dayInfo.startOfDay, dayInfo.endOfDay)
+    .filter(event => {
+      if (event.isAllDay) return true;
+      return new Date(event.end).getTime() > now.getTime();
+    });
+}
+
+function buildNewTabEventsPayload(events, todayInfo, tomorrowInfo, now) {
+  const todaysEvents = filterEventsForNewTabToday(events, todayInfo, now);
+  if (todaysEvents.length > 0) {
+    return {
+      title: 'Today\'s Schedule',
+      displayDate: formatDisplayDate(todayInfo.startOfDay),
+      events: todaysEvents
+    };
+  }
+
+  const tomorrowsEvents = filterEventsForDay(events, tomorrowInfo.dayStr, tomorrowInfo.startOfDay, tomorrowInfo.endOfDay);
+  if (tomorrowsEvents.length > 0) {
+    return {
+      title: 'Tomorrow\'s Schedule',
+      displayDate: formatDisplayDate(tomorrowInfo.startOfDay),
+      events: tomorrowsEvents
+    };
+  }
+
+  return {
+    title: 'Today\'s Schedule',
+    displayDate: formatDisplayDate(todayInfo.startOfDay),
+    events: []
+  };
+}
+
+function getDayInfo(date) {
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setDate(endOfDay.getDate() + 1);
+
+  const dayStr = startOfDay.getFullYear() + '-' +
+    String(startOfDay.getMonth() + 1).padStart(2, '0') + '-' +
+    String(startOfDay.getDate()).padStart(2, '0');
+
+  return { dayStr, startOfDay, endOfDay };
+}
+
+function formatDisplayDate(date) {
+  return date.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
 }
 
 /**
