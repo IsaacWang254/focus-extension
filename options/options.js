@@ -12,6 +12,34 @@ let settings = null;
 let originalSettingsJson = null; // Store original settings for comparison
 let hasUnsavedChanges = false;
 let todoTaskProgressPreview = null;
+let activePageId = 'page-blocking';
+
+const PAGE_CONFIG = {
+  'page-blocking': {
+    title: 'Blocking',
+    description: 'Choose how blocking works, manage your site list, and control how access is unlocked.'
+  },
+  'page-filters': {
+    title: 'Filters',
+    description: 'Manage categories, keyword rules, and URL exceptions.'
+  },
+  'page-automation': {
+    title: 'Automation',
+    description: 'Configure schedules, focus tools, reminders, and profile behavior.'
+  },
+  'page-integrations': {
+    title: 'Integrations',
+    description: 'Connect external services and control what syncs into Focus.'
+  },
+  'page-appearance': {
+    title: 'Appearance',
+    description: 'Adjust theme, typography, and visual behavior.'
+  },
+  'page-privacy': {
+    title: 'Privacy & Backup',
+    description: 'Control local analysis and manage import or export.'
+  }
+};
 
 // =============================================================================
 // KEYWORD MATCHING HELPERS
@@ -108,8 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Apply accent color
   await loadAndApplyAccentColor();
 
-  // Setup theme toggle
-  setupThemeToggle();
+  initializePageLayout();
   setupBrowserThemeSyncToggle();
   setupBrowserThemeSyncListener();
 
@@ -155,10 +182,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check nuclear mode status
   await checkNuclearStatus();
 
-  // Setup sidebar and search
+  // Setup sidebar navigation
   setupSidebar();
-  setupSearch();
   initializeSearchIcons();
+  setupSearch();
 
   // Store original settings snapshot AFTER DOM is fully populated,
   // so it matches the shape returned by gatherCurrentSettings()
@@ -188,49 +215,88 @@ function setupSidebar() {
   sidebarLinks.forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
-      const sectionId = link.getAttribute('data-section');
-      const section = document.getElementById(sectionId);
-
-      if (section) {
-        // Clear any search filter first
-        clearSearchFilter();
-
-        // Scroll to section
-        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-        // Update active state
-        sidebarLinks.forEach(l => l.classList.remove('active'));
-        link.classList.add('active');
-
-        // Close sidebar on mobile
-        sidebar.classList.remove('open');
-
-        // Highlight section briefly
-        section.classList.add('search-highlight');
-        setTimeout(() => section.classList.remove('search-highlight'), 1500);
-      }
+      setActivePage(link.getAttribute('data-page'));
+      sidebar.classList.remove('open');
     });
   });
 
-  // Update active link on scroll
-  const sections = document.querySelectorAll('.section[id]');
-  const observerOptions = {
-    rootMargin: '-20% 0px -70% 0px',
-    threshold: 0
-  };
+  setActivePage(window.location.hash.slice(1) || activePageId, { updateHash: false });
+}
 
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const id = entry.target.id;
-        sidebarLinks.forEach(link => {
-          link.classList.toggle('active', link.getAttribute('data-section') === id);
-        });
+function setActivePage(pageId, { updateHash = true } = {}) {
+  const pages = document.querySelectorAll('.settings-page');
+  const links = document.querySelectorAll('.sidebar-link');
+  const requestedLink = document.querySelector(`.sidebar-link[data-page="${pageId}"]`);
+  const requestedVisible = requestedLink && !requestedLink.classList.contains('hidden');
+
+  const fallbackLink = Array.from(links).find(link => {
+    return !link.classList.contains('hidden');
+  });
+
+  const resolvedPageId = requestedVisible
+    ? pageId
+    : (fallbackLink?.dataset.page || activePageId);
+
+  pages.forEach(page => {
+    const isActive = page.dataset.page === resolvedPageId;
+    page.classList.toggle('active', isActive);
+    if (isActive) {
+      const scrollTarget = document.querySelector('.main-wrapper');
+      if (scrollTarget) {
+        scrollTarget.scrollTop = 0;
       }
-    });
-  }, observerOptions);
+    }
+  });
 
-  sections.forEach(section => observer.observe(section));
+  links.forEach(link => {
+    link.classList.toggle('active', link.dataset.page === resolvedPageId);
+  });
+
+  activePageId = resolvedPageId;
+  if (updateHash) {
+    window.history.replaceState(null, '', `#${resolvedPageId}`);
+  }
+}
+
+function initializePageLayout() {
+  const root = document.getElementById('settings-pages');
+  if (!root) return;
+
+  const sections = Array.from(document.querySelectorAll('.section[data-page]'));
+  const pageOrder = Object.keys(PAGE_CONFIG);
+
+  root.innerHTML = '';
+
+  for (const pageId of pageOrder) {
+    const config = PAGE_CONFIG[pageId];
+    const page = document.createElement('div');
+    page.className = 'settings-page';
+    page.dataset.page = pageId;
+
+    const header = document.createElement('div');
+    header.className = 'page-header';
+
+    const title = document.createElement('h1');
+    title.className = 'page-title';
+    title.textContent = config.title;
+    header.appendChild(title);
+
+    const description = document.createElement('p');
+    description.className = 'page-description';
+    description.textContent = config.description;
+    header.appendChild(description);
+
+    const content = document.createElement('div');
+    content.className = 'page-content';
+
+    sections
+      .filter(section => section.dataset.page === pageId)
+      .forEach(section => content.appendChild(section));
+
+    page.appendChild(header);
+    page.appendChild(content);
+    root.appendChild(page);
+  }
 }
 
 function initializeSearchIcons() {
@@ -239,21 +305,12 @@ function initializeSearchIcons() {
   if (searchIcon && Icons.search) {
     searchIcon.innerHTML = Icons.search;
   }
-
-  // Update keyboard shortcut based on OS
-  const shortcutEl = document.querySelector('.search-shortcut');
-  if (shortcutEl) {
-    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-    shortcutEl.textContent = isMac ? '⌘K' : 'Ctrl+K';
-  }
 }
 
 function setupSearch() {
   const searchInput = document.getElementById('settings-search');
   const searchClear = document.getElementById('search-clear');
   const searchResults = document.getElementById('search-results');
-  const noResultsEl = document.getElementById('search-no-results');
-  const queryTextEl = document.getElementById('search-query-text');
 
   if (!searchInput) return;
 
@@ -271,7 +328,6 @@ function setupSearch() {
     debounceTimer = setTimeout(() => {
       if (query.length < 2) {
         hideSearchResults();
-        clearSearchFilter();
         return;
       }
 
@@ -323,7 +379,6 @@ function setupSearch() {
     searchInput.value = '';
     searchClear.classList.add('hidden');
     hideSearchResults();
-    clearSearchFilter();
     searchInput.focus();
     selectedIndex = -1;
   });
@@ -340,20 +395,10 @@ function setupSearch() {
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
       e.preventDefault();
-
-      // Check if the search bar is visible in the viewport
-      if (isElementInViewport(searchInput)) {
-        searchInput.focus();
-        searchInput.select();
-      } else {
-        // Show spotlight modal instead
-        openSpotlightSearch();
-      }
+      searchInput.focus();
+      searchInput.select();
     }
   });
-
-  // Setup spotlight search modal
-  setupSpotlightSearch(searchIndex);
 }
 
 function updateSearchSelection(items, index) {
@@ -477,29 +522,12 @@ function performSearch(query, index) {
 
 function displaySearchResults(results, query) {
   const searchResults = document.getElementById('search-results');
-  const noResultsEl = document.getElementById('search-no-results');
-  const queryTextEl = document.getElementById('search-query-text');
-  const sections = document.querySelectorAll('.section[id]');
 
   if (results.length === 0) {
-    searchResults.classList.add('hidden');
-    noResultsEl.classList.remove('hidden');
-    queryTextEl.textContent = query;
-
-    // Hide all sections
-    sections.forEach(s => s.classList.add('search-hidden'));
+    searchResults.innerHTML = `<div class="search-result-item is-empty">No results for "${escapeHtml(query)}"</div>`;
+    searchResults.classList.remove('hidden');
     return;
   }
-
-  noResultsEl.classList.add('hidden');
-
-  // Get matching section IDs
-  const matchingSectionIds = new Set(results.map(r => r.id));
-
-  // Show/hide sections based on search
-  sections.forEach(section => {
-    section.classList.toggle('search-hidden', !matchingSectionIds.has(section.id));
-  });
 
   // Build results dropdown with tree-style hierarchy
   searchResults.innerHTML = results.map(result => {
@@ -526,19 +554,18 @@ function displaySearchResults(results, query) {
 
       if (section) {
         hideSearchResults();
-        clearSearchFilter();
-
-        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        section.classList.add('search-highlight');
-        setTimeout(() => section.classList.remove('search-highlight'), 1500);
-
-        // Update sidebar active state
-        document.querySelectorAll('.sidebar-link').forEach(link => {
-          link.classList.toggle('active', link.getAttribute('data-section') === sectionId);
+        const pageId = getPageIdForSection(sectionId);
+        setActivePage(pageId);
+        requestAnimationFrame(() => {
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
       }
     });
   });
+}
+
+function getPageIdForSection(sectionId) {
+  return document.getElementById(sectionId)?.dataset.page || activePageId;
 }
 
 function highlightMatch(text, query) {
@@ -825,6 +852,7 @@ function updateThemeToggleState(syncWithBrowser) {
 
 function setupThemeToggle() {
   const toggle = document.getElementById('theme-toggle');
+  if (!toggle) return;
   toggle.addEventListener('click', async () => {
     const root = document.documentElement;
 
@@ -1407,19 +1435,17 @@ function populateSettings() {
 function updateModeDisplay(mode) {
   const blocklistSection = document.getElementById('section-blocked-sites');
   const allowlistSection = document.getElementById('section-allowed-sites');
-  const blockedSitesLink = document.querySelector('.sidebar-link[data-section="section-blocked-sites"]');
-  const allowedSitesLink = document.querySelector('.sidebar-link[data-section="section-allowed-sites"]');
 
   if (mode === 'blocklist') {
     blocklistSection.style.display = 'block';
     allowlistSection.style.display = 'none';
-    blockedSitesLink?.classList.remove('hidden');
-    allowedSitesLink?.classList.add('hidden');
   } else {
     blocklistSection.style.display = 'none';
     allowlistSection.style.display = 'block';
-    blockedSitesLink?.classList.add('hidden');
-    allowedSitesLink?.classList.remove('hidden');
+  }
+
+  if (activePageId === 'page-blocking') {
+    setActivePage('page-blocking');
   }
 }
 

@@ -22,97 +22,48 @@
       </button>
     </div>
     <nav class="sidebar-nav" id="sidebar-nav">
-      <div class="sidebar-group">
-        <div class="sidebar-group-label">Blocking</div>
-        <a href="#section-blocking-mode" class="sidebar-link active" data-section="section-blocking-mode">Blocking
-          Mode</a>
-        <a href="#section-blocked-sites" class="sidebar-link" data-section="section-blocked-sites">Blocked Sites</a>
-        <a href="#section-allowed-sites" class="sidebar-link hidden" data-section="section-allowed-sites">Allowed
-          Sites</a>
-        <a href="#section-unblock-methods" class="sidebar-link" data-section="section-unblock-methods">Unblock
-          Methods</a>
-      </div>
-      <div class="sidebar-group">
-        <div class="sidebar-group-label">Filters</div>
-        <a href="#section-categories" class="sidebar-link" data-section="section-categories">Site Categories</a>
-        <a href="#section-keywords" class="sidebar-link" data-section="section-keywords">Keyword Blocking</a>
-        <a href="#section-whitelist" class="sidebar-link" data-section="section-whitelist">URL Whitelist</a>
-      </div>
-      <div class="sidebar-group">
-        <div class="sidebar-group-label">Automation</div>
-        <a href="#section-focus-presets" class="sidebar-link" data-section="section-focus-presets">Focus Sessions</a>
-        <a href="#section-schedule" class="sidebar-link" data-section="section-schedule">Block Schedule</a>
-        <a href="#section-bedtime" class="sidebar-link" data-section="section-bedtime">Bedtime Reminder</a>
-        <a href="#section-nuclear" class="sidebar-link" data-section="section-nuclear">Nuclear Mode</a>
-        <a href="#section-profiles" class="sidebar-link" data-section="section-profiles">Profiles</a>
-      </div>
-      <div class="sidebar-group">
-        <div class="sidebar-group-label">Integrations</div>
-        <a href="#section-todoist" class="sidebar-link" data-section="section-todoist">Todoist</a>
-        <a href="#section-calendar" class="sidebar-link" data-section="section-calendar">Google Calendar</a>
-      </div>
-      <div class="sidebar-group">
-        <div class="sidebar-group-label">Appearance</div>
-        <a href="#section-appearance" class="sidebar-link" data-section="section-appearance">Theme</a>
-      </div>
-      <div class="sidebar-group">
-        <div class="sidebar-group-label">Other</div>
-        <a href="#section-privacy" class="sidebar-link" data-section="section-privacy">Privacy Settings</a>
-        <a href="#section-data-backup" class="sidebar-link" data-section="section-data-backup">Data Backup</a>
-      </div>
+      <a href="#page-blocking" class="sidebar-link active" data-page="page-blocking">Blocking</a>
+      <a href="#page-filters" class="sidebar-link" data-page="page-filters">Filters</a>
+      <a href="#page-automation" class="sidebar-link" data-page="page-automation">Automation</a>
+      <a href="#page-integrations" class="sidebar-link" data-page="page-integrations">Integrations</a>
+      <a href="#page-appearance" class="sidebar-link" data-page="page-appearance">Appearance</a>
+      <a href="#page-privacy" class="sidebar-link" data-page="page-privacy">Privacy & Backup</a>
     </nav>
   </aside>
 
   <!-- Main Content -->
   <div class="main-wrapper">
     <div class="container">
-      <header class="header">
-        <div class="header-row">
-          <div class="header-left">
-            <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+
+      <div class="settings-toolbar">
+        <div class="search-wrapper" id="search-wrapper">
+          <span class="search-icon" id="search-icon"></span>
+          <input type="text" id="settings-search" class="search-input" placeholder="Search settings">
+          <div class="search-actions">
+            <button class="search-clear hidden" id="search-clear" title="Clear search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
             </button>
-            <div>
-              <h1>Focus Extension Settings</h1>
-              <p class="subtitle">Configure your productivity blocker</p>
-            </div>
           </div>
-          <div class="header-right">
-            <div class="search-wrapper" id="search-wrapper">
-              <span class="search-icon" id="search-icon"></span>
-              <input type="text" id="settings-search" class="search-input" placeholder="Search...">
-              <div class="search-actions">
-                <button class="search-clear hidden" id="search-clear" title="Clear search">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-                <kbd class="search-shortcut">&#8984;K</kbd>
-              </div>
-              <div class="search-results hidden" id="search-results"></div>
-            </div>
-            <button id="theme-toggle" class="theme-toggle" title="Toggle dark mode">
-              <span class="theme-icon-light">&#9788;</span>
-              <span class="theme-icon-dark">&#9790;</span>
-            </button>
-          </div>
+          <div class="search-results hidden" id="search-results"></div>
         </div>
-      </header>
-
-      <!-- Search No Results Message -->
-      <div class="search-no-results hidden" id="search-no-results">
-        <p>No settings found for "<span id="search-query-text"></span>"</p>
       </div>
 
+      <div id="settings-pages" class="settings-pages"></div>
+
       <!-- Blocking Mode -->
-      <section id="section-blocking-mode" class="section"
+      <section id="section-blocking-mode" class="section" data-page="page-blocking"
         data-search-keywords="blocking mode blocklist allowlist block allow">
         <h2>Blocking Mode</h2>
         <div class="mode-toggle">
@@ -134,7 +85,7 @@
       </section>
 
       <!-- Blocked Sites -->
-      <section id="section-blocked-sites" class="section"
+      <section id="section-blocked-sites" class="section" data-page="page-blocking"
         data-search-keywords="blocked sites domains websites block list">
         <h2>Blocked Sites</h2>
         <p class="section-desc">Sites that will show the focus page when visited</p>
@@ -149,7 +100,7 @@
       </section>
 
       <!-- Allowed Sites -->
-      <section id="section-allowed-sites" class="section" style="display: none;"
+      <section id="section-allowed-sites" class="section" data-page="page-blocking" style="display: none;"
         data-search-keywords="allowed sites whitelist allowlist permit">
         <h2>Allowed Sites</h2>
         <p class="section-desc">Sites that won't be blocked in allowlist mode</p>
@@ -163,7 +114,7 @@
       </section>
 
       <!-- Unblock Methods -->
-      <section id="section-unblock-methods" class="section"
+      <section id="section-unblock-methods" class="section" data-page="page-blocking"
         data-search-keywords="unblock methods timer todo task phrase math password reason challenge unlock access time limit earned">
         <div class="section-header-row">
           <div>
@@ -518,7 +469,7 @@
       </section>
 
       <!-- Site Categories -->
-      <section id="section-categories" class="section"
+      <section id="section-categories" class="section" data-page="page-filters"
         data-search-keywords="categories groups social media entertainment gaming news organize">
         <h2>Site Categories</h2>
         <p class="section-desc">Group sites into categories to block them together. Enable a category to block all sites
@@ -583,7 +534,7 @@
       </section>
 
       <!-- Keyword Blocking -->
-      <section id="section-keywords" class="section" data-search-keywords="keyword blocking url filter content words">
+      <section id="section-keywords" class="section" data-page="page-filters" data-search-keywords="keyword blocking url filter content words">
         <h2>Keyword Blocking</h2>
         <p class="section-desc">Block any URL that contains specific keywords in the address, path, or query parameters.
         </p>
@@ -623,7 +574,7 @@
       </section>
 
       <!-- URL Whitelist -->
-      <section id="section-whitelist" class="section"
+      <section id="section-whitelist" class="section" data-page="page-filters"
         data-search-keywords="url whitelist allow specific pages videos articles exceptions">
         <h2>URL Whitelist</h2>
         <p class="section-desc">Allow specific URLs even on blocked domains. Useful for allowing specific videos,
@@ -643,7 +594,7 @@
       </section>
 
       <!-- Focus Session Presets -->
-      <section id="section-focus-presets" class="section"
+      <section id="section-focus-presets" class="section" data-page="page-automation"
         data-search-keywords="focus session pomodoro timer work break long short custom minutes preset">
         <h2>Focus Sessions</h2>
         <p class="section-desc">Customize your pomodoro timer durations</p>
@@ -770,7 +721,7 @@
       </section>
 
       <!-- Schedule -->
-      <section id="section-schedule" class="section"
+      <section id="section-schedule" class="section" data-page="page-automation"
         data-search-keywords="schedule time windows days hours automatic work focus">
         <h2>Block Schedule</h2>
         <p class="section-desc">Set times when sites are automatically blocked (outside allowed times)</p>
@@ -842,7 +793,7 @@
       </section>
 
       <!-- Bedtime Reminder -->
-      <section id="section-bedtime" class="section"
+      <section id="section-bedtime" class="section" data-page="page-automation"
         data-search-keywords="bedtime sleep reminder cutoff stop computer night new tab">
         <h2>Bedtime Reminder</h2>
         <p class="section-desc">Show a clear reminder on the new tab page when it's time to get off your computer.</p>
@@ -880,7 +831,7 @@
       </section>
 
       <!-- Nuclear Mode -->
-      <section id="section-nuclear" class="section nuclear-section"
+      <section id="section-nuclear" class="section nuclear-section" data-page="page-automation"
         data-search-keywords="nuclear mode lockdown strict focus emergency disable">
         <h2>Nuclear Mode</h2>
         <p class="section-desc">When activated, ALL unblock methods are disabled until the timer expires.</p>
@@ -925,7 +876,7 @@
       </section>
 
       <!-- Profiles -->
-      <section id="section-profiles" class="section"
+      <section id="section-profiles" class="section" data-page="page-automation"
         data-search-keywords="profiles work study relaxed preset configurations switch">
         <h2>Profiles</h2>
         <p class="section-desc">Create different blocking profiles for work, study, or relaxation. Each profile has its
@@ -1127,7 +1078,7 @@
       </section>
 
       <!-- Todoist Connection -->
-      <section id="section-todoist" class="section"
+      <section id="section-todoist" class="section" data-page="page-integrations"
         data-search-keywords="todoist connection api tasks todo integration sync">
         <h2>Todoist</h2>
         <p class="section-desc">Connect to show tasks on blocked pages</p>
@@ -1174,7 +1125,7 @@
       </section>
 
       <!-- Google Calendar Integration -->
-      <section id="section-calendar" class="section"
+      <section id="section-calendar" class="section" data-page="page-integrations"
         data-search-keywords="google calendar integration events schedule sync automatic">
         <h2>Google Calendar</h2>
         <p class="section-desc">Auto-switch profiles based on your schedule</p>
@@ -1414,7 +1365,7 @@
       </section>
 
       <!-- Appearance -->
-      <section id="section-appearance" class="section"
+      <section id="section-appearance" class="section" data-page="page-appearance"
         data-search-keywords="appearance theme monospace dark light mode style accent color picker customize dashboard modern cursor openai">
         <h2>Appearance</h2>
         <p class="section-desc">Customize how Focus looks and feels.</p>
@@ -1444,7 +1395,7 @@
       </section>
 
       <!-- Privacy Settings -->
-      <section id="section-privacy" class="section"
+      <section id="section-privacy" class="section" data-page="page-privacy"
         data-search-keywords="privacy settings history analysis data browser">
         <h2>Privacy Settings</h2>
         <p class="section-desc">Control what data the extension can access and analyze.</p>
@@ -1467,7 +1418,7 @@
       </section>
 
       <!-- Data Backup -->
-      <section id="section-data-backup" class="section"
+      <section id="section-data-backup" class="section" data-page="page-privacy"
         data-search-keywords="backup export import settings data transfer sync">
         <h2>Data Backup</h2>
         <p class="section-desc">Export or import your settings to preserve them across updates or transfer to another
@@ -1499,23 +1450,6 @@
             </svg>
           </span>
         </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Spotlight Search Modal -->
-  <div id="spotlight-modal" class="spotlight-modal hidden">
-    <div class="spotlight-backdrop"></div>
-    <div class="spotlight-container">
-      <div class="spotlight-search-box">
-        <span class="spotlight-icon" id="spotlight-icon"></span>
-        <input type="text" id="spotlight-input" class="spotlight-input" placeholder="Search settings..."
-          autocomplete="off">
-        <kbd class="spotlight-shortcut">ESC</kbd>
-      </div>
-      <div id="spotlight-results" class="spotlight-results"></div>
-      <div id="spotlight-no-results" class="spotlight-no-results hidden">
-        <p>No settings found for "<span id="spotlight-query-text"></span>"</p>
       </div>
     </div>
   </div>

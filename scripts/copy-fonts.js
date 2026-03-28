@@ -15,14 +15,6 @@ const files = [
   ['@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2', 'inter-latin-ext-wght-normal.woff2'],
   ['@fontsource-variable/inter/files/inter-latin-wght-normal.woff2', 'inter-latin-wght-normal.woff2'],
   [
-    '@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-ext-wght-normal.woff2',
-    'plus-jakarta-sans-latin-ext-wght-normal.woff2',
-  ],
-  [
-    '@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2',
-    'plus-jakarta-sans-latin-wght-normal.woff2',
-  ],
-  [
     '@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-ext-wght-normal.woff2',
     'jetbrains-mono-latin-ext-wght-normal.woff2',
   ],
