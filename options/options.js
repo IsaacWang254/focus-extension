@@ -110,6 +110,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Setup theme toggle
   setupThemeToggle();
+  setupBrowserThemeSyncToggle();
+  setupBrowserThemeSyncListener();
 
   // Setup brutalist mode toggle
   setupBrutalistToggle();
@@ -774,9 +776,10 @@ function displaySpotlightResults(results, query) {
 
 async function loadTheme() {
   try {
-    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled']);
+    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled', 'themeSyncWithBrowser']);
     let base = result.theme;
     const brutalist = result.brutalistEnabled || false;
+    const syncWithBrowser = isThemeSyncEnabled(result.themeSyncWithBrowser);
 
     // If no theme is saved, default to light
     if (!base) {
@@ -784,8 +787,10 @@ async function loadTheme() {
       await chrome.storage.local.set({ theme: 'light' });
     }
 
+    base = getEffectiveThemeBase(base, syncWithBrowser);
     const resolved = resolveThemeVariant(base, { brutalist });
     document.documentElement.setAttribute('data-theme', resolved);
+    updateThemeToggleState(syncWithBrowser);
     syncAccentColorSectionVisibility();
   } catch (e) {
     console.error('Failed to load theme:', e);
@@ -800,15 +805,35 @@ function resolveThemeVariant(base, { brutalist = false } = {}) {
   return base === 'dark' ? 'dashboard-dark' : 'dashboard-light';
 }
 
+function getBrowserThemeBase() {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function getEffectiveThemeBase(base, syncWithBrowser) {
+  return syncWithBrowser ? getBrowserThemeBase() : base;
+}
+
+function isThemeSyncEnabled(value) {
+  return value !== false;
+}
+
+function updateThemeToggleState(syncWithBrowser) {
+  const toggle = document.getElementById('theme-toggle');
+  if (!toggle) return;
+  toggle.title = syncWithBrowser ? 'Browser theme sync is on' : 'Toggle dark mode';
+}
+
 function setupThemeToggle() {
   const toggle = document.getElementById('theme-toggle');
   toggle.addEventListener('click', async () => {
     const root = document.documentElement;
 
     // Read storage to get base theme and active theme mode
-    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled']);
-    const currentBase = result.theme || 'light';
+    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled', 'themeSyncWithBrowser']);
+    const storedBase = result.theme || 'light';
     const brutalist = result.brutalistEnabled || false;
+    const syncWithBrowser = isThemeSyncEnabled(result.themeSyncWithBrowser);
+    const currentBase = getEffectiveThemeBase(storedBase, syncWithBrowser);
 
     // Toggle the base theme
     const newBase = currentBase === 'dark' ? 'light' : 'dark';
@@ -816,16 +841,48 @@ function setupThemeToggle() {
     // Resolve the actual data-theme value
     const resolved = resolveThemeVariant(newBase, { brutalist });
     root.setAttribute('data-theme', resolved);
+    updateThemeToggleState(false);
     syncAccentColorSectionVisibility();
 
-    // Save the base theme
+    // Save the base theme and exit browser-sync mode
     try {
-      await chrome.storage.local.set({ theme: newBase });
+      await chrome.storage.local.set({ theme: newBase, themeSyncWithBrowser: false });
     } catch (e) {
       console.error('Failed to save theme:', e);
     }
 
     // Re-apply accent color for the new theme
+    await loadAndApplyAccentColor();
+  });
+}
+
+function setupBrowserThemeSyncToggle() {
+  const toggle = document.getElementById('theme-sync-browser');
+  if (!toggle) return;
+
+  chrome.storage.local.get(['themeSyncWithBrowser']).then(result => {
+    toggle.checked = isThemeSyncEnabled(result.themeSyncWithBrowser);
+    updateThemeToggleState(toggle.checked);
+  }).catch(e => console.error('Failed to load browser theme sync setting:', e));
+
+  toggle.addEventListener('change', async () => {
+    const enabled = toggle.checked;
+    try {
+      await chrome.storage.local.set({ themeSyncWithBrowser: enabled });
+      await loadTheme();
+      await loadAndApplyAccentColor();
+    } catch (e) {
+      console.error('Failed to save browser theme sync setting:', e);
+    }
+  });
+}
+
+function setupBrowserThemeSyncListener() {
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  mediaQuery.addEventListener('change', async () => {
+    const result = await chrome.storage.local.get('themeSyncWithBrowser');
+    if (!isThemeSyncEnabled(result.themeSyncWithBrowser)) return;
+    await loadTheme();
     await loadAndApplyAccentColor();
   });
 }
@@ -836,8 +893,8 @@ function setupBrutalistToggle() {
 
   toggle.addEventListener('change', async () => {
     const enabled = toggle.checked;
-    const result = await chrome.storage.local.get('theme');
-    const base = result.theme || 'light';
+    const result = await chrome.storage.local.get(['theme', 'themeSyncWithBrowser']);
+    const base = getEffectiveThemeBase(result.theme || 'light', isThemeSyncEnabled(result.themeSyncWithBrowser));
 
     const resolved = resolveThemeVariant(base, { brutalist: enabled });
     document.documentElement.setAttribute('data-theme', resolved);
@@ -1323,10 +1380,15 @@ function populateSettings() {
   }
 
   // Appearance settings - Brutalist Mode
-  chrome.storage.local.get(['brutalistEnabled']).then(storageResult => {
+  chrome.storage.local.get(['brutalistEnabled', 'themeSyncWithBrowser']).then(storageResult => {
     const brutalistToggle = document.getElementById('brutalist-enabled');
     if (brutalistToggle) {
       brutalistToggle.checked = storageResult.brutalistEnabled || false;
+    }
+
+    const browserThemeToggle = document.getElementById('theme-sync-browser');
+    if (browserThemeToggle) {
+      browserThemeToggle.checked = isThemeSyncEnabled(storageResult.themeSyncWithBrowser);
     }
   }).catch(e => console.error('Failed to load appearance settings:', e));
 

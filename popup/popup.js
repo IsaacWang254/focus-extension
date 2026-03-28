@@ -28,6 +28,7 @@ const COMMON_REASON_WORDS = new Set([
 
 document.addEventListener('DOMContentLoaded', async () => {
   await loadTheme();
+  setupBrowserThemeSyncListener();
   settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
 
   const tabInfo = await chrome.runtime.sendMessage({ type: 'GET_CURRENT_TAB_URL' });
@@ -74,8 +75,8 @@ function clearAccentColorOverrides() {
 
 async function loadTheme() {
   try {
-    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled']);
-    const base = result.theme || 'light';
+    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled', 'themeSyncWithBrowser']);
+    const base = getEffectiveThemeBase(result.theme || 'light', result.themeSyncWithBrowser !== false);
     const brutalist = result.brutalistEnabled || false;
     if (!result.theme) await chrome.storage.local.set({ theme: 'light' });
     const resolved = resolveThemeVariant(base, { brutalist });
@@ -92,6 +93,27 @@ function resolveThemeVariant(base, { brutalist = false } = {}) {
   }
 
   return base === 'dark' ? 'dashboard-dark' : 'dashboard-light';
+}
+
+function getBrowserThemeBase() {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function getEffectiveThemeBase(base, syncWithBrowser) {
+  return syncWithBrowser ? getBrowserThemeBase() : base;
+}
+
+function isThemeSyncEnabled(value) {
+  return value !== false;
+}
+
+function setupBrowserThemeSyncListener() {
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  mediaQuery.addEventListener('change', async () => {
+    const result = await chrome.storage.local.get('themeSyncWithBrowser');
+    if (!isThemeSyncEnabled(result.themeSyncWithBrowser)) return;
+    await loadTheme();
+  });
 }
 
 /**
