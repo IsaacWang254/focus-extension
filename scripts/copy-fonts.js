@@ -14,16 +14,6 @@ const DEST = join(ROOT, 'lib', 'fonts');
 const files = [
   ['@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2', 'inter-latin-ext-wght-normal.woff2'],
   ['@fontsource-variable/inter/files/inter-latin-wght-normal.woff2', 'inter-latin-wght-normal.woff2'],
-  [
-    '@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-ext-wght-normal.woff2',
-    'jetbrains-mono-latin-ext-wght-normal.woff2',
-  ],
-  [
-    '@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2',
-    'jetbrains-mono-latin-wght-normal.woff2',
-  ],
-  ['@fontsource-variable/geist-mono/files/geist-mono-latin-ext-wght-normal.woff2', 'geist-mono-latin-ext-wght-normal.woff2'],
-  ['@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2', 'geist-mono-latin-wght-normal.woff2'],
 ];
 
 const firstSrc = join(ROOT, 'node_modules', files[0][0]);

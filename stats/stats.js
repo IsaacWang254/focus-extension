@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function handleStorageThemeChange(changes, areaName) {
   if (areaName !== 'local') return;
 
-  if (changes.theme || changes.brutalistEnabled || changes.accentColor) {
+  if (changes.theme || changes.accentColor) {
     loadTheme();
   }
 }
@@ -171,10 +171,12 @@ async function loadTheme() {
   try {
     const result = await chrome.storage.local.get(['theme', 'brutalistEnabled']);
     const base = result.theme || 'light';
-    const brutalist = result.brutalistEnabled || false;
     if (base && base !== 'auto') {
-      const resolved = resolveThemeVariant(base, { brutalist });
+      const resolved = resolveThemeVariant(base);
       document.documentElement.setAttribute('data-theme', resolved);
+    }
+    if (result.brutalistEnabled) {
+      await chrome.storage.local.remove('brutalistEnabled');
     }
     await applyAccentColorFromStorage();
   } catch (e) {
@@ -182,11 +184,7 @@ async function loadTheme() {
   }
 }
 
-function resolveThemeVariant(base, { brutalist = false } = {}) {
-  if (brutalist) {
-    return base === 'dark' ? 'brutalist-dark' : 'brutalist';
-  }
-
+function resolveThemeVariant(base) {
   return base === 'dark' ? 'dashboard-dark' : 'dashboard-light';
 }
 
@@ -198,7 +196,7 @@ async function applyAccentColorFromStorage() {
     const result = await chrome.storage.local.get('accentColor');
     const hex = result.accentColor || '#6366f1';
     const theme = document.documentElement.getAttribute('data-theme') || 'light';
-    if (theme.startsWith('brutalist') || theme.startsWith('dashboard')) {
+    if (theme.startsWith('dashboard')) {
       clearAccentColorOverrides();
       return;
     }

@@ -36,11 +36,6 @@ body {
     linear-gradient(180deg, #171719 0%, #0f0f10 100%);
 }
 
-[data-theme="brutalist"] body,
-[data-theme="brutalist-dark"] body {
-  background-image: none;
-}
-
 /* Subtle background pattern for visual interest */
 body::before {
   content: '';

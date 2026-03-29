@@ -1366,7 +1366,7 @@
 
       <!-- Appearance -->
       <section id="section-appearance" class="section" data-page="page-appearance"
-        data-search-keywords="appearance theme monospace dark light mode style accent color picker customize dashboard modern cursor openai">
+        data-search-keywords="appearance theme dark light mode style accent color picker customize dashboard modern cursor openai">
         <h2>Appearance</h2>
         <p class="section-desc">Customize how Focus looks and feels.</p>
 
@@ -1381,17 +1381,29 @@
           </label>
         </div>
 
-        <div class="setting-row">
+        <div id="theme-mode-row" class="setting-row setting-row-stacked" hidden>
           <div class="setting-info">
-            <span class="setting-label">Monospace</span>
-            <span class="setting-desc">Clean, typographic interface with sharp edges, no shadows, and a monospace UI.
-              animations. Works with both light and dark themes.</span>
+            <span class="setting-label">Theme mode</span>
+            <span class="setting-desc">Choose the light or dark theme used across the extension.</span>
           </div>
-          <label class="toggle">
-            <input type="checkbox" id="brutalist-enabled">
-            <span class="toggle-slider"></span>
-          </label>
+          <div class="mode-toggle" role="radiogroup" aria-label="Theme mode">
+            <label class="radio-card">
+              <input type="radio" name="theme-mode" id="theme-mode-light" value="light">
+              <span class="radio-content">
+                <span class="radio-title">Light</span>
+                <span class="radio-desc">Bright surfaces and softer contrast.</span>
+              </span>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="theme-mode" id="theme-mode-dark" value="dark">
+              <span class="radio-content">
+                <span class="radio-title">Dark</span>
+                <span class="radio-desc">Low-light friendly with stronger contrast.</span>
+              </span>
+            </label>
+          </div>
         </div>
+
       </section>
 
       <!-- Privacy Settings -->

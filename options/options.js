@@ -137,11 +137,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadAndApplyAccentColor();
 
   initializePageLayout();
+  setupThemeModeSelector();
   setupBrowserThemeSyncToggle();
   setupBrowserThemeSyncListener();
-
-  // Setup brutalist mode toggle
-  setupBrutalistToggle();
 
   // Setup accent color picker
   setupAccentColorPicker();
@@ -805,7 +803,6 @@ async function loadTheme() {
   try {
     const result = await chrome.storage.local.get(['theme', 'brutalistEnabled', 'themeSyncWithBrowser']);
     let base = result.theme;
-    const brutalist = result.brutalistEnabled || false;
     const syncWithBrowser = isThemeSyncEnabled(result.themeSyncWithBrowser);
 
     // If no theme is saved, default to light
@@ -815,20 +812,21 @@ async function loadTheme() {
     }
 
     base = getEffectiveThemeBase(base, syncWithBrowser);
-    const resolved = resolveThemeVariant(base, { brutalist });
+    const resolved = resolveThemeVariant(base);
     document.documentElement.setAttribute('data-theme', resolved);
-    updateThemeToggleState(syncWithBrowser);
+
+    if (result.brutalistEnabled) {
+      await chrome.storage.local.remove('brutalistEnabled');
+    }
+
+    syncThemeModeControls(base, syncWithBrowser);
     syncAccentColorSectionVisibility();
   } catch (e) {
     console.error('Failed to load theme:', e);
   }
 }
 
-function resolveThemeVariant(base, { brutalist = false } = {}) {
-  if (brutalist) {
-    return base === 'dark' ? 'brutalist-dark' : 'brutalist';
-  }
-
+function resolveThemeVariant(base) {
   return base === 'dark' ? 'dashboard-dark' : 'dashboard-light';
 }
 
@@ -844,43 +842,38 @@ function isThemeSyncEnabled(value) {
   return value !== false;
 }
 
-function updateThemeToggleState(syncWithBrowser) {
-  const toggle = document.getElementById('theme-toggle');
-  if (!toggle) return;
-  toggle.title = syncWithBrowser ? 'Browser theme sync is on' : 'Toggle dark mode';
+function syncThemeModeControls(base, syncWithBrowser) {
+  const row = document.getElementById('theme-mode-row');
+  const lightRadio = document.getElementById('theme-mode-light');
+  const darkRadio = document.getElementById('theme-mode-dark');
+  if (!row || !lightRadio || !darkRadio) return;
+
+  row.hidden = syncWithBrowser;
+  lightRadio.checked = base !== 'dark';
+  darkRadio.checked = base === 'dark';
 }
 
-function setupThemeToggle() {
-  const toggle = document.getElementById('theme-toggle');
-  if (!toggle) return;
-  toggle.addEventListener('click', async () => {
-    const root = document.documentElement;
+function setupThemeModeSelector() {
+  const radios = document.querySelectorAll('input[name="theme-mode"]');
+  if (!radios.length) return;
 
-    // Read storage to get base theme and active theme mode
-    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled', 'themeSyncWithBrowser']);
-    const storedBase = result.theme || 'light';
-    const brutalist = result.brutalistEnabled || false;
-    const syncWithBrowser = isThemeSyncEnabled(result.themeSyncWithBrowser);
-    const currentBase = getEffectiveThemeBase(storedBase, syncWithBrowser);
+  radios.forEach(radio => {
+    radio.addEventListener('change', async (event) => {
+      if (!event.target.checked) return;
 
-    // Toggle the base theme
-    const newBase = currentBase === 'dark' ? 'light' : 'dark';
+      const nextTheme = event.target.value === 'dark' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', resolveThemeVariant(nextTheme));
+      syncThemeModeControls(nextTheme, false);
+      syncAccentColorSectionVisibility();
 
-    // Resolve the actual data-theme value
-    const resolved = resolveThemeVariant(newBase, { brutalist });
-    root.setAttribute('data-theme', resolved);
-    updateThemeToggleState(false);
-    syncAccentColorSectionVisibility();
+      try {
+        await chrome.storage.local.set({ theme: nextTheme, themeSyncWithBrowser: false });
+      } catch (e) {
+        console.error('Failed to save theme mode:', e);
+      }
 
-    // Save the base theme and exit browser-sync mode
-    try {
-      await chrome.storage.local.set({ theme: newBase, themeSyncWithBrowser: false });
-    } catch (e) {
-      console.error('Failed to save theme:', e);
-    }
-
-    // Re-apply accent color for the new theme
-    await loadAndApplyAccentColor();
+      await loadAndApplyAccentColor();
+    });
   });
 }
 
@@ -888,9 +881,9 @@ function setupBrowserThemeSyncToggle() {
   const toggle = document.getElementById('theme-sync-browser');
   if (!toggle) return;
 
-  chrome.storage.local.get(['themeSyncWithBrowser']).then(result => {
+  chrome.storage.local.get(['theme', 'themeSyncWithBrowser']).then(result => {
     toggle.checked = isThemeSyncEnabled(result.themeSyncWithBrowser);
-    updateThemeToggleState(toggle.checked);
+    syncThemeModeControls(result.theme || 'light', toggle.checked);
   }).catch(e => console.error('Failed to load browser theme sync setting:', e));
 
   toggle.addEventListener('change', async () => {
@@ -915,30 +908,6 @@ function setupBrowserThemeSyncListener() {
   });
 }
 
-function setupBrutalistToggle() {
-  const toggle = document.getElementById('brutalist-enabled');
-  if (!toggle) return;
-
-  toggle.addEventListener('change', async () => {
-    const enabled = toggle.checked;
-    const result = await chrome.storage.local.get(['theme', 'themeSyncWithBrowser']);
-    const base = getEffectiveThemeBase(result.theme || 'light', isThemeSyncEnabled(result.themeSyncWithBrowser));
-
-    const resolved = resolveThemeVariant(base, { brutalist: enabled });
-    document.documentElement.setAttribute('data-theme', resolved);
-    syncAccentColorSectionVisibility();
-
-    try {
-      await chrome.storage.local.set({ brutalistEnabled: enabled });
-    } catch (e) {
-      console.error('Failed to save brutalist mode:', e);
-    }
-
-    // Re-apply accent color after theme change (brutalist themes ignore custom accent)
-    await loadAndApplyAccentColor();
-  });
-}
-
 // =============================================================================
 // ACCENT COLOR
 // =============================================================================
@@ -955,11 +924,6 @@ const ACCENT_COLOR_CSS_VARIABLES = [
   '--indigo-800',
   '--indigo-900'
 ];
-
-function isBrutalistThemeActive() {
-  const theme = document.documentElement.getAttribute('data-theme') || 'light';
-  return theme.startsWith('brutalist');
-}
 
 function clearAccentColorOverrides() {
   const rootStyle = document.documentElement.style;
@@ -1023,15 +987,15 @@ function contrastForeground(hex) {
 /**
  * Apply a custom accent color to the document root as CSS custom properties.
  * Generates all needed --indigo-* shades from a single hex color.
- * Skips brutalist themes (they use their own greyscale palette).
+ * Skips dashboard themes (they use their own palette).
  */
 function applyAccentColor(hex) {
   if (!hex) return;
 
   const theme = document.documentElement.getAttribute('data-theme') || 'light';
 
-  // Graphite and brutalist themes manage their own palette.
-  if (isBrutalistThemeActive() || theme.startsWith('dashboard')) {
+  // Dashboard themes manage their own palette.
+  if (theme.startsWith('dashboard')) {
     clearAccentColorOverrides();
     return;
   }
@@ -1407,16 +1371,18 @@ function populateSettings() {
     historyAnalysisToggle.checked = settings.historyAnalysisEnabled !== false; // Default to true
   }
 
-  // Appearance settings - Brutalist Mode
   chrome.storage.local.get(['brutalistEnabled', 'themeSyncWithBrowser']).then(storageResult => {
-    const brutalistToggle = document.getElementById('brutalist-enabled');
-    if (brutalistToggle) {
-      brutalistToggle.checked = storageResult.brutalistEnabled || false;
-    }
-
     const browserThemeToggle = document.getElementById('theme-sync-browser');
     if (browserThemeToggle) {
       browserThemeToggle.checked = isThemeSyncEnabled(storageResult.themeSyncWithBrowser);
+    }
+
+    chrome.storage.local.get('theme').then(themeResult => {
+      syncThemeModeControls(themeResult.theme || 'light', isThemeSyncEnabled(storageResult.themeSyncWithBrowser));
+    }).catch(e => console.error('Failed to load theme mode:', e));
+
+    if (storageResult.brutalistEnabled) {
+      chrome.storage.local.remove('brutalistEnabled').catch(e => console.error('Failed to clear retired theme setting:', e));
     }
   }).catch(e => console.error('Failed to load appearance settings:', e));
 

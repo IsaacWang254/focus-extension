@@ -738,6 +738,16 @@ input.search-input {
   padding: 14px 0;
 }
 
+.setting-row-stacked {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.setting-row[hidden],
+.setting-row-stacked[hidden] {
+  display: none;
+}
+
 .setting-row.sub-setting {
   padding-left: var(--space-4);
 }

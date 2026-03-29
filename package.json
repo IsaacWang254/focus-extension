@@ -8,9 +8,7 @@
     "copy-fonts": "node scripts/copy-fonts.js"
   },
   "devDependencies": {
-    "@fontsource-variable/geist-mono": "^5.2.7",
     "@fontsource-variable/inter": "^5.2.8",
-    "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "dotenv": "^16.4.5"
   }
 }

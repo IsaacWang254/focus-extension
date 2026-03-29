@@ -85,23 +85,21 @@ let reminderIntervalId = null;
 async function loadTheme() {
   const result = await chrome.storage.local.get(['theme', 'brutalistEnabled', 'themeSyncWithBrowser']);
   let base = result.theme;
-  const brutalist = result.brutalistEnabled || false;
   const syncWithBrowser = result.themeSyncWithBrowser !== false;
   if (!base) {
     base = 'light';
     await chrome.storage.local.set({ theme: 'light' });
   }
   base = getEffectiveThemeBase(base, syncWithBrowser);
-  const resolved = resolveThemeVariant(base, { brutalist });
+  const resolved = resolveThemeVariant(base);
   document.documentElement.setAttribute('data-theme', resolved);
+  if (result.brutalistEnabled) {
+    await chrome.storage.local.remove('brutalistEnabled');
+  }
   await applyAccentColorFromStorage();
 }
 
-function resolveThemeVariant(base, { brutalist = false } = {}) {
-  if (brutalist) {
-    return base === 'dark' ? 'brutalist-dark' : 'brutalist';
-  }
-
+function resolveThemeVariant(base) {
   return base === 'dark' ? 'dashboard-dark' : 'dashboard-light';
 }
 
@@ -125,7 +123,7 @@ async function applyAccentColorFromStorage() {
     const result = await chrome.storage.local.get('accentColor');
     const hex = result.accentColor || '#6366f1';
     const theme = document.documentElement.getAttribute('data-theme') || 'light';
-    if (theme.startsWith('brutalist') || theme.startsWith('dashboard')) {
+    if (theme.startsWith('dashboard')) {
       clearAccentColorOverrides();
       return;
     }
@@ -181,12 +179,12 @@ function getCurrentTheme() {
 
 function getBgStorageKey() {
   const theme = getCurrentTheme();
-  return (theme === 'dark' || theme === 'brutalist-dark' || theme === 'dashboard-dark') ? 'newtabBgColorDark' : 'newtabBgColorLight';
+  return (theme === 'dark' || theme === 'dashboard-dark') ? 'newtabBgColorDark' : 'newtabBgColorLight';
 }
 
 function getBgImageStorageKey() {
   const theme = getCurrentTheme();
-  return (theme === 'dark' || theme === 'brutalist-dark' || theme === 'dashboard-dark') ? 'newtabBgImageDark' : 'newtabBgImageLight';
+  return (theme === 'dark' || theme === 'dashboard-dark') ? 'newtabBgImageDark' : 'newtabBgImageLight';
 }
 
 function setupThemeToggle() {
@@ -194,10 +192,9 @@ function setupThemeToggle() {
   toggle.addEventListener('click', async () => {
     const root = document.documentElement;
 
-    // Read storage to get base theme and brutalist state
-    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled', 'themeSyncWithBrowser']);
+    // Read storage to get base theme
+    const result = await chrome.storage.local.get(['theme', 'themeSyncWithBrowser']);
     const storedBase = result.theme || 'light';
-    const brutalist = result.brutalistEnabled || false;
     const syncWithBrowser = isThemeSyncEnabled(result.themeSyncWithBrowser);
     const currentBase = getEffectiveThemeBase(storedBase, syncWithBrowser);
 
@@ -205,7 +202,7 @@ function setupThemeToggle() {
     const newBase = currentBase === 'dark' ? 'light' : 'dark';
 
     // Resolve the actual data-theme value
-    const resolved = resolveThemeVariant(newBase, { brutalist });
+    const resolved = resolveThemeVariant(newBase);
     root.setAttribute('data-theme', resolved);
     await chrome.storage.local.set({ theme: newBase, themeSyncWithBrowser: false });
 
@@ -784,7 +781,7 @@ function renderSwatches(selectedColor) {
   }
 
   const theme = getCurrentTheme();
-  const presetKey = (theme === 'dark' || theme === 'brutalist-dark' || theme === 'dashboard-dark') ? 'dark' : 'light';
+  const presetKey = (theme === 'dark' || theme === 'dashboard-dark') ? 'dark' : 'light';
   const presets = BG_PRESETS[presetKey] || BG_PRESETS.light;
 
   container.innerHTML = '';
