@@ -331,11 +331,16 @@ body::before {
 }
 
 .todo-item.completed {
-  opacity: 0.5;
+  opacity: 1;
+  border-color: color-mix(in srgb, #16a34a 34%, var(--border) 66%);
+  background-color: color-mix(in srgb, #dcfce7 58%, var(--secondary) 42%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #22c55e 12%, transparent);
 }
 
 .todo-item.completed:hover {
-  opacity: 0.7;
+  opacity: 1;
+  border-color: color-mix(in srgb, #16a34a 44%, var(--border) 56%);
+  background-color: color-mix(in srgb, #dcfce7 66%, var(--secondary) 34%);
 }
 
 /* Priority indicator bar on left side */
@@ -552,7 +557,7 @@ body::before {
 
 .todo-item.completed .todo-text {
   text-decoration: line-through;
-  color: var(--muted-foreground);
+  color: color-mix(in srgb, #166534 84%, var(--foreground) 16%);
 }
 
 /* Task description */
@@ -890,9 +895,9 @@ body::before {
 }
 
 .method.completed {
-  border-color: color-mix(in srgb, var(--indigo) 28%, var(--border) 72%);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--indigo-subtle) 70%, var(--card) 30%) 0%, color-mix(in srgb, var(--secondary) 86%, var(--card) 14%) 100%);
+  border-color: color-mix(in srgb, #16a34a 28%, var(--border) 72%);
+  background-color: color-mix(in srgb, #dcfce7 46%, var(--secondary) 54%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #22c55e 10%, transparent);
 }
 
 .method-header {
@@ -921,9 +926,13 @@ body::before {
 }
 
 .method.completed .method-icon {
-  color: var(--indigo);
-  background-color: color-mix(in srgb, var(--indigo-subtle) 78%, var(--card) 22%);
-  border-color: color-mix(in srgb, var(--indigo) 24%, var(--border) 76%);
+  color: #15803d;
+  background-color: color-mix(in srgb, #dcfce7 70%, var(--card) 30%);
+  border-color: color-mix(in srgb, #22c55e 32%, var(--border) 68%);
+}
+
+.method.completed .method-title {
+  color: color-mix(in srgb, #166534 78%, var(--foreground) 22%);
 }
 
 .method-title {
@@ -950,9 +959,9 @@ body::before {
 }
 
 .method-status.complete {
-  color: var(--indigo-foreground);
-  background-color: var(--indigo);
-  border-color: color-mix(in srgb, var(--indigo) 72%, var(--border) 28%);
+  color: #f0fdf4;
+  background-color: #16a34a;
+  border-color: color-mix(in srgb, #15803d 72%, var(--border) 28%);
 }
 
 .method-content {
