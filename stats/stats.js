@@ -46,8 +46,8 @@ function initializeIcons() {
   const iconMappings = {
     'icon-focus': Icons.target,
     'icon-time': Icons.clock,
-    'icon-streak': Icons.flame,
-    'icon-xp': Icons.star,
+    'icon-blocked': Icons.ban,
+    'icon-unblocked': Icons.list,
     // Productivity breakdown icons
     'icon-productive': Icons.trendingUp,
     'icon-distracting': Icons.trendingDown,
@@ -64,24 +64,6 @@ function initializeIcons() {
 
 // Initialize sidebar navigation
 function initializeSidebar() {
-  // Add icons to sidebar links
-  const sidebarIcons = {
-    'sidebar-icon-overview': Icons.home,
-    'sidebar-icon-streak': Icons.flame,
-    'sidebar-icon-achievements': Icons.trophy,
-    'sidebar-icon-blocking': Icons.ban,
-    'sidebar-icon-reasons': Icons.list,
-    'sidebar-icon-xp': Icons.star,
-    'sidebar-icon-history': Icons.eye,
-  };
-
-  for (const [id, iconSvg] of Object.entries(sidebarIcons)) {
-    const el = document.getElementById(id);
-    if (el) {
-      el.innerHTML = iconSvg;
-    }
-  }
-
   // Setup smooth scrolling for sidebar links
   const sidebarLinks = document.querySelectorAll('.sidebar-link');
   sidebarLinks.forEach(link => {
@@ -102,7 +84,7 @@ function initializeSidebar() {
 
   // Track scroll position to highlight active section
   const sections = [
-    'overview', 'streak', 'achievements', 'blocking', 'reasons', 'xp',
+    'overview', 'boundaries',
     'history-analysis', 'productivity-score', 'categories', 'hourly',
     'weekly', 'top-sites', 'suggestions', 'insights'
   ];
@@ -264,216 +246,26 @@ function setupEventListeners() {
 async function loadAllStats() {
   await Promise.all([
     loadOverviewStats(),
-    loadStreakStats(),
-    loadAchievements(),
     loadBlockingStats(),
     loadUnblockReasons(),
-    loadXPHistory(),
     loadHistoryAnalysis()
   ]);
 }
 
 async function loadOverviewStats() {
   try {
-    const [allTimeStats, streakInfo, xpData] = await Promise.all([
+    const [allTimeStats, settings, unblockReasons] = await Promise.all([
       chrome.runtime.sendMessage({ type: 'GET_ALL_TIME_STATS' }),
-      chrome.runtime.sendMessage({ type: 'GET_STREAK_INFO' }),
-      chrome.runtime.sendMessage({ type: 'GET_XP_DATA' }),
+      chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }),
+      chrome.runtime.sendMessage({ type: 'GET_UNBLOCK_REASONS' }),
     ]);
 
     document.getElementById('focus-sessions').textContent = allTimeStats?.totalSessions || 0;
     document.getElementById('focus-minutes').textContent = allTimeStats?.totalMinutes || 0;
-    document.getElementById('current-streak').textContent = streakInfo?.currentStreak || 0;
-    document.getElementById('total-xp').textContent = xpData?.totalXpEarned || xpData?.xp || 0;
+    document.getElementById('blocked-sites').textContent = settings?.blockedSites?.length || 0;
+    document.getElementById('unblock-count-overview').textContent = unblockReasons?.totalCount || 0;
   } catch (e) {
     console.error('Failed to load overview stats:', e);
-  }
-}
-
-async function loadStreakStats() {
-  try {
-    const streakInfo = await chrome.runtime.sendMessage({ type: 'GET_STREAK_INFO' });
-
-    document.getElementById('longest-streak').textContent = streakInfo?.longestStreak || 0;
-
-    if (streakInfo?.streakStartDate) {
-      const startDate = new Date(streakInfo.streakStartDate);
-      document.getElementById('streak-start').textContent = formatDate(startDate);
-    } else {
-      document.getElementById('streak-start').textContent = '-';
-    }
-
-    // Build streak calendar (last 28 days)
-    buildStreakCalendar(streakInfo?.history || []);
-  } catch (e) {
-    console.error('Failed to load streak stats:', e);
-  }
-}
-
-function buildStreakCalendar(history) {
-  const graph = document.getElementById('streak-graph');
-  graph.innerHTML = '';
-
-  // Create a map of dates to focus status
-  const focusMap = {};
-  for (const day of history) {
-    focusMap[day.date] = day.focused;
-  }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // Calculate how many weeks to show (go back ~52 weeks, aligning to Sunday starts)
-  const todayDay = today.getDay(); // 0=Sun
-  const totalDays = 52 * 7 + todayDay + 1; // 52 full weeks + partial current week
-
-  const startDate = new Date(today);
-  startDate.setDate(startDate.getDate() - totalDays + 1);
-
-  // Build weeks array
-  const weeks = [];
-  let currentWeek = [];
-  const tempDate = new Date(startDate);
-
-  for (let i = 0; i < totalDays; i++) {
-    currentWeek.push(new Date(tempDate));
-    if (tempDate.getDay() === 6 || i === totalDays - 1) {
-      weeks.push(currentWeek);
-      currentWeek = [];
-    }
-    tempDate.setDate(tempDate.getDate() + 1);
-  }
-
-  const numWeeks = weeks.length;
-
-  // Set grid template: 1 col for day labels + 1 per week; auto row for months, equal rows for days, auto for legend
-  graph.style.gridTemplateColumns = `28px repeat(${numWeeks}, 1fr)`;
-  graph.style.gridTemplateRows = `auto repeat(7, 1fr) auto`;
-
-  // Row 1: month labels
-  // Empty corner cell for day-label column
-  const corner = document.createElement('span');
-  corner.className = 'graph-day-label';
-  graph.appendChild(corner);
-
-  // One month-label cell per week column
-  let prevMonth = -1;
-  for (let w = 0; w < numWeeks; w++) {
-    const firstDay = weeks[w][0];
-    const month = firstDay.getMonth();
-
-    const cell = document.createElement('span');
-    cell.className = 'graph-month-cell';
-
-    if (month !== prevMonth) {
-      cell.textContent = firstDay.toLocaleDateString('en-US', { month: 'short' });
-      prevMonth = month;
-    }
-
-    graph.appendChild(cell);
-  }
-
-  // Rows 2-8: one per day of week (Sun=0 through Sat=6)
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
-    // Day label
-    const label = document.createElement('span');
-    label.className = 'graph-day-label';
-    if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) {
-      label.textContent = dayNames[dayOfWeek];
-    }
-    graph.appendChild(label);
-
-    // One cell per week
-    for (let w = 0; w < numWeeks; w++) {
-      const cell = document.createElement('span');
-
-      const matchingDay = weeks[w].find(d => d.getDay() === dayOfWeek);
-
-      if (!matchingDay || matchingDay > today) {
-        cell.className = 'graph-cell empty';
-      } else {
-        const dateStr = matchingDay.toDateString();
-        const isToday = matchingDay.getTime() === today.getTime();
-
-        if (focusMap[dateStr] === true) {
-          cell.className = 'graph-cell focused';
-        } else if (focusMap[dateStr] === false) {
-          cell.className = 'graph-cell unfocused';
-        } else {
-          cell.className = 'graph-cell no-data';
-        }
-
-        if (isToday) {
-          cell.classList.add('today');
-        }
-
-        const status = focusMap[dateStr] === true ? 'Focused' : focusMap[dateStr] === false ? 'Unfocused' : 'No data';
-        cell.title = `${formatDate(matchingDay)} - ${status}`;
-      }
-
-      graph.appendChild(cell);
-    }
-  }
-
-  // Legend (outside the grid)
-  const legend = document.createElement('div');
-  legend.className = 'graph-legend';
-  legend.style.gridColumn = `1 / -1`;
-  legend.innerHTML = `
-    <span class="graph-legend-label">Less</span>
-    <span class="graph-legend-cell no-data"></span>
-    <span class="graph-legend-cell unfocused"></span>
-    <span class="graph-legend-cell focused"></span>
-    <span class="graph-legend-label">More</span>
-  `;
-  graph.appendChild(legend);
-}
-
-async function loadAchievements() {
-  try {
-    const achievementsData = await chrome.runtime.sendMessage({ type: 'GET_ACHIEVEMENTS' });
-
-    if (!achievementsData) return;
-
-    // Update progress bar
-    const progress = (achievementsData.unlockedCount / achievementsData.totalCount) * 100;
-    document.getElementById('achievements-fill').style.width = `${progress}%`;
-    document.getElementById('achievements-text').textContent =
-      `${achievementsData.unlockedCount} / ${achievementsData.totalCount} unlocked`;
-
-    // Build achievements grid
-    const grid = document.getElementById('achievements-grid');
-    grid.innerHTML = '';
-
-    // Sort: unlocked first, then by name
-    const sorted = [...achievementsData.achievements].sort((a, b) => {
-      if (a.unlocked && !b.unlocked) return -1;
-      if (!a.unlocked && b.unlocked) return 1;
-      return a.name.localeCompare(b.name);
-    });
-
-    for (const achievement of sorted) {
-      const item = document.createElement('div');
-      item.className = `achievement-item ${achievement.unlocked ? 'unlocked' : 'locked'}`;
-
-      item.innerHTML = `
-        <div class="achievement-icon">${achievement.icon}</div>
-        <div class="achievement-info">
-          <div class="achievement-name">${achievement.name}</div>
-          <div class="achievement-desc">${achievement.description}</div>
-        </div>
-      `;
-
-      if (achievement.unlocked && achievement.unlockedAt) {
-        item.title = `Unlocked ${formatDateTime(new Date(achievement.unlockedAt))}`;
-      }
-
-      grid.appendChild(item);
-    }
-  } catch (e) {
-    console.error('Failed to load achievements:', e);
   }
 }
 
@@ -498,21 +290,14 @@ async function loadBlockingStats() {
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5);
 
-      topBlocked.innerHTML = `
-        <div class="top-blocked-title">Most Unblocked Sites</div>
-        ${sorted.map(([domain, count]) => `
-          <div class="blocked-site">
-            <span class="blocked-site-name">${domain}</span>
-            <span class="blocked-site-count">${count} times</span>
-          </div>
-        `).join('')}
-      `;
-    } else {
-      topBlocked.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-text">No unblock history yet</div>
+      topBlocked.innerHTML = sorted.map(([domain, count]) => `
+        <div class="blocked-site-item">
+          <span class="blocked-site-name">${domain}</span>
+          <span class="blocked-site-count">${count} times</span>
         </div>
-      `;
+      `).join('');
+    } else {
+      topBlocked.innerHTML = '<div class="empty-state-text">You have not unblocked any sites yet.</div>';
     }
   } catch (e) {
     console.error('Failed to load blocking stats:', e);
@@ -556,56 +341,20 @@ async function loadUnblockReasons() {
 
     if (recentReasons.length > 0) {
       const recent = recentReasons.slice(-5).reverse();
-      recentEl.innerHTML = `
-        <div class="recent-reasons-title">Recent Reasons</div>
-        ${recent.map(r => `
-          <div class="reason-item">
-            <div class="reason-header">
-              <span class="reason-domain">${r.domain}</span>
-              <span class="reason-time">${formatRelativeTime(r.timestamp)}</span>
-            </div>
-            <div class="reason-text">${escapeHtml(r.reason)}</div>
+      recentEl.innerHTML = recent.map(r => `
+        <div class="reason-item">
+          <div class="reason-header">
+            <span class="reason-domain">${r.domain}</span>
+            <span class="reason-time">${formatRelativeTime(r.timestamp)}</span>
           </div>
-        `).join('')}
-      `;
-    } else {
-      recentEl.innerHTML = '';
-    }
-  } catch (e) {
-    console.error('Failed to load unblock reasons:', e);
-  }
-}
-
-async function loadXPHistory() {
-  try {
-    const xpData = await chrome.runtime.sendMessage({ type: 'GET_XP_DATA' });
-    const xpHistory = await chrome.runtime.sendMessage({ type: 'GET_XP_HISTORY' });
-
-    document.getElementById('xp-level').textContent = xpData?.level || 1;
-    document.getElementById('xp-to-next').textContent = xpData?.xpToNextLevel || 100;
-
-    const listEl = document.getElementById('xp-history-list');
-
-    if (xpHistory && xpHistory.length > 0) {
-      const recent = xpHistory.slice(-20).reverse();
-      listEl.innerHTML = recent.map(item => `
-        <div class="xp-history-item">
-          <div class="xp-history-info">
-            <span class="xp-history-reason">${formatXPReason(item.reason)}</span>
-            <span class="xp-history-time">${formatRelativeTime(item.timestamp)}</span>
-          </div>
-          <span class="xp-history-amount">+${item.amount} XP</span>
+          <div class="reason-text">${escapeHtml(r.reason)}</div>
         </div>
       `).join('');
     } else {
-      listEl.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-text">No XP history yet</div>
-        </div>
-      `;
+      recentEl.innerHTML = '<div class="empty-state-text">No notes recorded yet.</div>';
     }
   } catch (e) {
-    console.error('Failed to load XP history:', e);
+    console.error('Failed to load unblock reasons:', e);
   }
 }
 
@@ -615,15 +364,6 @@ async function loadXPHistory() {
 
 function formatDate(date) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function formatDateTime(date) {
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  });
 }
 
 function formatRelativeTime(timestamp) {
@@ -640,29 +380,6 @@ function formatRelativeTime(timestamp) {
   if (days < 7) return `${days}d ago`;
 
   return formatDate(new Date(timestamp));
-}
-
-function formatXPReason(reason) {
-  const reasonLabels = {
-    'complete_todo': 'Completed todo',
-    'focused_day': 'Focused day',
-    'focused_day_streak_3': 'Focused day (3-day streak)',
-    'focused_day_streak_7': 'Focused day (7-day streak)',
-    'focused_day_streak_14': 'Focused day (14-day streak)',
-    'focused_day_streak_30': 'Focused day (30-day streak)',
-    'blocked_attempt': 'Resisted temptation',
-    'focus_session_25': 'Completed 25min session',
-    'focus_session_50': 'Completed 50min session',
-    'focus_session_15': 'Completed 15min session'
-  };
-
-  // Check for achievement reasons
-  if (reason.startsWith('achievement_')) {
-    const achievementId = reason.replace('achievement_', '');
-    return `Achievement: ${achievementId.replace(/_/g, ' ')}`;
-  }
-
-  return reasonLabels[reason] || reason.replace(/_/g, ' ');
 }
 
 function escapeHtml(text) {
@@ -841,15 +558,6 @@ function hideHistorySection() {
     }
   });
 
-  // Hide the divider before history-analysis
-  const historyLink = document.querySelector('.sidebar-link[data-section="history-analysis"]');
-  if (historyLink) {
-    const historyItem = historyLink.closest('li');
-    const prevSibling = historyItem?.previousElementSibling;
-    if (prevSibling?.classList.contains('sidebar-divider')) {
-      prevSibling.style.display = 'none';
-    }
-  }
 }
 
 function showHistoryPermissionRequest() {
@@ -893,10 +601,12 @@ function showHistoryPermissionRequest() {
 }
 
 function renderProductivityScore(data) {
+  const descriptor = getFocusBalanceDescriptor(data.score || 0);
+
   // Update grade
   const gradeEl = document.getElementById('productivity-grade');
   if (gradeEl) {
-    gradeEl.textContent = data.grade || '-';
+    gradeEl.textContent = descriptor.label;
     gradeEl.className = 'productivity-grade grade-' + (data.grade || 'f').toLowerCase();
   }
 
@@ -938,6 +648,14 @@ function renderProductivityScore(data) {
     document.getElementById('neutral-percent').textContent =
       Math.round((neutral / total) * 100) + '%';
   }
+}
+
+function getFocusBalanceDescriptor(score) {
+  if (score >= 80) return { label: 'Steady' };
+  if (score >= 65) return { label: 'Good' };
+  if (score >= 45) return { label: 'Mixed' };
+  if (score >= 25) return { label: 'Drift' };
+  return { label: 'Scattered' };
 }
 
 // Category icon mapping for SVG icons
@@ -1074,7 +792,7 @@ function renderBlockSuggestions(suggestions) {
     container.innerHTML = `
       <div class="empty-state-text">
         ${Icons.checkCircle}
-        <span style="margin-top: 8px;">No suggestions yet. Keep browsing and we'll identify distracting sites.</span>
+        <span style="margin-top: 8px;">Nothing stands out yet. As patterns become clearer, this area will suggest sites you may want to fence off.</span>
       </div>
     `;
     return;
@@ -1143,79 +861,72 @@ function renderInsights(productivityData) {
   const insightsData = productivityData.insights || {};
   const insights = [];
 
-  // Score-based achievement insight (show first if score is good)
   const score = productivityData.score || 0;
   if (score >= 80) {
     insights.push({
-      type: 'achievement',
-      title: 'Excellent Focus!',
-      text: 'You\'re maintaining an outstanding balance of productive browsing. Keep it up!'
+      type: 'positive',
+      title: 'Your attention looked steady',
+      text: 'Most of your recent browsing leaned productive. Notice what helped make that easier.'
     });
   } else if (score >= 70) {
     insights.push({
       type: 'positive',
-      title: 'Great Progress',
-      text: 'You have a healthy balance of productive browsing habits.'
+      title: 'You had a solid balance',
+      text: 'There was a healthy mix of productive browsing this week, with some room to tighten the edges.'
     });
   }
 
-  // Top productive site
   if (insightsData.topProductiveSite) {
     insights.push({
-      type: 'positive',
-      title: 'Top Productive Site',
-      text: `Your most visited productive site is ${insightsData.topProductiveSite}`
+      type: 'neutral',
+      title: 'Anchor site',
+      text: `${insightsData.topProductiveSite} was the place you returned to most for productive work.`
     });
   }
 
-  // Peak hour insight
   if (insightsData.peakHourLabel) {
     insights.push({
       type: 'neutral',
-      title: 'Peak Activity Time',
-      text: `You're most active online around ${insightsData.peakHourLabel}`
+      title: 'Peak browsing window',
+      text: `You were most active online around ${insightsData.peakHourLabel}. Ask whether that time felt intentional or reactive.`
     });
   }
 
-  // Daily average insight
   if (insightsData.avgDailyVisits > 0) {
     insights.push({
       type: 'neutral',
-      title: 'Daily Average',
-      text: `You average ${insightsData.avgDailyVisits} site visits per day`
+      title: 'Daily volume',
+      text: `You averaged ${insightsData.avgDailyVisits} site visits per day over the last week.`
     });
   }
 
-  // Top distracting site
   if (insightsData.topDistractingSite) {
     insights.push({
       type: 'warning',
-      title: 'Biggest Distraction',
-      text: `Your most visited distracting site is ${insightsData.topDistractingSite}`
+      title: 'Recurring distraction',
+      text: `${insightsData.topDistractingSite} showed up as the clearest distraction pattern in your recent browsing.`
     });
   }
 
-  // Score-based warning
   if (score < 40) {
     insights.push({
       type: 'tip',
-      title: 'Focus Tip',
-      text: 'Consider blocking some of your most visited distracting sites to improve focus.'
+      title: 'A small next step',
+      text: 'Pick one high-friction site and block it during the hours you most want to protect.'
     });
   } else if (score >= 40 && score < 60) {
     insights.push({
       type: 'tip',
-      title: 'Room for Improvement',
-      text: 'Try scheduling focused work sessions with distracting sites blocked.'
+      title: 'Where to tighten things up',
+      text: 'Your patterns look mixed. A lighter blocklist or more intentional session timing could reduce drift.'
     });
   }
 
-  // Total sites insight
   if (insightsData.uniqueSites > 0) {
     insights.push({
       type: 'neutral',
-      title: 'Sites Visited',
-      text: `You visited ${insightsData.uniqueSites} unique sites in the past week`
+      title: 'Attention spread',
+      text: `You visited ${insightsData.uniqueSites} unique sites in the past week. More variety can mean exploration, but it can also mean fragmentation.`
     });
   }
 
@@ -1235,8 +946,7 @@ function renderInsights(productivityData) {
     negative: Icons.trendingDown,
     neutral: Icons.info,
     tip: Icons.lightbulb,
-    warning: Icons.alertTriangle,
-    achievement: Icons.trophy
+    warning: Icons.alertTriangle
   };
 
   container.innerHTML = insights.map(insight => {
