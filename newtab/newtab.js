@@ -77,6 +77,7 @@ let allTasks = [];
 let tasksExpanded = false;
 let completedToday = [];
 let reminderIntervalId = null;
+let lastFocusedElement = null;
 
 // =============================================================================
 // THEME (same pattern as blocked.js / options.js)
@@ -232,6 +233,7 @@ function setupIcons() {
   document.getElementById('theme-icon-light').innerHTML = Icons.sun;
   document.getElementById('theme-icon-dark').innerHTML = Icons.moon;
   document.getElementById('settings-icon').innerHTML = Icons.settings;
+  document.getElementById('settings-close-icon').innerHTML = Icons.x;
   document.getElementById('calendar-icon').innerHTML = Icons.calendar;
   document.getElementById('todos-icon').innerHTML = Icons.list;
   document.getElementById('completed-icon').innerHTML = Icons.checkCircle;
@@ -586,36 +588,11 @@ async function loadWeather() {
 // =============================================================================
 
 async function loadSettings() {
-  const localDisplaySettings = await chrome.storage.local.get([
-    'newtabShowWeather',
-    'newtabShowQuotes',
-    'newtabShowCalendar',
-    'newtabShowTodos',
-    'newtabShowFocusSnapshot',
-    'newtabTempUnit',
-    'newtabBgColorLight',
-    'newtabBgColorDark',
-    'newtabBgImageLight',
-    'newtabBgImageDark'
-  ]);
   const settings = {
     ...DEFAULTS,
     ...(await getBedtimeReminderSettings()),
-    ...localDisplaySettings
+    ...(await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }))
   };
-
-  // Apply toggle states
-  document.getElementById('toggle-weather').checked = settings.newtabShowWeather;
-  document.getElementById('toggle-quotes').checked = settings.newtabShowQuotes;
-  document.getElementById('toggle-calendar').checked = settings.newtabShowCalendar;
-  document.getElementById('toggle-todos').checked = settings.newtabShowTodos;
-  document.getElementById('toggle-focus-snapshot').checked = settings.newtabShowFocusSnapshot;
-
-  // Apply temp unit toggle
-  const unit = settings.newtabTempUnit || 'C';
-  document.querySelectorAll('.temp-unit-btn').forEach(btn => {
-    btn.classList.toggle('selected', btn.dataset.unit === unit);
-  });
 
   // Apply visibility
   applyVisibility(settings);
@@ -656,84 +633,52 @@ function applyVisibility(settings) {
 
 function setupSettings() {
   const settingsBtn = document.getElementById('settings-btn');
-  const dropdown = document.getElementById('settings-dropdown');
-  const menu = document.getElementById('settings-menu');
+  const modal = document.getElementById('settings-modal');
+  const backdrop = document.getElementById('settings-modal-backdrop');
+  const dialog = document.getElementById('settings-dialog');
+  const closeBtn = document.getElementById('settings-close-btn');
+  const frame = document.getElementById('settings-frame');
 
-  // Toggle dropdown
-  settingsBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    dropdown.classList.toggle('open');
-  });
-
-  // Close on click outside
-  document.addEventListener('click', (e) => {
-    if (!dropdown.contains(e.target)) {
-      dropdown.classList.remove('open');
-    }
-  });
-
-  // Prevent dropdown close when clicking inside menu
-  menu.addEventListener('click', (e) => {
-    e.stopPropagation();
-  });
-
-  // Setting toggles
-  const toggles = [
-    { id: 'toggle-weather', key: 'newtabShowWeather' },
-    { id: 'toggle-quotes', key: 'newtabShowQuotes' },
-    { id: 'toggle-calendar', key: 'newtabShowCalendar' },
-    { id: 'toggle-todos', key: 'newtabShowTodos' },
-    { id: 'toggle-focus-snapshot', key: 'newtabShowFocusSnapshot' },
-  ];
-
-  for (const { id, key } of toggles) {
-    document.getElementById(id).addEventListener('change', async (e) => {
-      const value = e.target.checked;
-      await chrome.storage.local.set({ [key]: value });
-
-      // Read all settings to apply visibility correctly
-      const result = await chrome.storage.local.get(Object.keys(DEFAULTS));
-      const settings = { ...DEFAULTS, ...result };
-      applyVisibility(settings);
-
-      if (key === 'newtabShowFocusSnapshot') {
-        await loadFocusSnapshot(settings);
-        return;
-      }
-
-      if (value && key === 'newtabShowCalendar') {
-        await loadCalendar();
-        return;
-      }
-
-      if (value && key === 'newtabShowTodos') {
-        await Promise.allSettled([
-          loadTodos(),
-          fetchCompletedToday()
-        ]);
-      }
-    });
+  if (!settingsBtn || !modal || !backdrop || !dialog || !closeBtn || !frame) {
+    return;
   }
 
-  // Temperature unit toggle
-  document.querySelectorAll('.temp-unit-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const unit = btn.dataset.unit;
-      await chrome.storage.local.set({ newtabTempUnit: unit });
+  const settingsUrl = chrome.runtime.getURL('options/options.html?embedded=popup');
+  frame.src = settingsUrl;
 
-      // Update selected state
-      document.querySelectorAll('.temp-unit-btn').forEach(b => {
-        b.classList.toggle('selected', b.dataset.unit === unit);
-      });
+  const closeSettings = () => {
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('settings-open');
+    if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+      lastFocusedElement.focus();
+    }
+  };
 
-      // Re-render weather with new unit
-      loadWeather();
-    });
+  const openSettings = () => {
+    lastFocusedElement = document.activeElement;
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('settings-open');
+    closeBtn.focus();
+  };
+
+  settingsBtn.addEventListener('click', () => {
+    openSettings();
   });
 
-  // Background color swatches
-  setupBgColorPicker();
-  setupBgImagePicker();
+  closeBtn.addEventListener('click', closeSettings);
+  backdrop.addEventListener('click', closeSettings);
+
+  dialog.addEventListener('click', (event) => {
+    event.stopPropagation();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeSettings();
+    }
+  });
 }
 
 // =============================================================================
@@ -1469,6 +1414,56 @@ function formatSavedTime(minutes) {
   return `${hours}h ${remainder}m`;
 }
 
+function setupStorageSync() {
+  chrome.storage.onChanged.addListener(async (changes, areaName) => {
+    if (areaName !== 'local') return;
+
+    const changedKeys = Object.keys(changes);
+    const visibilityKeys = [
+      'newtabShowWeather',
+      'newtabShowQuotes',
+      'newtabShowCalendar',
+      'newtabShowTodos',
+      'newtabShowFocusSnapshot',
+      'bedtimeReminderEnabled',
+      'bedtimeReminderTime',
+      'bedtimeReminderEndTime',
+      'newtabBgColorLight',
+      'newtabBgColorDark',
+      'newtabBgImageLight',
+      'newtabBgImageDark'
+    ];
+
+    if (changedKeys.some(key => visibilityKeys.includes(key))) {
+      await loadSettings();
+    }
+
+    if (changedKeys.includes('newtabShowFocusSnapshot')) {
+      await loadFocusSnapshot();
+    }
+
+    if (changedKeys.includes('newtabShowCalendar')) {
+      await loadCalendar();
+    }
+
+    if (changedKeys.includes('newtabShowTodos')) {
+      await Promise.allSettled([
+        loadTodos(),
+        fetchCompletedToday()
+      ]);
+    }
+
+    if (changedKeys.includes('newtabTempUnit')) {
+      await loadWeather();
+    }
+
+    if (changedKeys.some(key => ['theme', 'themeSyncWithBrowser', 'accentColor'].includes(key))) {
+      await loadTheme();
+      await refreshBgColor();
+    }
+  });
+}
+
 // =============================================================================
 // INIT
 // =============================================================================
@@ -1484,6 +1479,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupThemeToggle();
   setupBrowserThemeSyncListener();
   setupSettings();
+  setupStorageSync();
   setupCalendarConnect();
   setupTodosConnect();
   setupShowMore();

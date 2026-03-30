@@ -13,6 +13,7 @@ let originalSettingsJson = null; // Store original settings for comparison
 let hasUnsavedChanges = false;
 let todoTaskProgressPreview = null;
 let activePageId = 'page-blocking';
+const isEmbeddedPopup = new URLSearchParams(window.location.search).get('embedded') === 'popup';
 
 const PAGE_CONFIG = {
   'page-blocking': {
@@ -39,6 +40,27 @@ const PAGE_CONFIG = {
     title: 'Privacy & Backup',
     description: 'Control local analysis and manage import or export.'
   }
+};
+
+const NEWTAB_BG_PRESETS = {
+  light: [
+    { color: '#f8f9fa', name: 'Light Gray' },
+    { color: '#fff8f0', name: 'Warm Cream' },
+    { color: '#f0f4ff', name: 'Soft Blue' },
+    { color: '#f0fdf4', name: 'Soft Green' },
+    { color: '#faf5ff', name: 'Lavender' },
+    { color: '#fff1f2', name: 'Soft Rose' },
+    { color: '#fefce8', name: 'Soft Yellow' },
+  ],
+  dark: [
+    { color: '#1a1a2e', name: 'Midnight' },
+    { color: '#1c1917', name: 'Warm Dark' },
+    { color: '#0f172a', name: 'Deep Navy' },
+    { color: '#0d1a14', name: 'Forest' },
+    { color: '#1a1025', name: 'Deep Purple' },
+    { color: '#1c1012', name: 'Dark Rose' },
+    { color: '#1a1814', name: 'Dark Amber' },
+  ],
 };
 
 // =============================================================================
@@ -130,6 +152,9 @@ function getIconSvg(iconCode) {
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
+  document.documentElement.classList.toggle('embedded-popup', isEmbeddedPopup);
+  document.body.classList.toggle('embedded-popup', isEmbeddedPopup);
+
   // Load theme first to avoid flash
   await loadTheme();
 
@@ -853,6 +878,20 @@ function syncThemeModeControls(base, syncWithBrowser) {
   darkRadio.checked = base === 'dark';
 }
 
+function getCurrentResolvedTheme() {
+  return document.documentElement.getAttribute('data-theme') || 'dashboard-light';
+}
+
+function getNewtabBgColorKey() {
+  const theme = getCurrentResolvedTheme();
+  return (theme === 'dark' || theme === 'dashboard-dark') ? 'newtabBgColorDark' : 'newtabBgColorLight';
+}
+
+function getNewtabBgImageKey() {
+  const theme = getCurrentResolvedTheme();
+  return (theme === 'dark' || theme === 'dashboard-dark') ? 'newtabBgImageDark' : 'newtabBgImageLight';
+}
+
 function setupThemeModeSelector() {
   const radios = document.querySelectorAll('input[name="theme-mode"]');
   if (!radios.length) return;
@@ -865,6 +904,7 @@ function setupThemeModeSelector() {
       document.documentElement.setAttribute('data-theme', resolveThemeVariant(nextTheme));
       syncThemeModeControls(nextTheme, false);
       syncAccentColorSectionVisibility();
+      renderNewtabBackgroundControls();
 
       try {
         await chrome.storage.local.set({ theme: nextTheme, themeSyncWithBrowser: false });
@@ -891,6 +931,7 @@ function setupBrowserThemeSyncToggle() {
     try {
       await chrome.storage.local.set({ themeSyncWithBrowser: enabled });
       await loadTheme();
+      renderNewtabBackgroundControls();
       await loadAndApplyAccentColor();
     } catch (e) {
       console.error('Failed to save browser theme sync setting:', e);
@@ -904,7 +945,153 @@ function setupBrowserThemeSyncListener() {
     const result = await chrome.storage.local.get('themeSyncWithBrowser');
     if (!isThemeSyncEnabled(result.themeSyncWithBrowser)) return;
     await loadTheme();
+    renderNewtabBackgroundControls();
     await loadAndApplyAccentColor();
+  });
+}
+
+function renderNewtabBackgroundControls() {
+  const status = document.getElementById('newtab-bg-image-status');
+  const removeButton = document.getElementById('newtab-remove-bg-image-btn');
+  const swatchContainer = document.getElementById('newtab-color-swatches');
+
+  if (!status || !removeButton || !swatchContainer || !settings) return;
+
+  const colorKey = getNewtabBgColorKey();
+  const imageKey = getNewtabBgImageKey();
+  const selectedColor = settings[colorKey] || 'default';
+  const image = settings[imageKey] || '';
+  const theme = getCurrentResolvedTheme();
+  const presetKey = (theme === 'dark' || theme === 'dashboard-dark') ? 'dark' : 'light';
+  const presets = NEWTAB_BG_PRESETS[presetKey] || NEWTAB_BG_PRESETS.light;
+
+  status.textContent = image ? 'Custom image applied to this theme' : 'Using default background';
+  removeButton.classList.toggle('hidden', !image);
+
+  swatchContainer.innerHTML = '';
+
+  const defaultBtn = document.createElement('button');
+  defaultBtn.className = 'newtab-color-swatch newtab-color-swatch-default';
+  defaultBtn.dataset.color = 'default';
+  defaultBtn.title = 'Default';
+  if (selectedColor === 'default') defaultBtn.classList.add('selected');
+  swatchContainer.appendChild(defaultBtn);
+
+  presets.forEach((preset) => {
+    const btn = document.createElement('button');
+    btn.className = 'newtab-color-swatch';
+    btn.dataset.color = preset.color;
+    btn.title = preset.name;
+    btn.style.setProperty('--swatch-color', preset.color);
+    if (selectedColor === preset.color) btn.classList.add('selected');
+    swatchContainer.appendChild(btn);
+  });
+
+  const customLabel = document.createElement('label');
+  customLabel.className = 'newtab-color-swatch newtab-color-swatch-custom';
+  customLabel.title = 'Custom color';
+
+  const customInput = document.createElement('input');
+  customInput.type = 'color';
+  customInput.id = 'newtab-custom-color-input';
+  customInput.value = (theme === 'dark' || theme === 'dashboard-dark') ? '#1a1a2e' : '#ffffff';
+
+  const isPreset = selectedColor === 'default' || presets.some((preset) => preset.color === selectedColor);
+  if (!isPreset && selectedColor) {
+    customLabel.classList.add('selected');
+    customInput.value = selectedColor;
+  }
+
+  customInput.addEventListener('input', (event) => {
+    settings[getNewtabBgColorKey()] = event.target.value;
+    renderNewtabBackgroundControls();
+    markAsChanged();
+  });
+
+  customLabel.appendChild(customInput);
+  swatchContainer.appendChild(customLabel);
+}
+
+function populateNewtabAppearanceSettings() {
+  document.getElementById('newtab-show-weather').checked = settings.newtabShowWeather !== false;
+  document.getElementById('newtab-show-quotes').checked = settings.newtabShowQuotes !== false;
+  document.getElementById('newtab-show-calendar').checked = settings.newtabShowCalendar !== false;
+  document.getElementById('newtab-show-todos').checked = settings.newtabShowTodos !== false;
+  document.getElementById('newtab-show-focus-snapshot').checked = settings.newtabShowFocusSnapshot !== false;
+
+  const unit = settings.newtabTempUnit || 'C';
+  document.querySelectorAll('.newtab-temp-unit-btn').forEach((button) => {
+    button.classList.toggle('active', button.dataset.unit === unit);
+  });
+
+  renderNewtabBackgroundControls();
+}
+
+function setupNewtabAppearanceControls() {
+  const toggleIds = [
+    'newtab-show-weather',
+    'newtab-show-quotes',
+    'newtab-show-calendar',
+    'newtab-show-todos',
+    'newtab-show-focus-snapshot'
+  ];
+
+  toggleIds.forEach((id) => {
+    document.getElementById(id)?.addEventListener('change', markAsChanged);
+  });
+
+  document.querySelectorAll('.newtab-temp-unit-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      const unit = button.dataset.unit;
+      settings.newtabTempUnit = unit;
+      document.querySelectorAll('.newtab-temp-unit-btn').forEach((candidate) => {
+        candidate.classList.toggle('active', candidate.dataset.unit === unit);
+      });
+      markAsChanged();
+    });
+  });
+
+  document.getElementById('newtab-color-swatches')?.addEventListener('click', (event) => {
+    const swatch = event.target.closest('.newtab-color-swatch:not(.newtab-color-swatch-custom)');
+    if (!swatch) return;
+    settings[getNewtabBgColorKey()] = swatch.dataset.color;
+    renderNewtabBackgroundControls();
+    markAsChanged();
+  });
+
+  document.getElementById('newtab-upload-bg-image-btn')?.addEventListener('click', () => {
+    document.getElementById('newtab-bg-image-input')?.click();
+  });
+
+  document.getElementById('newtab-bg-image-input')?.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const imageData = await readFileAsDataUrl(file);
+      settings[getNewtabBgImageKey()] = imageData;
+      renderNewtabBackgroundControls();
+      markAsChanged();
+    } catch (error) {
+      console.error('Failed to read new tab background image:', error);
+    } finally {
+      event.target.value = '';
+    }
+  });
+
+  document.getElementById('newtab-remove-bg-image-btn')?.addEventListener('click', () => {
+    settings[getNewtabBgImageKey()] = '';
+    renderNewtabBackgroundControls();
+    markAsChanged();
+  });
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+    reader.readAsDataURL(file);
   });
 }
 
@@ -1385,6 +1572,8 @@ function populateSettings() {
       chrome.storage.local.remove('brutalistEnabled').catch(e => console.error('Failed to clear retired theme setting:', e));
     }
   }).catch(e => console.error('Failed to load appearance settings:', e));
+
+  populateNewtabAppearanceSettings();
 
   // Focus session presets
   populateFocusPresets();
@@ -1874,6 +2063,7 @@ function setupEventListeners() {
   document.getElementById('bedtime-reminder-enabled').addEventListener('change', markAsChanged);
   document.getElementById('bedtime-reminder-time').addEventListener('change', markAsChanged);
   document.getElementById('bedtime-reminder-end-time').addEventListener('change', markAsChanged);
+  setupNewtabAppearanceControls();
 
   // Reset earned time
   document.getElementById('reset-earned-time').addEventListener('click', resetEarnedTimeBank);
@@ -1930,6 +2120,16 @@ async function saveSettings() {
   settings.bedtimeReminderEnabled = document.getElementById('bedtime-reminder-enabled').checked;
   settings.bedtimeReminderTime = document.getElementById('bedtime-reminder-time').value || '22:30';
   settings.bedtimeReminderEndTime = document.getElementById('bedtime-reminder-end-time').value || '07:00';
+  settings.newtabShowWeather = document.getElementById('newtab-show-weather').checked;
+  settings.newtabShowQuotes = document.getElementById('newtab-show-quotes').checked;
+  settings.newtabShowCalendar = document.getElementById('newtab-show-calendar').checked;
+  settings.newtabShowTodos = document.getElementById('newtab-show-todos').checked;
+  settings.newtabShowFocusSnapshot = document.getElementById('newtab-show-focus-snapshot').checked;
+  settings.newtabTempUnit = document.querySelector('.newtab-temp-unit-btn.active')?.dataset.unit || 'C';
+  settings.newtabBgColorLight = settings.newtabBgColorLight || 'default';
+  settings.newtabBgColorDark = settings.newtabBgColorDark || 'default';
+  settings.newtabBgImageLight = settings.newtabBgImageLight || '';
+  settings.newtabBgImageDark = settings.newtabBgImageDark || '';
 
   // Schedule settings
   const activeDays = [];
@@ -1990,6 +2190,19 @@ async function saveSettings() {
     await chrome.runtime.sendMessage({
       type: 'UPDATE_SETTINGS',
       settings: settings
+    });
+
+    await chrome.storage.local.set({
+      newtabShowWeather: settings.newtabShowWeather,
+      newtabShowQuotes: settings.newtabShowQuotes,
+      newtabShowCalendar: settings.newtabShowCalendar,
+      newtabShowTodos: settings.newtabShowTodos,
+      newtabShowFocusSnapshot: settings.newtabShowFocusSnapshot,
+      newtabTempUnit: settings.newtabTempUnit,
+      newtabBgColorLight: settings.newtabBgColorLight,
+      newtabBgColorDark: settings.newtabBgColorDark,
+      newtabBgImageLight: settings.newtabBgImageLight,
+      newtabBgImageDark: settings.newtabBgImageDark
     });
 
     // Save calendar selections if they changed
@@ -2398,6 +2611,16 @@ function gatherCurrentSettings() {
     bedtimeReminderEnabled: document.getElementById('bedtime-reminder-enabled').checked,
     bedtimeReminderTime: document.getElementById('bedtime-reminder-time').value || '22:30',
     bedtimeReminderEndTime: document.getElementById('bedtime-reminder-end-time').value || '07:00',
+    newtabShowWeather: document.getElementById('newtab-show-weather').checked,
+    newtabShowQuotes: document.getElementById('newtab-show-quotes').checked,
+    newtabShowCalendar: document.getElementById('newtab-show-calendar').checked,
+    newtabShowTodos: document.getElementById('newtab-show-todos').checked,
+    newtabShowFocusSnapshot: document.getElementById('newtab-show-focus-snapshot').checked,
+    newtabTempUnit: document.querySelector('.newtab-temp-unit-btn.active')?.dataset.unit || 'C',
+    newtabBgColorLight: settings.newtabBgColorLight || 'default',
+    newtabBgColorDark: settings.newtabBgColorDark || 'default',
+    newtabBgImageLight: settings.newtabBgImageLight || '',
+    newtabBgImageDark: settings.newtabBgImageDark || '',
     schedule: {
       enabled: document.getElementById('schedule-enabled').checked,
       allowedTimes: settings.schedule?.allowedTimes || [],

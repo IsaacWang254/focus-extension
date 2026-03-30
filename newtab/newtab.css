@@ -33,63 +33,145 @@ body {
   gap: var(--space-2);
 }
 
-/* Settings dropdown positioning */
-#settings-dropdown .dropdown-menu-right {
-  right: 0;
-  bottom: calc(100% + 12px);
-  top: auto;
-  padding: var(--space-4);
-  left: auto;
+.settings-launch {
+  position: relative;
 }
 
-.settings-panel {
-  padding: var(--space-2);
-  min-width: 200px;
-}
-
-.settings-title {
-  font-size: 0.75rem;
+.settings-launch::after {
+  content: 'Settings';
+  position: absolute;
+  right: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card) 84%, transparent 16%);
+  border: 1px solid color-mix(in srgb, var(--border) 88%, white 12%);
+  color: var(--foreground);
+  font-size: 0.76rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted-foreground);
-  padding: var(--space-1) var(--space-2);
-  margin-bottom: var(--space-1);
+  letter-spacing: 0.01em;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
 }
 
-.settings-row {
+.settings-launch:hover::after,
+.settings-launch:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(-2px);
+}
+
+.settings-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--space-2);
-  border-radius: var(--radius-sm);
+  justify-content: center;
+  padding: clamp(18px, 3vw, 32px);
+}
+
+.settings-modal.hidden {
+  display: none;
+}
+
+.settings-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(10px);
+  animation: settingsBackdropIn 180ms ease-out;
+}
+
+.settings-dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(1024px, 100%);
+  height: min(88vh, 840px);
+  border-radius: 20px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--background) 96%, var(--secondary) 4%);
+  border: 1px solid color-mix(in srgb, var(--border) 74%, transparent 26%);
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+  transform-origin: center;
+  animation: settingsDialogIn 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.settings-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 14px 14px 8px;
+  background: transparent;
+}
+
+.settings-dialog-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent 30%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background) 94%, var(--secondary) 6%);
+  color: color-mix(in srgb, var(--foreground) 82%, var(--muted-foreground) 18%);
   cursor: pointer;
-  transition: background-color var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
-.settings-row:hover {
-  background-color: var(--accent);
-}
-
-.settings-label {
-  font-size: 0.875rem;
+.settings-dialog-close:hover {
+  background: color-mix(in srgb, var(--background) 78%, var(--accent) 22%);
+  border-color: color-mix(in srgb, var(--border) 88%, transparent 12%);
   color: var(--foreground);
 }
 
-.background-controls {
-  padding: var(--space-2);
-}
-
-.background-actions {
+.settings-dialog-close span,
+.settings-dialog-close svg {
   display: flex;
-  gap: var(--space-2);
+  width: 16px;
+  height: 16px;
 }
 
-.background-status {
-  margin: var(--space-2) 0 0;
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-  line-height: 1.4;
+.settings-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.settings-section {
+  display: flex;
+  flex: 1;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.settings-frame {
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  border: 0;
+  background: color-mix(in srgb, var(--background) 96%, var(--secondary) 4%);
+  display: block;
 }
 
 .settings-icon {
@@ -108,25 +190,37 @@ body {
    Background Color Swatches
    ============================================ */
 
-.settings-divider {
-  border: none;
-  height: 1px;
-  background-color: var(--border);
-  margin: var(--space-2) 0;
+.background-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-/* Temperature unit toggle */
+.background-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.background-status {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+
 .temp-unit-toggle {
   display: flex;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: 12px;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .temp-unit-btn {
-  padding: 2px 10px;
-  font-size: 0.75rem;
-  font-weight: 500;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
   border: none;
   background: transparent;
   color: var(--muted-foreground);
@@ -150,13 +244,12 @@ body {
 .color-swatches {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  padding: var(--space-2);
+  gap: 10px;
 }
 
 .color-swatch {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 2px solid var(--border);
   cursor: pointer;
@@ -168,7 +261,7 @@ body {
 }
 
 .color-swatch:hover {
-  transform: scale(1.15);
+  transform: scale(1.1);
   border-color: var(--muted-foreground);
 }
 
@@ -189,20 +282,15 @@ body {
   transform: translate(-50%, -50%);
 }
 
-/* Default swatch — shows the theme's default background color */
 .swatch-default {
   background-color: var(--background);
 }
 
-/* Custom color swatch */
 .swatch-custom {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: conic-gradient(
-    #ff0000, #ff8800, #ffff00, #00ff00,
-    #0088ff, #8800ff, #ff0088, #ff0000
-  );
+  background: conic-gradient(#ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff, #ff0088, #ff0000);
   overflow: hidden;
 }
 
@@ -418,6 +506,32 @@ body {
   color: var(--muted-foreground);
 }
 
+.settings-open {
+  overflow: hidden;
+}
+
+@keyframes settingsBackdropIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes settingsDialogIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.992);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* ============================================
    Weather Section
    ============================================ */
@@ -507,6 +621,47 @@ body {
   width: min(100%, 640px);
   pointer-events: none;
   z-index: 2;
+}
+
+@media (max-width: 900px) {
+  .settings-modal {
+    padding: 12px;
+  }
+
+  .settings-dialog {
+    height: min(92vh, 900px);
+    border-radius: 18px;
+  }
+
+  .settings-dialog-header {
+    padding: 12px 12px 8px;
+  }
+}
+
+@media (max-width: 640px) {
+  .settings-launch::after {
+    display: none;
+  }
+
+  .settings-modal {
+    align-items: stretch;
+    justify-content: stretch;
+    padding: 0;
+  }
+
+  .settings-dialog {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .settings-dialog-header {
+    padding: 12px 12px 8px;
+  }
+
+  .settings-content {
+    padding: 0;
+  }
 }
 
 .quote-text {

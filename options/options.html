@@ -1404,6 +1404,92 @@
           </div>
         </div>
 
+        <hr class="divider">
+
+        <div class="setting-row setting-row-stacked newtab-settings-block">
+          <div class="setting-info">
+            <span class="setting-label">New Tab</span>
+            <span class="setting-desc">Choose what appears on your new tab page and how its background behaves.</span>
+          </div>
+          <div class="newtab-settings-group">
+            <div class="setting-row compact">
+              <div class="setting-info">
+                <span class="setting-label">Weather</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="newtab-show-weather">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-row compact">
+              <div class="setting-info">
+                <span class="setting-label">Temperature</span>
+              </div>
+              <div class="newtab-temp-unit-toggle" id="newtab-temp-unit-toggle">
+                <button class="newtab-temp-unit-btn" id="newtab-temp-unit-c" type="button" data-unit="C">°C</button>
+                <button class="newtab-temp-unit-btn" id="newtab-temp-unit-f" type="button" data-unit="F">°F</button>
+              </div>
+            </div>
+
+            <div class="setting-row compact">
+              <div class="setting-info">
+                <span class="setting-label">Quotes</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="newtab-show-quotes">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-row compact">
+              <div class="setting-info">
+                <span class="setting-label">Calendar</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="newtab-show-calendar">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-row compact">
+              <div class="setting-info">
+                <span class="setting-label">Tasks</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="newtab-show-todos">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-row compact">
+              <div class="setting-info">
+                <span class="setting-label">Focus snapshot</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="newtab-show-focus-snapshot">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-row setting-row-stacked">
+              <div class="setting-info">
+                <span class="setting-label">Background</span>
+                <span class="setting-desc">Uses separate choices for light and dark mode.</span>
+              </div>
+              <div class="newtab-background-controls">
+                <div class="newtab-background-actions">
+                  <button class="btn btn-secondary btn-small" id="newtab-upload-bg-image-btn" type="button">Upload image</button>
+                  <button class="btn btn-ghost btn-small hidden" id="newtab-remove-bg-image-btn" type="button">Remove</button>
+                </div>
+                <p class="section-desc-small" id="newtab-bg-image-status">Using default background</p>
+                <input type="file" id="newtab-bg-image-input" accept="image/*" class="hidden">
+                <div class="newtab-color-swatches" id="newtab-color-swatches"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </section>
 
       <!-- Privacy Settings -->

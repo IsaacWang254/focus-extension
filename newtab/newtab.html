@@ -11,71 +11,9 @@
   <!-- Top bar: settings + theme toggle -->
   <div class="top-bar">
     <div class="top-bar-actions">
-      <!-- Settings dropdown -->
-      <div class="dropdown" id="settings-dropdown">
-        <button class="theme-toggle" id="settings-btn" title="Settings">
-          <span class="settings-icon" id="settings-icon"></span>
-        </button>
-        <div class="dropdown-menu dropdown-menu-right" id="settings-menu">
-          <div class="settings-panel">
-            <h4 class="settings-title">Display</h4>
-            <div class="settings-row">
-              <span class="settings-label">Show weather</span>
-              <label class="toggle">
-                <input type="checkbox" id="toggle-weather" checked>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="settings-row">
-              <span class="settings-label">Temperature</span>
-              <div class="temp-unit-toggle" id="temp-unit-toggle">
-                <button class="temp-unit-btn selected" data-unit="C">°C</button>
-                <button class="temp-unit-btn" data-unit="F">°F</button>
-              </div>
-            </div>
-            <div class="settings-row">
-              <span class="settings-label">Show quotes</span>
-              <label class="toggle">
-                <input type="checkbox" id="toggle-quotes" checked>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="settings-row">
-              <span class="settings-label">Show calendar</span>
-              <label class="toggle">
-                <input type="checkbox" id="toggle-calendar" checked>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="settings-row">
-              <span class="settings-label">Show todos</span>
-              <label class="toggle">
-                <input type="checkbox" id="toggle-todos" checked>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div class="settings-row">
-              <span class="settings-label">Show focus snapshot</span>
-              <label class="toggle">
-                <input type="checkbox" id="toggle-focus-snapshot" checked>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <hr class="settings-divider">
-            <h4 class="settings-title">Background</h4>
-            <div class="background-controls">
-              <div class="background-actions">
-                <button class="btn btn-secondary btn-small" id="upload-bg-image-btn" type="button">Upload image</button>
-                <button class="btn btn-ghost btn-small hidden" id="remove-bg-image-btn" type="button">Remove</button>
-              </div>
-              <p class="background-status" id="bg-image-status">Using default background</p>
-              <input type="file" id="bg-image-input" accept="image/*" class="hidden">
-              <div class="color-swatches" id="color-swatches"></div>
-            </div>
-
-          </div>
-        </div>
-      </div>
+      <button class="theme-toggle settings-launch" id="settings-btn" title="Open settings" aria-label="Open settings">
+        <span class="settings-icon" id="settings-icon"></span>
+      </button>
 
       <!-- Theme toggle -->
       <button id="theme-toggle" class="theme-toggle" title="Toggle dark mode">
@@ -230,6 +168,31 @@
       </div>
     </div>
   </main>
+
+  <div class="settings-modal hidden" id="settings-modal" aria-hidden="true">
+    <div class="settings-modal-backdrop" id="settings-modal-backdrop"></div>
+    <section class="settings-dialog" id="settings-dialog" role="dialog" aria-modal="true" aria-label="Settings">
+      <div class="settings-dialog-header">
+        <button class="settings-dialog-close" id="settings-close-btn" type="button" aria-label="Close settings">
+          <span id="settings-close-icon"></span>
+        </button>
+      </div>
+
+      <div class="settings-content">
+        <div class="settings-stack">
+          <section class="settings-section settings-section-frame">
+            <iframe
+              class="settings-frame"
+              id="settings-frame"
+              title="Focus Extension Settings"
+              loading="lazy"
+              scrolling="no"
+            ></iframe>
+          </section>
+        </div>
+      </div>
+    </section>
+  </div>
 
   <script src="../lib/icons.js"></script>
   <script src="newtab.js" type="module"></script>

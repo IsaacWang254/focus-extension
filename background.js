@@ -102,6 +102,16 @@ const DEFAULT_SETTINGS = {
   bedtimeReminderEnabled: false,
   bedtimeReminderTime: '22:30',
   bedtimeReminderEndTime: '07:00',
+  newtabShowWeather: true,
+  newtabShowQuotes: true,
+  newtabShowCalendar: true,
+  newtabShowTodos: true,
+  newtabShowFocusSnapshot: true,
+  newtabTempUnit: 'C',
+  newtabBgColorLight: 'default',
+  newtabBgColorDark: 'default',
+  newtabBgImageLight: '',
+  newtabBgImageDark: '',
   schedule: {
     enabled: false,
     // Times when sites are UNBLOCKED (allowed)
