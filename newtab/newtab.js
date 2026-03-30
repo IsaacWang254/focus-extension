@@ -22,34 +22,11 @@ const DEFAULTS = {
   newtabShowTodos: true,
   newtabShowFocusSnapshot: true,
   newtabTempUnit: 'C', // 'C' or 'F'
-  newtabBgColorLight: 'default',
-  newtabBgColorDark: 'default',
   newtabBgImageLight: '',
   newtabBgImageDark: '',
   bedtimeReminderEnabled: false,
   bedtimeReminderTime: '22:30',
   bedtimeReminderEndTime: '07:00',
-};
-
-const BG_PRESETS = {
-  light: [
-    { color: '#f8f9fa', name: 'Light Gray' },
-    { color: '#fff8f0', name: 'Warm Cream' },
-    { color: '#f0f4ff', name: 'Soft Blue' },
-    { color: '#f0fdf4', name: 'Soft Green' },
-    { color: '#faf5ff', name: 'Lavender' },
-    { color: '#fff1f2', name: 'Soft Rose' },
-    { color: '#fefce8', name: 'Soft Yellow' },
-  ],
-  dark: [
-    { color: '#1a1a2e', name: 'Midnight' },
-    { color: '#1c1917', name: 'Warm Dark' },
-    { color: '#0f172a', name: 'Deep Navy' },
-    { color: '#0d1a14', name: 'Forest' },
-    { color: '#1a1025', name: 'Deep Purple' },
-    { color: '#1c1012', name: 'Dark Rose' },
-    { color: '#1a1814', name: 'Dark Amber' },
-  ],
 };
 
 const ACCENT_COLOR_CSS_VARIABLES = [
@@ -176,11 +153,6 @@ async function applyAccentColorFromStorage() {
 
 function getCurrentTheme() {
   return document.documentElement.getAttribute('data-theme') || 'light';
-}
-
-function getBgStorageKey() {
-  const theme = getCurrentTheme();
-  return (theme === 'dark' || theme === 'dashboard-dark') ? 'newtabBgColorDark' : 'newtabBgColorLight';
 }
 
 function getBgImageStorageKey() {
@@ -598,14 +570,9 @@ async function loadSettings() {
   applyVisibility(settings);
   renderBedtimeReminder(settings);
 
-  // Apply background color for current theme
-  const bgKey = getBgStorageKey();
-  const bgColor = settings[bgKey] || 'default';
   const bgImageKey = getBgImageStorageKey();
   const bgImage = settings[bgImageKey] || '';
-  applyBackgroundAppearance(bgColor, bgImage);
-  updateBackgroundControls(bgImage);
-  renderSwatches(bgColor);
+  applyBackgroundAppearance(bgImage);
 }
 
 function applyVisibility(settings) {
@@ -685,150 +652,18 @@ function setupSettings() {
 // BACKGROUND COLOR
 // =============================================================================
 
-function applyBackgroundAppearance(color, image = '') {
+function applyBackgroundAppearance(image = '') {
   document.body.style.backgroundImage = image ? `url("${image}")` : '';
   document.body.style.backgroundSize = image ? 'cover' : '';
   document.body.style.backgroundPosition = image ? 'center center' : '';
   document.body.style.backgroundRepeat = image ? 'no-repeat' : '';
-
-  if (getCurrentTheme().startsWith('dashboard')) {
-    document.body.style.backgroundColor = '';
-    return;
-  }
-
-  if (color === 'default') {
-    document.body.style.backgroundColor = '';
-  } else {
-    document.body.style.backgroundColor = color;
-  }
-}
-
-function updateBackgroundControls(image = '') {
-  const status = document.getElementById('bg-image-status');
-  const removeButton = document.getElementById('remove-bg-image-btn');
-
-  if (status) {
-    status.textContent = image ? 'Custom image applied to this theme' : 'Using default background';
-  }
-
-  if (removeButton) {
-    removeButton.classList.toggle('hidden', !image);
-  }
-}
-
-function renderSwatches(selectedColor) {
-  const container = document.getElementById('color-swatches');
-  if (!container) return;
-
-  if (getCurrentTheme().startsWith('dashboard')) {
-    container.innerHTML = '';
-    return;
-  }
-
-  const theme = getCurrentTheme();
-  const presetKey = (theme === 'dark' || theme === 'dashboard-dark') ? 'dark' : 'light';
-  const presets = BG_PRESETS[presetKey] || BG_PRESETS.light;
-
-  container.innerHTML = '';
-
-  // Default swatch
-  const defaultBtn = document.createElement('button');
-  defaultBtn.className = 'color-swatch swatch-default';
-  defaultBtn.dataset.color = 'default';
-  defaultBtn.title = 'Default';
-  if (selectedColor === 'default') defaultBtn.classList.add('selected');
-  container.appendChild(defaultBtn);
-
-  // Preset swatches
-  for (const preset of presets) {
-    const btn = document.createElement('button');
-    btn.className = 'color-swatch';
-    btn.dataset.color = preset.color;
-    btn.title = preset.name;
-    btn.style.setProperty('--swatch-color', preset.color);
-    if (selectedColor === preset.color) btn.classList.add('selected');
-    container.appendChild(btn);
-  }
-
-  // Custom color swatch
-  const customLabel = document.createElement('label');
-  customLabel.className = 'color-swatch swatch-custom';
-  customLabel.title = 'Custom color';
-
-  const customInput = document.createElement('input');
-  customInput.type = 'color';
-  customInput.id = 'custom-color-input';
-  customInput.value = (theme === 'dark' || theme === 'dashboard-dark') ? '#1a1a2e' : '#ffffff';
-
-  // If the selected color is custom (not default and not a preset), mark it
-  const isPreset = selectedColor === 'default' || presets.some(p => p.color === selectedColor);
-  if (!isPreset && selectedColor) {
-    customLabel.classList.add('selected');
-    customInput.value = selectedColor;
-  }
-
-  customLabel.appendChild(customInput);
-  container.appendChild(customLabel);
-
-  // Wire up custom input event
-  customInput.addEventListener('input', async (e) => {
-    const color = e.target.value;
-    const key = getBgStorageKey();
-    await chrome.storage.local.set({ [key]: color });
-    const imageKey = getBgImageStorageKey();
-    const imageResult = await chrome.storage.local.get(imageKey);
-    applyBackgroundAppearance(color, imageResult[imageKey] || '');
-    setSwatchSelected(color);
-  });
-}
-
-function setSwatchSelected(color) {
-  const swatches = document.querySelectorAll('.color-swatch');
-  swatches.forEach(s => s.classList.remove('selected'));
-
-  // Find matching preset swatch
-  const match = document.querySelector(`.color-swatch[data-color="${color}"]`);
-  if (match) {
-    match.classList.add('selected');
-  } else if (color !== 'default') {
-    // Custom color — select the custom swatch and update its input
-    const customSwatch = document.querySelector('.swatch-custom');
-    if (customSwatch) {
-      customSwatch.classList.add('selected');
-      const input = document.getElementById('custom-color-input');
-      if (input) input.value = color;
-    }
-  }
 }
 
 async function refreshBgColor() {
-  const key = getBgStorageKey();
   const imageKey = getBgImageStorageKey();
-  const result = await chrome.storage.local.get([key, imageKey]);
-  const color = result[key] || 'default';
+  const result = await chrome.storage.local.get(imageKey);
   const image = result[imageKey] || '';
-  applyBackgroundAppearance(color, image);
-  updateBackgroundControls(image);
-  renderSwatches(color);
-}
-
-function setupBgColorPicker() {
-  const container = document.getElementById('color-swatches');
-  if (!container) return;
-
-  // Delegated click for preset swatches (not custom)
-  container.addEventListener('click', async (e) => {
-    const swatch = e.target.closest('.color-swatch:not(.swatch-custom)');
-    if (!swatch) return;
-
-    const color = swatch.dataset.color;
-    const key = getBgStorageKey();
-    await chrome.storage.local.set({ [key]: color });
-    const imageKey = getBgImageStorageKey();
-    const imageResult = await chrome.storage.local.get(imageKey);
-    applyBackgroundAppearance(color, imageResult[imageKey] || '');
-    setSwatchSelected(color);
-  });
+  applyBackgroundAppearance(image);
 }
 
 function setupBgImagePicker() {
@@ -849,15 +684,10 @@ function setupBgImagePicker() {
     try {
       const imageData = await readFileAsDataUrl(file);
       const imageKey = getBgImageStorageKey();
-      const colorKey = getBgStorageKey();
-      const colorResult = await chrome.storage.local.get(colorKey);
-      const color = colorResult[colorKey] || 'default';
       await chrome.storage.local.set({ [imageKey]: imageData });
-      applyBackgroundAppearance(color, imageData);
-      updateBackgroundControls(imageData);
+      applyBackgroundAppearance(imageData);
     } catch (error) {
       console.error('Failed to upload background image:', error);
-      updateBackgroundControls('');
     } finally {
       input.value = '';
     }
@@ -865,12 +695,8 @@ function setupBgImagePicker() {
 
   removeButton.addEventListener('click', async () => {
     const imageKey = getBgImageStorageKey();
-    const colorKey = getBgStorageKey();
-    const colorResult = await chrome.storage.local.get(colorKey);
-    const color = colorResult[colorKey] || 'default';
     await chrome.storage.local.set({ [imageKey]: '' });
-    applyBackgroundAppearance(color, '');
-    updateBackgroundControls('');
+    applyBackgroundAppearance('');
   });
 }
 
@@ -1428,8 +1254,6 @@ function setupStorageSync() {
       'bedtimeReminderEnabled',
       'bedtimeReminderTime',
       'bedtimeReminderEndTime',
-      'newtabBgColorLight',
-      'newtabBgColorDark',
       'newtabBgImageLight',
       'newtabBgImageDark'
     ];

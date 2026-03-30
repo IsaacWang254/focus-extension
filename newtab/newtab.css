@@ -1194,6 +1194,14 @@ body {
    Dashboard Theme
    ============================================ */
 
+[data-theme="dashboard-light"] body {
+  background: #f1f0ec;
+}
+
+[data-theme="dashboard-dark"] body {
+  background: #1f1f1f;
+}
+
 [data-theme="dashboard-light"] .top-bar,
 [data-theme="dashboard-dark"] .top-bar {
   width: auto;

@@ -108,8 +108,6 @@ const DEFAULT_SETTINGS = {
   newtabShowTodos: true,
   newtabShowFocusSnapshot: true,
   newtabTempUnit: 'C',
-  newtabBgColorLight: 'default',
-  newtabBgColorDark: 'default',
   newtabBgImageLight: '',
   newtabBgImageDark: '',
   schedule: {

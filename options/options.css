@@ -380,63 +380,6 @@ body.embedded-popup .settings-page:not(.active) {
   gap: 8px;
 }
 
-.newtab-color-swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.newtab-color-swatch {
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  border: 2px solid var(--border);
-  padding: 0;
-  background: var(--swatch-color, transparent);
-  cursor: pointer;
-  position: relative;
-  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.newtab-color-swatch:hover {
-  transform: scale(1.08);
-  border-color: var(--muted-foreground);
-}
-
-.newtab-color-swatch.selected {
-  border-color: var(--foreground);
-  box-shadow: 0 0 0 2px var(--accent);
-}
-
-.newtab-color-swatch.selected::after {
-  content: '';
-  position: absolute;
-  inset: 8px;
-  border-radius: 999px;
-  background: var(--foreground);
-}
-
-.newtab-color-swatch-default {
-  background: var(--background);
-}
-
-.newtab-color-swatch-custom {
-  background: conic-gradient(#ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff, #ff0088, #ff0000);
-  overflow: hidden;
-}
-
-.newtab-color-swatch-custom input[type="color"] {
-  position: absolute;
-  width: 0;
-  height: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.newtab-color-swatch-custom.selected::after {
-  background: #fff;
-}
-
 /* Search */
 .search-wrapper {
   position: relative;

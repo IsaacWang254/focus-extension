@@ -42,27 +42,6 @@ const PAGE_CONFIG = {
   }
 };
 
-const NEWTAB_BG_PRESETS = {
-  light: [
-    { color: '#f8f9fa', name: 'Light Gray' },
-    { color: '#fff8f0', name: 'Warm Cream' },
-    { color: '#f0f4ff', name: 'Soft Blue' },
-    { color: '#f0fdf4', name: 'Soft Green' },
-    { color: '#faf5ff', name: 'Lavender' },
-    { color: '#fff1f2', name: 'Soft Rose' },
-    { color: '#fefce8', name: 'Soft Yellow' },
-  ],
-  dark: [
-    { color: '#1a1a2e', name: 'Midnight' },
-    { color: '#1c1917', name: 'Warm Dark' },
-    { color: '#0f172a', name: 'Deep Navy' },
-    { color: '#0d1a14', name: 'Forest' },
-    { color: '#1a1025', name: 'Deep Purple' },
-    { color: '#1c1012', name: 'Dark Rose' },
-    { color: '#1a1814', name: 'Dark Amber' },
-  ],
-};
-
 // =============================================================================
 // KEYWORD MATCHING HELPERS
 // =============================================================================
@@ -882,11 +861,6 @@ function getCurrentResolvedTheme() {
   return document.documentElement.getAttribute('data-theme') || 'dashboard-light';
 }
 
-function getNewtabBgColorKey() {
-  const theme = getCurrentResolvedTheme();
-  return (theme === 'dark' || theme === 'dashboard-dark') ? 'newtabBgColorDark' : 'newtabBgColorLight';
-}
-
 function getNewtabBgImageKey() {
   const theme = getCurrentResolvedTheme();
   return (theme === 'dark' || theme === 'dashboard-dark') ? 'newtabBgImageDark' : 'newtabBgImageLight';
@@ -953,63 +927,13 @@ function setupBrowserThemeSyncListener() {
 function renderNewtabBackgroundControls() {
   const status = document.getElementById('newtab-bg-image-status');
   const removeButton = document.getElementById('newtab-remove-bg-image-btn');
-  const swatchContainer = document.getElementById('newtab-color-swatches');
 
-  if (!status || !removeButton || !swatchContainer || !settings) return;
+  if (!status || !removeButton || !settings) return;
 
-  const colorKey = getNewtabBgColorKey();
   const imageKey = getNewtabBgImageKey();
-  const selectedColor = settings[colorKey] || 'default';
   const image = settings[imageKey] || '';
-  const theme = getCurrentResolvedTheme();
-  const presetKey = (theme === 'dark' || theme === 'dashboard-dark') ? 'dark' : 'light';
-  const presets = NEWTAB_BG_PRESETS[presetKey] || NEWTAB_BG_PRESETS.light;
-
-  status.textContent = image ? 'Custom image applied to this theme' : 'Using default background';
+  status.textContent = image ? 'Custom image applied to this theme' : 'Using built-in theme background';
   removeButton.classList.toggle('hidden', !image);
-
-  swatchContainer.innerHTML = '';
-
-  const defaultBtn = document.createElement('button');
-  defaultBtn.className = 'newtab-color-swatch newtab-color-swatch-default';
-  defaultBtn.dataset.color = 'default';
-  defaultBtn.title = 'Default';
-  if (selectedColor === 'default') defaultBtn.classList.add('selected');
-  swatchContainer.appendChild(defaultBtn);
-
-  presets.forEach((preset) => {
-    const btn = document.createElement('button');
-    btn.className = 'newtab-color-swatch';
-    btn.dataset.color = preset.color;
-    btn.title = preset.name;
-    btn.style.setProperty('--swatch-color', preset.color);
-    if (selectedColor === preset.color) btn.classList.add('selected');
-    swatchContainer.appendChild(btn);
-  });
-
-  const customLabel = document.createElement('label');
-  customLabel.className = 'newtab-color-swatch newtab-color-swatch-custom';
-  customLabel.title = 'Custom color';
-
-  const customInput = document.createElement('input');
-  customInput.type = 'color';
-  customInput.id = 'newtab-custom-color-input';
-  customInput.value = (theme === 'dark' || theme === 'dashboard-dark') ? '#1a1a2e' : '#ffffff';
-
-  const isPreset = selectedColor === 'default' || presets.some((preset) => preset.color === selectedColor);
-  if (!isPreset && selectedColor) {
-    customLabel.classList.add('selected');
-    customInput.value = selectedColor;
-  }
-
-  customInput.addEventListener('input', (event) => {
-    settings[getNewtabBgColorKey()] = event.target.value;
-    renderNewtabBackgroundControls();
-    markAsChanged();
-  });
-
-  customLabel.appendChild(customInput);
-  swatchContainer.appendChild(customLabel);
 }
 
 function populateNewtabAppearanceSettings() {
@@ -1049,14 +973,6 @@ function setupNewtabAppearanceControls() {
       });
       markAsChanged();
     });
-  });
-
-  document.getElementById('newtab-color-swatches')?.addEventListener('click', (event) => {
-    const swatch = event.target.closest('.newtab-color-swatch:not(.newtab-color-swatch-custom)');
-    if (!swatch) return;
-    settings[getNewtabBgColorKey()] = swatch.dataset.color;
-    renderNewtabBackgroundControls();
-    markAsChanged();
   });
 
   document.getElementById('newtab-upload-bg-image-btn')?.addEventListener('click', () => {
@@ -2126,8 +2042,6 @@ async function saveSettings() {
   settings.newtabShowTodos = document.getElementById('newtab-show-todos').checked;
   settings.newtabShowFocusSnapshot = document.getElementById('newtab-show-focus-snapshot').checked;
   settings.newtabTempUnit = document.querySelector('.newtab-temp-unit-btn.active')?.dataset.unit || 'C';
-  settings.newtabBgColorLight = settings.newtabBgColorLight || 'default';
-  settings.newtabBgColorDark = settings.newtabBgColorDark || 'default';
   settings.newtabBgImageLight = settings.newtabBgImageLight || '';
   settings.newtabBgImageDark = settings.newtabBgImageDark || '';
 
@@ -2199,8 +2113,6 @@ async function saveSettings() {
       newtabShowTodos: settings.newtabShowTodos,
       newtabShowFocusSnapshot: settings.newtabShowFocusSnapshot,
       newtabTempUnit: settings.newtabTempUnit,
-      newtabBgColorLight: settings.newtabBgColorLight,
-      newtabBgColorDark: settings.newtabBgColorDark,
       newtabBgImageLight: settings.newtabBgImageLight,
       newtabBgImageDark: settings.newtabBgImageDark
     });
@@ -2617,8 +2529,6 @@ function gatherCurrentSettings() {
     newtabShowTodos: document.getElementById('newtab-show-todos').checked,
     newtabShowFocusSnapshot: document.getElementById('newtab-show-focus-snapshot').checked,
     newtabTempUnit: document.querySelector('.newtab-temp-unit-btn.active')?.dataset.unit || 'C',
-    newtabBgColorLight: settings.newtabBgColorLight || 'default',
-    newtabBgColorDark: settings.newtabBgColorDark || 'default',
     newtabBgImageLight: settings.newtabBgImageLight || '',
     newtabBgImageDark: settings.newtabBgImageDark || '',
     schedule: {
