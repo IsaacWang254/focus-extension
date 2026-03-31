@@ -321,32 +321,6 @@ body {
   overflow: hidden;
 }
 
-.page-corners {
-  position: absolute;
-  inset: clamp(28px, 4vw, 52px) clamp(32px, 4.8vw, 64px) auto;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: clamp(32px, 5vw, 72px);
-  pointer-events: none;
-}
-
-.corner-block {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  max-width: min(34vw, 420px);
-  pointer-events: auto;
-}
-
-.corner-block-left {
-  align-items: flex-start;
-}
-
-.corner-block-right {
-  align-items: flex-end;
-}
-
 .center-stage {
   position: relative;
   z-index: 1;
@@ -355,10 +329,10 @@ body {
   align-items: center;
   justify-content: flex-start;
   min-height: calc(100vh - 96px);
-  gap: clamp(18px, 2.5vh, 28px);
+  gap: clamp(8px, 1.2vh, 14px);
   width: min(100%, 980px);
   margin: 0 auto;
-  padding: clamp(92px, 12vh, 120px) 0 clamp(72px, 11vh, 104px);
+  padding: clamp(12px, 2.2vh, 24px) 0 clamp(40px, 6vh, 64px);
 }
 
 /* ============================================
@@ -366,25 +340,36 @@ body {
    ============================================ */
 
 .hero {
-  text-align: right;
-  margin: 0;
+  text-align: center;
+  margin: -6px 0 0;
   flex-shrink: 0;
 }
 
 .clock {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.16em;
   font-size: clamp(4.2rem, 7.8vw, 6.3rem);
-  font-weight: 600;
-  line-height: 0.9;
+  font-weight: 500;
+  line-height: 0.96;
   color: var(--foreground);
-  letter-spacing: -0.06em;
+  letter-spacing: -0.035em;
   font-variant-numeric: tabular-nums;
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
-.greeting {
-  font-size: 1.05rem;
-  font-weight: 500;
-  color: var(--muted-foreground);
+.clock-part {
+  display: inline-block;
+  min-width: 1.8ch;
+}
+
+.clock-separator {
+  display: inline-block;
+  transform: translateY(-0.04em);
+  opacity: 0.72;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 /* ============================================
@@ -539,12 +524,12 @@ body {
 .weather-section {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 12px;
-  margin: 0;
-  min-height: 40px;
+  margin: -8px 0 0;
+  min-height: 30px;
   flex-shrink: 0;
-  text-align: right;
+  text-align: center;
 }
 
 .weather-loading {
@@ -563,6 +548,8 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .weather-icon {
@@ -609,10 +596,7 @@ body {
    ============================================ */
 
 .quote-section {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  position: static;
   text-align: center;
   max-width: 640px;
   margin: 0;
@@ -665,11 +649,11 @@ body {
 }
 
 .quote-text {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-style: italic;
   color: var(--muted-foreground);
-  line-height: 1.7;
-  margin-bottom: var(--space-2);
+  line-height: 1.55;
+  margin-bottom: 6px;
 }
 
 .quote-text::before {
@@ -681,7 +665,7 @@ body {
 }
 
 .quote-author {
-  font-size: 0.8125rem;
+  font-size: 0.78rem;
   color: var(--muted-foreground);
   opacity: 0.7;
   font-style: normal;
@@ -699,42 +683,81 @@ body {
   width: auto;
   margin: 0;
   flex-shrink: 0;
+  padding-top: 0;
+  margin-top: 0;
 }
 
 .focus-snapshot-inline {
   display: flex;
-  flex-direction: row;
   align-items: flex-start;
-  justify-content: flex-start;
-  gap: clamp(18px, 2.2vw, 30px);
+  justify-content: center;
+  gap: clamp(24px, 3vw, 40px);
   min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   color: var(--muted-foreground);
-  text-align: left;
+  text-align: center;
+  backdrop-filter: none;
 }
 
 .focus-snapshot-metric {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
   min-width: 0;
+  padding: 0;
+}
+
+.focus-snapshot-metric + .focus-snapshot-metric {
+  border-left: 1px solid color-mix(in srgb, var(--border) 58%, transparent 42%);
+  padding-left: 22px;
 }
 
 .focus-snapshot-inline-label {
-  letter-spacing: 0;
-  font-size: 0.95rem;
-  line-height: 1.15;
-  opacity: 0.9;
+  letter-spacing: 0.08em;
+  font-size: 0.73rem;
+  font-weight: 500;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  opacity: 0.72;
 }
 
 .focus-snapshot-inline-value {
-  font-size: clamp(2.25rem, 4.2vw, 3.6rem);
+  font-size: clamp(1.87rem, 3.08vw, 2.66rem);
   font-weight: 500;
   color: var(--foreground);
-  letter-spacing: -0.04em;
-  line-height: 0.92;
+  letter-spacing: -0.035em;
+  line-height: 0.96;
   font-variant-numeric: tabular-nums;
 }
+
+.focus-snapshot-inline-value-saved {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28rem;
+  flex-wrap: nowrap;
+}
+
+.focus-snapshot-saved-number {
+  display: inline-block;
+}
+
+.focus-snapshot-saved-unit {
+  display: inline-block;
+  font-size: 0.46em;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  opacity: 0.82;
+}
+
 
 /* ============================================
    Content Panels (Calendar, Todos, Completed)
@@ -745,9 +768,10 @@ body {
   grid-template-columns: 1fr 1fr;
   grid-template-rows: auto auto;
   align-content: start;
-  gap: clamp(16px, 2vw, 22px);
+  gap: clamp(14px, 1.6vw, 18px);
   width: 100%;
   max-width: 940px;
+  margin-top: 2px;
 }
 
 /* Calendar spans the full width on top */
@@ -756,7 +780,7 @@ body {
 }
 
 .panel-calendar .panel-body {
-  max-height: 240px;
+  max-height: min(22vh, 176px);
 }
 
 /* Tasks and Completed sit side by side */
@@ -819,7 +843,7 @@ body {
 
 .panel-body {
   padding: 6px 18px 18px;
-  max-height: 320px;
+  max-height: min(24vh, 220px);
   overflow-y: auto;
 }
 
@@ -1266,23 +1290,15 @@ body {
   display: block;
   width: auto;
   margin: 0;
-  text-align: right;
+  text-align: center;
 }
 
 [data-theme="dashboard-light"] .clock,
 [data-theme="dashboard-dark"] .clock {
   font-size: clamp(4.2rem, 7.8vw, 6.3rem);
-  line-height: 0.9;
-  letter-spacing: -0.06em;
+  line-height: 0.96;
+  letter-spacing: -0.035em;
   margin-bottom: 0;
-}
-
-[data-theme="dashboard-light"] .greeting,
-[data-theme="dashboard-dark"] .greeting {
-  font-size: 0.98rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  margin: 0;
 }
 
 [data-theme="dashboard-light"] .weather-section,
@@ -1297,17 +1313,22 @@ body {
 
 [data-theme="dashboard-light"] .weather-section,
 [data-theme="dashboard-dark"] .weather-section {
-  justify-content: flex-end;
-  text-align: right;
+  justify-content: center;
+  text-align: center;
   margin-bottom: 0;
   min-height: 0;
 }
 
 [data-theme="dashboard-light"] .weather-content,
 [data-theme="dashboard-dark"] .weather-content {
-  justify-content: flex-end;
+  justify-content: center;
   width: auto;
   gap: 10px;
+}
+
+[data-theme="dashboard-light"] .focus-snapshot-metric + .focus-snapshot-metric,
+[data-theme="dashboard-dark"] .focus-snapshot-metric + .focus-snapshot-metric {
+  border-left-color: var(--border);
 }
 
 [data-theme="dashboard-light"] .weather-temp,
@@ -1512,24 +1533,6 @@ body {
     padding: var(--space-6) var(--space-4) calc(var(--space-10) + 48px);
   }
 
-  .page-corners {
-    position: relative;
-    inset: auto;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-5);
-    margin-bottom: var(--space-6);
-  }
-
-  .corner-block {
-    max-width: none;
-  }
-
-  .corner-block-left,
-  .corner-block-right {
-    align-items: center;
-  }
-
   .hero,
   .weather-section,
   .focus-snapshot-inline {
@@ -1538,13 +1541,24 @@ body {
   }
 
   .focus-snapshot-inline {
-    gap: 18px;
     justify-content: center;
     flex-wrap: wrap;
+    gap: 14px;
+    padding: 0;
   }
 
   .focus-snapshot-metric {
     align-items: center;
+    width: 100%;
+    padding: 0;
+    gap: 6px;
+  }
+
+  .focus-snapshot-metric + .focus-snapshot-metric {
+    border-left: 0;
+    border-top: 1px solid color-mix(in srgb, var(--border) 78%, transparent 22%);
+    padding-left: 0;
+    padding-top: 14px;
   }
 
   .quote-section {
@@ -1559,19 +1573,15 @@ body {
     min-height: auto;
     width: 100%;
     padding: 0 0 calc(var(--space-8) + 24px);
-    gap: var(--space-4);
+    gap: 10px;
   }
 
   .clock {
     font-size: 3.5rem;
   }
 
-  .greeting {
-    font-size: 1rem;
-  }
-
   .focus-snapshot-inline-value {
-    font-size: 2.1rem;
+    font-size: 1.9rem;
   }
 
   .bedtime-reminder {

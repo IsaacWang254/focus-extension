@@ -1,6 +1,6 @@
 /**
  * New Tab Page
- * Shows clock, greeting, motivational quote, Google Calendar events, and Todoist tasks
+ * Shows clock, motivational quote, Google Calendar events, and Todoist tasks
  */
 
 import * as todoist from '../lib/todoist.js';
@@ -220,30 +220,18 @@ function updateClock() {
   const now = new Date();
   const hours = now.getHours().toString().padStart(2, '0');
   const minutes = now.getMinutes().toString().padStart(2, '0');
-  document.getElementById('clock').textContent = `${hours}:${minutes}`;
-}
-
-function updateGreeting() {
-  const hour = new Date().getHours();
-  let greeting;
-  if (hour < 12) {
-    greeting = 'Good morning';
-  } else if (hour < 18) {
-    greeting = 'Good afternoon';
-  } else {
-    greeting = 'Good evening';
-  }
-  document.getElementById('greeting').textContent = greeting;
+  document.getElementById('clock').innerHTML = `
+    <span class="clock-part">${hours}</span>
+    <span class="clock-separator" aria-hidden="true">:</span>
+    <span class="clock-part">${minutes}</span>
+  `;
 }
 
 function startClock() {
   updateClock();
-  updateGreeting();
   updateDate();
   // Update every second for the clock
   setInterval(updateClock, 1000);
-  // Update greeting every minute (in case hour changes)
-  setInterval(updateGreeting, 60000);
 }
 
 function parseTimeString(timeString) {
@@ -1217,7 +1205,7 @@ async function loadFocusSnapshot(preloadedDisplaySettings = null) {
     const totalBlockAttempts = blockingSummary?.totalBlockAttempts || 0;
     const estimatedSavedMinutes = totalBlockAttempts * 15;
     document.getElementById('focus-snapshot-blocked').textContent = totalBlockAttempts;
-    document.getElementById('focus-snapshot-saved').textContent = formatSavedTime(estimatedSavedMinutes);
+    renderSavedTime(estimatedSavedMinutes);
   } catch (error) {
     console.error('Failed to load focus snapshot:', error);
     document.getElementById('focus-snapshot-blocked').textContent = '-';
@@ -1225,19 +1213,28 @@ async function loadFocusSnapshot(preloadedDisplaySettings = null) {
   }
 }
 
-function formatSavedTime(minutes) {
+function getSavedTimeParts(minutes) {
   if (minutes < 60) {
-    return `${minutes} min`;
+    return { value: String(minutes), unit: 'min' };
   }
 
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
 
   if (remainder === 0) {
-    return `${hours} hr`;
+    return { value: String(hours), unit: 'hr' };
   }
 
-  return `${hours}h ${remainder}m`;
+  return { value: `${hours}h ${remainder}`, unit: 'min' };
+}
+
+function renderSavedTime(minutes) {
+  const savedTimeEl = document.getElementById('focus-snapshot-saved');
+  const { value, unit } = getSavedTimeParts(minutes);
+  savedTimeEl.innerHTML = `
+    <span class="focus-snapshot-saved-number">${value}</span>
+    <span class="focus-snapshot-saved-unit">${unit}</span>
+  `;
 }
 
 function setupStorageSync() {

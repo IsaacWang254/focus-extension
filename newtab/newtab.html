@@ -25,46 +25,6 @@
 
   <!-- Main content -->
   <main class="main">
-    <div class="page-corners">
-      <div class="corner-block corner-block-left">
-        <section class="focus-snapshot hidden" id="focus-snapshot">
-          <div class="focus-snapshot-inline">
-            <div class="focus-snapshot-metric">
-              <span class="focus-snapshot-inline-value" id="focus-snapshot-blocked">0</span>
-              <span class="focus-snapshot-inline-label">Sites blocked</span>
-            </div>
-            <div class="focus-snapshot-metric">
-              <span class="focus-snapshot-inline-value" id="focus-snapshot-saved">0 min</span>
-              <span class="focus-snapshot-inline-label">Estimated time saved</span>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <div class="corner-block corner-block-right">
-        <div class="hero">
-          <div class="clock" id="clock">00:00</div>
-          <div class="greeting" id="greeting">Good morning</div>
-        </div>
-
-        <!-- Weather -->
-        <div class="weather-section" id="weather-section">
-          <div class="weather-loading" id="weather-loading">
-            <div class="spinner spinner-sm"></div>
-          </div>
-          <div class="weather-content hidden" id="weather-content">
-            <span class="weather-icon" id="weather-icon"></span>
-            <span class="weather-temp" id="weather-temp"></span>
-            <span class="weather-desc" id="weather-desc"></span>
-            <span class="weather-highlow" id="weather-highlow"></span>
-          </div>
-          <div class="weather-error hidden" id="weather-error">
-            <span class="text-muted text-sm" id="weather-error-text"></span>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <section class="bedtime-reminder hidden" id="bedtime-reminder" aria-live="polite">
       <div class="bedtime-reminder-icon" id="bedtime-reminder-icon"></div>
       <div class="bedtime-reminder-copy">
@@ -79,6 +39,29 @@
       <div class="quote-section" id="quote-section">
         <blockquote class="quote-text" id="quote-text"></blockquote>
         <cite class="quote-author" id="quote-author"></cite>
+      </div>
+
+      <div class="hero">
+        <div class="clock" id="clock" aria-label="Current time">
+          <span class="clock-part">00</span>
+          <span class="clock-separator" aria-hidden="true">:</span>
+          <span class="clock-part">00</span>
+        </div>
+      </div>
+
+      <div class="weather-section" id="weather-section">
+        <div class="weather-loading" id="weather-loading">
+          <div class="spinner spinner-sm"></div>
+        </div>
+        <div class="weather-content hidden" id="weather-content">
+          <span class="weather-icon" id="weather-icon"></span>
+          <span class="weather-temp" id="weather-temp"></span>
+          <span class="weather-desc" id="weather-desc"></span>
+          <span class="weather-highlow" id="weather-highlow"></span>
+        </div>
+        <div class="weather-error hidden" id="weather-error">
+          <span class="text-muted text-sm" id="weather-error-text"></span>
+        </div>
       </div>
 
       <!-- Content panels -->
@@ -166,6 +149,22 @@
           </div>
         </div>
       </div>
+
+      <section class="focus-snapshot hidden" id="focus-snapshot">
+        <div class="focus-snapshot-inline">
+          <div class="focus-snapshot-metric">
+            <span class="focus-snapshot-inline-label">Sites blocked</span>
+            <span class="focus-snapshot-inline-value" id="focus-snapshot-blocked">0</span>
+          </div>
+          <div class="focus-snapshot-metric">
+            <span class="focus-snapshot-inline-label">Estimated time saved</span>
+            <span class="focus-snapshot-inline-value focus-snapshot-inline-value-saved" id="focus-snapshot-saved">
+              <span class="focus-snapshot-saved-number">0</span>
+              <span class="focus-snapshot-saved-unit">min</span>
+            </span>
+          </div>
+        </div>
+      </section>
     </div>
   </main>
 
