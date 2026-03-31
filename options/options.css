@@ -276,9 +276,7 @@ body.embedded-popup .page-header {
 body.embedded-popup .settings-toolbar {
   display: flex;
   align-self: flex-start;
-  position: sticky;
-  top: 0;
-  z-index: 4;
+  position: static;
   margin-bottom: 22px;
   padding: 0;
   background: transparent;
@@ -3378,7 +3376,12 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   position: relative;
   overflow: hidden;
   min-width: 140px;
-  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 #save-btn .btn-text {
@@ -3394,7 +3397,9 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   justify-content: center;
   opacity: 0;
   transform: scale(0);
-  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 #save-btn .btn-icon svg {
@@ -3413,8 +3418,11 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 }
 
 #save-btn.saved {
-  background: var(--success, #22c55e);
-  border-color: var(--success, #22c55e);
+  background: color-mix(in srgb, var(--background) 68%, #8faa92 32%);
+  border-color: color-mix(in srgb, var(--border) 40%, #7f9b84 60%);
+  color: color-mix(in srgb, var(--foreground) 76%, #264733 24%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--background) 70%, #8faa92 30%);
+  transform: translateY(-1px);
   pointer-events: none;
 }
 
@@ -3434,13 +3442,40 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   stroke-dashoffset: 24;
 }
 
+#save-btn.saved .btn-icon svg {
+  animation: saveIconSettle 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 #save-btn.saved .checkmark-path {
-  animation: drawCheck 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards 0.05s;
+  animation: drawCheck 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards 0.05s;
 }
 
 @keyframes drawCheck {
   to {
     stroke-dashoffset: 0;
+  }
+}
+
+@keyframes saveIconSettle {
+  0% {
+    transform: scale(0.82);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #save-btn,
+  #save-btn .btn-text,
+  #save-btn .btn-icon,
+  #save-btn.saved .btn-icon svg,
+  #save-btn.saved .checkmark-path {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }
 
