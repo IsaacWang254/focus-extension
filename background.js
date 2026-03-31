@@ -520,6 +520,10 @@ chrome.storage.onChanged.addListener(async (changes, namespace) => {
 async function getSettings() {
   const result = await chrome.storage.local.get('settings');
   const globalSettings = result.settings || { ...DEFAULT_SETTINGS };
+  if (globalSettings.enabled !== true) {
+    globalSettings.enabled = true;
+    await chrome.storage.local.set({ settings: globalSettings });
+  }
   if (globalSettings.unblockMethods) {
     globalSettings.unblockMethods.completeTodo = normalizeCompleteTodoSettings(globalSettings.unblockMethods.completeTodo);
   }
@@ -971,18 +975,13 @@ async function handleMessage(message, sender) {
       const result = await chrome.storage.local.get('settings');
       const currentSettings = result.settings || { ...DEFAULT_SETTINGS };
       const mergedSettings = { ...currentSettings, ...message.settings };
+      mergedSettings.enabled = true;
       if (mergedSettings.unblockMethods) {
         mergedSettings.unblockMethods.completeTodo = normalizeCompleteTodoSettings(mergedSettings.unblockMethods.completeTodo);
       }
       await chrome.storage.local.set({ settings: mergedSettings });
 
       return { success: true };
-
-    case 'TOGGLE_ENABLED':
-      const settings = await getSettings();
-      settings.enabled = !settings.enabled;
-      await chrome.storage.local.set({ settings });
-      return { enabled: settings.enabled };
 
     case 'ADD_BLOCKED_SITE':
       return await addBlockedSite(message.site);

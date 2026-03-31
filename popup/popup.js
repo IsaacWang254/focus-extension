@@ -12,15 +12,6 @@ let sessionUpdateInterval = null;
 let focusSessionInterval = null;
 let selectedPresetType = 'pomodoro';
 let cachedPresets = null;
-let disableInProgress = false;
-
-const DISABLE_REASON_MIN_LENGTH = 100;
-const COMMON_REASON_WORDS = new Set([
-  'a', 'about', 'after', 'am', 'an', 'and', 'because', 'before', 'but', 'for',
-  'from', 'have', 'i', 'if', 'in', 'into', 'is', 'it', 'just', 'me', 'my',
-  'need', 'now', 'of', 'on', 'or', 'our', 'quick', 'really', 'so', 'that',
-  'the', 'this', 'to', 'today', 'urgent', 'we', 'with', 'work'
-]);
 
 // =============================================================================
 // INITIALIZATION
@@ -177,19 +168,10 @@ async function applyAccentColorFromStorage() {
 // =============================================================================
 
 async function updateUI() {
-  const enabledToggle = document.getElementById('enabled-toggle');
-  enabledToggle.checked = settings.enabled;
-
   const statusText = document.getElementById('status-text');
   const statusEl = document.getElementById('status');
-
-  if (settings.enabled) {
-    statusText.textContent = 'Blocking enabled';
-    statusEl.classList.remove('disabled');
-  } else {
-    statusText.textContent = 'Blocking disabled';
-    statusEl.classList.add('disabled');
-  }
+  statusText.textContent = 'Blocking enabled';
+  statusEl.classList.remove('disabled');
 
   const modeBadge = document.getElementById('mode-badge');
   if (settings.mode === 'blocklist') {
@@ -203,209 +185,6 @@ async function updateUI() {
   document.getElementById('current-domain').textContent = currentDomain || '-';
   document.getElementById('current-domain').classList.toggle('blocked', isCurrentSiteBlocked());
   updateSiteActions();
-  setDisableConfirmationVisible(false);
-}
-
-function setDisableConfirmationVisible(visible) {
-  const confirmEl = document.getElementById('disable-confirm');
-  const toggleEl = document.getElementById('enabled-toggle');
-
-  if (!confirmEl || !toggleEl) {
-    return;
-  }
-
-  confirmEl.hidden = !visible;
-  toggleEl.checked = settings.enabled;
-
-  if (!visible) {
-    resetDisableConfirmation();
-  } else {
-    updateDisableReasonUI();
-    document.getElementById('disable-reason-input')?.focus();
-  }
-}
-
-function getDisableReasonValidation(text, minLength) {
-  const trimmed = text.trim();
-
-  if (trimmed.length < minLength) {
-    return {
-      isValid: false,
-      message: `Write at least ${minLength} characters and use real words.`
-    };
-  }
-
-  if (/(.)\1{5,}/.test(trimmed)) {
-    return {
-      isValid: false,
-      message: 'Avoid repeated characters like "aaaaaa".'
-    };
-  }
-
-  const words = trimmed.match(/[A-Za-z]+(?:['-][A-Za-z]+)*/g) || [];
-  if (words.length < 8) {
-    return {
-      isValid: false,
-      message: 'Write at least 8 words.'
-    };
-  }
-
-  const uniqueWords = new Set(words.map(word => word.toLowerCase()));
-  if (uniqueWords.size < 5) {
-    return {
-      isValid: false,
-      message: 'Use a few different words, not the same one repeated.'
-    };
-  }
-
-  const lettersOnly = trimmed.replace(/[^A-Za-z]/g, '');
-  if (!lettersOnly) {
-    return {
-      isValid: false,
-      message: 'Use letters and words, not only symbols or numbers.'
-    };
-  }
-
-  const lettersRatio = lettersOnly.length / trimmed.length;
-  if (lettersRatio < 0.65) {
-    return {
-      isValid: false,
-      message: 'Use mostly words instead of numbers or symbols.'
-    };
-  }
-
-  const vowelCount = (lettersOnly.match(/[AEIOUYaeiouy]/g) || []).length;
-  const vowelRatio = vowelCount / lettersOnly.length;
-  if (vowelRatio < 0.22 || vowelRatio > 0.75) {
-    return {
-      isValid: false,
-      message: 'Write a natural sentence with readable words.'
-    };
-  }
-
-  const commonWordMatches = words.filter(word => COMMON_REASON_WORDS.has(word.toLowerCase())).length;
-  if (commonWordMatches < 2) {
-    return {
-      isValid: false,
-      message: 'Write a short sentence in plain language.'
-    };
-  }
-
-  return {
-    isValid: true,
-    message: 'Be specific and write in plain language. This only unlocks once you write it out.'
-  };
-}
-
-function preventBulkTextEntry(input, { maxLengthDelta = 1 } = {}) {
-  if (!input) {
-    return;
-  }
-
-  let lastValue = input.value || '';
-
-  input.addEventListener('paste', (event) => {
-    event.preventDefault();
-  });
-
-  input.addEventListener('drop', (event) => {
-    event.preventDefault();
-  });
-
-  input.addEventListener('beforeinput', (event) => {
-    if (event.inputType === 'insertFromPaste' || event.inputType === 'insertFromDrop') {
-      event.preventDefault();
-    }
-  });
-
-  input.addEventListener('input', () => {
-    const currentValue = input.value;
-    const delta = currentValue.length - lastValue.length;
-
-    if (delta > maxLengthDelta) {
-      input.value = lastValue;
-      input.classList.add('error');
-      setTimeout(() => input.classList.remove('error'), 300);
-      return;
-    }
-
-    lastValue = input.value;
-  });
-}
-
-function resetDisableConfirmation() {
-  const reasonInput = document.getElementById('disable-reason-input');
-  const countEl = document.getElementById('disable-reason-count');
-  const confirmButton = document.getElementById('disable-confirm-btn');
-  const hintEl = document.getElementById('disable-reason-hint');
-
-  if (reasonInput) {
-    reasonInput.value = '';
-  }
-
-  if (countEl) {
-    countEl.textContent = '0';
-  }
-
-  if (confirmButton) {
-    confirmButton.textContent = 'Disable blocking';
-    confirmButton.disabled = true;
-  }
-
-  if (hintEl) {
-    hintEl.textContent = 'Be specific and write in plain language. This only unlocks once you write it out.';
-  }
-}
-
-function updateDisableReasonUI() {
-  const countEl = document.getElementById('disable-reason-count');
-  const confirmButton = document.getElementById('disable-confirm-btn');
-  const reasonInput = document.getElementById('disable-reason-input');
-  const hintEl = document.getElementById('disable-reason-hint');
-  const reasonText = reasonInput?.value || '';
-  const reasonLength = reasonText.trim().length;
-  const validation = getDisableReasonValidation(reasonText, DISABLE_REASON_MIN_LENGTH);
-
-  if (countEl) {
-    countEl.textContent = String(reasonLength);
-  }
-
-  if (hintEl) {
-    hintEl.textContent = validation.message;
-  }
-
-  if (confirmButton && !disableInProgress) {
-    confirmButton.disabled = !validation.isValid;
-  }
-}
-
-async function disableBlockingWithReason() {
-  const reasonInput = document.getElementById('disable-reason-input');
-  const validation = getDisableReasonValidation(reasonInput?.value || '', DISABLE_REASON_MIN_LENGTH);
-  if (!validation.isValid) {
-    updateDisableReasonUI();
-    return;
-  }
-
-  disableInProgress = true;
-
-  const confirmButton = document.getElementById('disable-confirm-btn');
-  if (confirmButton) {
-    confirmButton.disabled = true;
-    confirmButton.textContent = 'Disabling...';
-  }
-
-  try {
-    const result = await chrome.runtime.sendMessage({ type: 'TOGGLE_ENABLED' });
-    settings.enabled = result.enabled;
-    disableInProgress = false;
-    await updateUI();
-  } catch (error) {
-    console.error('Failed to disable blocking:', error);
-    disableInProgress = false;
-    updateDisableReasonUI();
-    document.getElementById('enabled-toggle').checked = true;
-  }
 }
 
 function isCurrentSiteBlocked() {
@@ -603,38 +382,6 @@ function escapeHtml(text) {
 // =============================================================================
 
 function setupEventListeners() {
-  document.getElementById('enabled-toggle').addEventListener('change', async () => {
-    const toggle = document.getElementById('enabled-toggle');
-
-    if (toggle.checked) {
-      if (settings.enabled) {
-        return;
-      }
-
-      const result = await chrome.runtime.sendMessage({ type: 'TOGGLE_ENABLED' });
-      settings.enabled = result.enabled;
-      await updateUI();
-      return;
-    }
-
-    toggle.checked = true;
-    setDisableConfirmationVisible(true);
-  });
-
-  document.getElementById('disable-cancel-btn').addEventListener('click', () => {
-    setDisableConfirmationVisible(false);
-  });
-
-  const disableReasonInput = document.getElementById('disable-reason-input');
-  preventBulkTextEntry(disableReasonInput);
-  disableReasonInput.addEventListener('input', () => {
-    updateDisableReasonUI();
-  });
-
-  document.getElementById('disable-confirm-btn').addEventListener('click', async () => {
-    await disableBlockingWithReason();
-  });
-
   document.getElementById('block-site-btn').addEventListener('click', async () => {
     if (settings.mode === 'blocklist') {
       await chrome.runtime.sendMessage({ type: 'ADD_BLOCKED_SITE', site: currentDomain });
