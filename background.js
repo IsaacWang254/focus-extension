@@ -141,6 +141,7 @@ const DEFAULT_SETTINGS = {
 };
 
 const BEDTIME_REMINDER_ALARM = 'bedtimeReminder';
+const BEDTIME_REMINDER_NOTIFICATION_ID = 'bedtime-reminder';
 
 // Default profile structure
 const DEFAULT_PROFILE = {
@@ -293,6 +294,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
   // Always update rules on install/update
   await updateBlockingRules();
+  await scheduleBedtimeReminderAlarm();
 });
 
 /**
@@ -499,6 +501,7 @@ chrome.runtime.onStartup.addListener(async () => {
   }
 
   await updateBlockingRules();
+  await scheduleBedtimeReminderAlarm();
 });
 
 /**
@@ -980,6 +983,11 @@ async function handleMessage(message, sender) {
         mergedSettings.unblockMethods.completeTodo = normalizeCompleteTodoSettings(mergedSettings.unblockMethods.completeTodo);
       }
       await chrome.storage.local.set({ settings: mergedSettings });
+      await scheduleBedtimeReminderAlarm({
+        bedtimeReminderEnabled: mergedSettings.bedtimeReminderEnabled,
+        bedtimeReminderTime: mergedSettings.bedtimeReminderTime,
+        bedtimeReminderEndTime: mergedSettings.bedtimeReminderEndTime
+      });
 
       return { success: true };
 
@@ -1754,6 +1762,15 @@ async function temporaryUnblock(site, minutes, useEarnedTimeFlag = false) {
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'updateBadge') {
     await updateBadgeTimer();
+  } else if (alarm.name === BEDTIME_REMINDER_ALARM) {
+    const settings = await getSettings();
+    if (settings.bedtimeReminderEnabled) {
+      sendBedtimeReminderNotification(
+        settings.bedtimeReminderTime || DEFAULT_SETTINGS.bedtimeReminderTime,
+        settings.bedtimeReminderEndTime || DEFAULT_SETTINGS.bedtimeReminderEndTime
+      );
+    }
+    await scheduleBedtimeReminderAlarm(settings);
   } else if (alarm.name.startsWith('reblock_')) {
     const domain = alarm.name.replace('reblock_', '');
 
@@ -2431,6 +2448,85 @@ function scheduleMidnightReset() {
   // Create alarm for midnight reset
   chrome.alarms.create('midnightReset', { delayInMinutes: minutesUntilMidnight });
   console.log(`Midnight reset alarm scheduled for ${minutesUntilMidnight.toFixed(1)} minutes from now`);
+}
+
+function parseTimeStringToMinutes(timeString) {
+  if (typeof timeString !== 'string') {
+    return null;
+  }
+
+  const [hoursString, minutesString] = timeString.split(':');
+  const hours = parseInt(hoursString, 10);
+  const minutes = parseInt(minutesString, 10);
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return null;
+  }
+
+  return (hours * 60) + minutes;
+}
+
+function formatTimeForNotification(timeString) {
+  const totalMinutes = parseTimeStringToMinutes(timeString);
+  if (totalMinutes === null) {
+    return timeString;
+  }
+
+  const date = new Date();
+  date.setHours(Math.floor(totalMinutes / 60), totalMinutes % 60, 0, 0);
+  return date.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
+function getNextOccurrenceForTime(timeString) {
+  const totalMinutes = parseTimeStringToMinutes(timeString);
+  if (totalMinutes === null) {
+    return null;
+  }
+
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(Math.floor(totalMinutes / 60), totalMinutes % 60, 0, 0);
+
+  if (next.getTime() <= now.getTime()) {
+    next.setDate(next.getDate() + 1);
+  }
+
+  return next;
+}
+
+function sendBedtimeReminderNotification(startTime, endTime) {
+  const formattedStart = formatTimeForNotification(startTime);
+  const formattedEnd = formatTimeForNotification(endTime);
+
+  chrome.notifications.create(BEDTIME_REMINDER_NOTIFICATION_ID, {
+    type: 'basic',
+    iconUrl: 'icons/icon128.png',
+    title: 'Night shutdown reminder',
+    message: `You planned to get off your computer at ${formattedStart}. Wrap up for the night and stay off until ${formattedEnd}.`,
+    priority: 2,
+    requireInteraction: true
+  });
+}
+
+async function scheduleBedtimeReminderAlarm(settingsOverride = null) {
+  await chrome.alarms.clear(BEDTIME_REMINDER_ALARM);
+
+  const settings = settingsOverride || await getSettings();
+  if (!settings.bedtimeReminderEnabled) {
+    return;
+  }
+
+  const nextReminderAt = getNextOccurrenceForTime(settings.bedtimeReminderTime || DEFAULT_SETTINGS.bedtimeReminderTime);
+  if (!nextReminderAt) {
+    console.warn('Unable to schedule bedtime reminder alarm: invalid reminder time');
+    return;
+  }
+
+  await chrome.alarms.create(BEDTIME_REMINDER_ALARM, { when: nextReminderAt.getTime() });
+  console.log(`Bedtime reminder alarm scheduled for ${nextReminderAt.toLocaleString()}`);
 }
 
 // =============================================================================
@@ -6374,6 +6470,7 @@ setTimeout(() => {
   startBadgeTimer();
   startUsageTracking();
   scheduleMidnightReset();
+  scheduleBedtimeReminderAlarm();
 }, 100);
 
 // Update badge when storage changes

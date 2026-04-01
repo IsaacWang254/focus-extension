@@ -599,7 +599,7 @@ function setupSettings() {
   }
 
   const settingsUrl = chrome.runtime.getURL('options/options.html?embedded=popup');
-  frame.src = settingsUrl;
+  let settingsFrameLoaded = false;
 
   const closeSettings = () => {
     modal.classList.add('hidden');
@@ -611,6 +611,10 @@ function setupSettings() {
   };
 
   const openSettings = () => {
+    if (!settingsFrameLoaded) {
+      frame.src = settingsUrl;
+      settingsFrameLoaded = true;
+    }
     lastFocusedElement = document.activeElement;
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
@@ -1218,8 +1222,39 @@ function getSavedTimeParts(minutes) {
     return { value: String(minutes), unit: 'min' };
   }
 
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
+  const MINUTES_PER_HOUR = 60;
+  const MINUTES_PER_DAY = MINUTES_PER_HOUR * 24;
+  const MINUTES_PER_WEEK = MINUTES_PER_DAY * 7;
+  const MINUTES_PER_MONTH = MINUTES_PER_DAY * 30;
+  const MINUTES_PER_YEAR = MINUTES_PER_DAY * 365;
+
+  const formatLargeUnit = (value, singularUnit, pluralUnit) => {
+    const displayValue = value >= 10 ? String(Math.round(value)) : value.toFixed(1).replace(/\.0$/, '');
+    const numericValue = Number(displayValue);
+    return {
+      value: displayValue,
+      unit: numericValue === 1 ? singularUnit : pluralUnit
+    };
+  };
+
+  if (minutes >= MINUTES_PER_YEAR) {
+    return formatLargeUnit(minutes / MINUTES_PER_YEAR, 'year', 'years');
+  }
+
+  if (minutes >= MINUTES_PER_MONTH) {
+    return formatLargeUnit(minutes / MINUTES_PER_MONTH, 'month', 'months');
+  }
+
+  if (minutes >= MINUTES_PER_WEEK) {
+    return formatLargeUnit(minutes / MINUTES_PER_WEEK, 'week', 'weeks');
+  }
+
+  if (minutes >= MINUTES_PER_DAY) {
+    return formatLargeUnit(minutes / MINUTES_PER_DAY, 'day', 'days');
+  }
+
+  const hours = Math.floor(minutes / MINUTES_PER_HOUR);
+  const remainder = minutes % MINUTES_PER_HOUR;
 
   if (remainder === 0) {
     return { value: String(hours), unit: 'hr' };
