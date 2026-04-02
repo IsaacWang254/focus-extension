@@ -2952,14 +2952,15 @@ const MOTIVATIONAL_QUOTES = [
   { text: "Don't wait for opportunity. Create it.", author: "Unknown" },
   { text: "Sometimes we're tested not to show our weaknesses, but to discover our strengths.", author: "Unknown" },
   { text: "The distance between your dreams and reality is called action.", author: "Unknown" },
-  { text: "Starve your distractions. Feed your focus.", author: "Unknown" },
+  { text: "Starve your distractions. Feed your focus.", author: "Daniel Goleman" },
   { text: "Work hard in silence. Let success be your noise.", author: "Frank Ocean" },
   { text: "Stay focused, go after your dreams and keep moving toward your goals.", author: "LL Cool J" },
   { text: "Concentration is the secret of strength.", author: "Ralph Waldo Emerson" },
   { text: "Lack of direction, not lack of time, is the problem.", author: "Zig Ziglar" },
   { text: "The successful warrior is the average man, with laser-like focus.", author: "Bruce Lee" },
   { text: "Where focus goes, energy flows.", author: "Tony Robbins" },
-  { text: "One way to boost our willpower is to enlist our focus.", author: "Daniel Goleman" }
+  { text: "One way to boost our willpower is to enlist our focus.", author: "Daniel Goleman" },
+  { text: "God did not send David to slay Goliath. He sent Goliath, to prove to David that what resides in him is a giant slayer", author: "Michael Irvin" }
 ];
 
 /**
