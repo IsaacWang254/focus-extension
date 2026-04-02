@@ -2396,16 +2396,19 @@ function setupScheduleListeners() {
 // =============================================================================
 
 function setupUnsavedChangesWarning() {
-  // Add beforeunload listener that checks for actual changes
-  window.addEventListener('beforeunload', (e) => {
-    // Only show warning if there are actual unsaved changes
-    if (checkForChanges()) {
-      e.preventDefault();
-      // Modern browsers ignore custom messages, but we need to return something
-      e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-      return e.returnValue;
-    }
-  });
+  // The embedded popup behaves like in-app navigation, so browser leave prompts
+  // feel broken there. Keep the warning only for the standalone settings page.
+  if (!isEmbeddedPopup) {
+    window.addEventListener('beforeunload', (e) => {
+      // Only show warning if there are actual unsaved changes
+      if (checkForChanges()) {
+        e.preventDefault();
+        // Modern browsers ignore custom messages, but we need to return something
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    });
+  }
 
   // Track changes on all form inputs (excluding "add item" inputs)
   const form = document.querySelector('.container');
