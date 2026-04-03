@@ -142,6 +142,7 @@ const DEFAULT_SETTINGS = {
 
 const BEDTIME_REMINDER_ALARM = 'bedtimeReminder';
 const BEDTIME_REMINDER_NOTIFICATION_ID = 'bedtime-reminder';
+const BEDTIME_REMINDER_LAST_SENT_KEY = 'bedtimeReminderLastSentWindow';
 
 // Default profile structure
 const DEFAULT_PROFILE = {
@@ -1764,12 +1765,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await updateBadgeTimer();
   } else if (alarm.name === BEDTIME_REMINDER_ALARM) {
     const settings = await getSettings();
-    if (settings.bedtimeReminderEnabled) {
-      sendBedtimeReminderNotification(
-        settings.bedtimeReminderTime || DEFAULT_SETTINGS.bedtimeReminderTime,
-        settings.bedtimeReminderEndTime || DEFAULT_SETTINGS.bedtimeReminderEndTime
-      );
-    }
+    await maybeSendBedtimeReminderNotification(settings);
     await scheduleBedtimeReminderAlarm(settings);
   } else if (alarm.name.startsWith('reblock_')) {
     const domain = alarm.name.replace('reblock_', '');
@@ -2497,18 +2493,85 @@ function getNextOccurrenceForTime(timeString) {
   return next;
 }
 
-function sendBedtimeReminderNotification(startTime, endTime) {
+function isWithinReminderWindow(startTime, endTime, now = new Date()) {
+  const startMinutes = parseTimeStringToMinutes(startTime);
+  const endMinutes = parseTimeStringToMinutes(endTime);
+
+  if (startMinutes === null || endMinutes === null) {
+    return false;
+  }
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  if (startMinutes === endMinutes) {
+    return true;
+  }
+
+  if (startMinutes < endMinutes) {
+    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+  }
+
+  return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+}
+
+function getReminderWindowKey(startTime, endTime, now = new Date()) {
+  const keyDate = new Date(now);
+  const startMinutes = parseTimeStringToMinutes(startTime);
+  const endMinutes = parseTimeStringToMinutes(endTime);
+
+  if (startMinutes === null || endMinutes === null) {
+    return keyDate.toISOString().slice(0, 10);
+  }
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const spansMidnight = startMinutes > endMinutes;
+
+  if (spansMidnight && currentMinutes < endMinutes) {
+    keyDate.setDate(keyDate.getDate() - 1);
+  }
+
+  return keyDate.toISOString().slice(0, 10);
+}
+
+function createBedtimeReminderMessage(startTime, endTime) {
   const formattedStart = formatTimeForNotification(startTime);
   const formattedEnd = formatTimeForNotification(endTime);
 
+  return `You planned to get off your computer at ${formattedStart}. Wrap up for the night and stay off until ${formattedEnd}.`;
+}
+
+function sendBedtimeReminderNotification(startTime, endTime) {
   chrome.notifications.create(BEDTIME_REMINDER_NOTIFICATION_ID, {
     type: 'basic',
     iconUrl: 'icons/icon128.png',
     title: 'Night shutdown reminder',
-    message: `You planned to get off your computer at ${formattedStart}. Wrap up for the night and stay off until ${formattedEnd}.`,
+    message: createBedtimeReminderMessage(startTime, endTime),
     priority: 2,
     requireInteraction: true
   });
+}
+
+async function maybeSendBedtimeReminderNotification(settings, now = new Date()) {
+  if (!settings?.bedtimeReminderEnabled) {
+    return false;
+  }
+
+  const startTime = settings.bedtimeReminderTime || DEFAULT_SETTINGS.bedtimeReminderTime;
+  const endTime = settings.bedtimeReminderEndTime || DEFAULT_SETTINGS.bedtimeReminderEndTime;
+
+  if (!isWithinReminderWindow(startTime, endTime, now)) {
+    return false;
+  }
+
+  const windowKey = getReminderWindowKey(startTime, endTime, now);
+  const result = await chrome.storage.local.get(BEDTIME_REMINDER_LAST_SENT_KEY);
+  if (result[BEDTIME_REMINDER_LAST_SENT_KEY] === windowKey) {
+    return false;
+  }
+
+  sendBedtimeReminderNotification(startTime, endTime);
+  await chrome.storage.local.set({ [BEDTIME_REMINDER_LAST_SENT_KEY]: windowKey });
+  return true;
 }
 
 async function scheduleBedtimeReminderAlarm(settingsOverride = null) {
@@ -2518,6 +2581,8 @@ async function scheduleBedtimeReminderAlarm(settingsOverride = null) {
   if (!settings.bedtimeReminderEnabled) {
     return;
   }
+
+  await maybeSendBedtimeReminderNotification(settings);
 
   const nextReminderAt = getNextOccurrenceForTime(settings.bedtimeReminderTime || DEFAULT_SETTINGS.bedtimeReminderTime);
   if (!nextReminderAt) {

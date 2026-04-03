@@ -14,6 +14,8 @@ let hasUnsavedChanges = false;
 let todoTaskProgressPreview = null;
 let activePageId = 'page-blocking';
 const isEmbeddedPopup = new URLSearchParams(window.location.search).get('embedded') === 'popup';
+let saveSuccessHideTimeoutId = null;
+let saveSuccessResetTimeoutId = null;
 
 const PAGE_CONFIG = {
   'page-blocking': {
@@ -2142,16 +2144,20 @@ async function saveSettings() {
 
 function showSaveSuccess() {
   const saveBtn = document.getElementById('save-btn');
+  if (!saveBtn) return;
+
+  clearTimeout(saveSuccessHideTimeoutId);
+  clearTimeout(saveSuccessResetTimeoutId);
 
   // Trigger saved state with checkmark animation
   saveBtn.classList.remove('saving');
   saveBtn.classList.add('saved');
 
   // Hide save bar after animation completes (timings aligned with CSS: icon + checkmark ~0.5s)
-  setTimeout(() => {
+  saveSuccessHideTimeoutId = setTimeout(() => {
     hideSaveBar();
     // Reset button state after bar transition
-    setTimeout(() => {
+    saveSuccessResetTimeoutId = setTimeout(() => {
       saveBtn.classList.remove('saved');
     }, 200);
   }, 550);
@@ -2159,6 +2165,11 @@ function showSaveSuccess() {
 
 function resetSaveButton() {
   const saveBtn = document.getElementById('save-btn');
+  clearTimeout(saveSuccessHideTimeoutId);
+  clearTimeout(saveSuccessResetTimeoutId);
+  saveSuccessHideTimeoutId = null;
+  saveSuccessResetTimeoutId = null;
+  if (!saveBtn) return;
   saveBtn.classList.remove('saving', 'saved');
 }
 
@@ -2465,6 +2476,7 @@ function markAsChanged() {
 function showSaveBar() {
   const saveBar = document.getElementById('save-bar');
   if (saveBar) {
+    resetSaveButton();
     saveBar.classList.remove('hidden');
   }
 }
@@ -2474,6 +2486,7 @@ function hideSaveBar() {
   if (saveBar) {
     saveBar.classList.add('hidden');
   }
+  resetSaveButton();
 }
 
 function getSelectedCalendarIds() {
