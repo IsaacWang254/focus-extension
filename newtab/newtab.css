@@ -79,8 +79,7 @@ body {
 .settings-modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(15, 23, 42, 0.42);
-  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.32);
   animation: settingsBackdropIn 180ms ease-out;
 }
 
