@@ -292,7 +292,7 @@ async function loadBlockingStats() {
 
       topBlocked.innerHTML = sorted.map(([domain, count]) => `
         <div class="blocked-site-item">
-          <span class="blocked-site-name">${domain}</span>
+          <span class="blocked-site-name">${escapeHtml(formatDomainLabel(domain))}</span>
           <span class="blocked-site-count">${count} times</span>
         </div>
       `).join('');
@@ -386,6 +386,15 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function formatDomainLabel(domain) {
+  if (typeof domain !== 'string') {
+    return 'Unknown site';
+  }
+
+  const normalized = domain.trim().replace(/^www\./, '');
+  return normalized || 'Unknown site';
 }
 
 // =============================================================================
@@ -775,7 +784,7 @@ function renderTopSites(sites) {
       <div class="top-site-item">
         <span class="top-site-rank${rankClass}">${index + 1}</span>
         <div class="top-site-info">
-          <div class="top-site-domain">${escapeHtml(site.domain)}</div>
+          <div class="top-site-domain">${escapeHtml(formatDomainLabel(site.domain))}</div>
           <div class="top-site-category">${escapeHtml(categoryName)}</div>
         </div>
         <span class="top-site-visits">${site.visits} visits</span>

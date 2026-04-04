@@ -297,6 +297,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       blockedDomain = originalUrl || 'unknown site';
     }
 
+    blockedDomain = typeof blockedDomain === 'string'
+      ? blockedDomain.trim().replace(/^www\./, '') || 'unknown site'
+      : 'unknown site';
+
     // Display blocked domain
     document.getElementById('blocked-domain').textContent = blockedDomain;
 

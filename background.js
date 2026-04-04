@@ -623,6 +623,34 @@ function extractDomain(url) {
   }
 }
 
+function normalizeTrackedDomain(domain) {
+  if (typeof domain !== 'string') {
+    return 'unknown site';
+  }
+
+  const normalized = domain.trim().replace(/^www\./, '').toLowerCase();
+  return normalized || 'unknown site';
+}
+
+function isMeaningfulTrackedDomain(domain) {
+  return normalizeTrackedDomain(domain) !== 'unknown site';
+}
+
+function getHistoryTrackableDomain(url) {
+  try {
+    const urlObj = new URL(url);
+
+    if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+      return null;
+    }
+
+    const domain = urlObj.hostname.replace(/^www\./, '').toLowerCase();
+    return domain || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Check if current time is within an allowed time window
  * @param {Object} schedule - Schedule settings
@@ -1431,10 +1459,11 @@ function classifyReason(reason) {
 async function saveUnblockReason(domain, reason) {
   const result = await chrome.storage.local.get('unblockReasons');
   const reasons = result.unblockReasons || [];
+  const normalizedDomain = normalizeTrackedDomain(domain);
 
   const entry = {
     id: Date.now().toString(),
-    domain,
+    domain: normalizedDomain,
     reason,
     category: classifyReason(reason),
     timestamp: Date.now(),
@@ -1456,7 +1485,10 @@ async function saveUnblockReason(domain, reason) {
  */
 async function getUnblockReasons() {
   const result = await chrome.storage.local.get('unblockReasons');
-  const reasons = result.unblockReasons || [];
+  const reasons = (result.unblockReasons || []).map((entry) => ({
+    ...entry,
+    domain: normalizeTrackedDomain(entry.domain)
+  }));
 
   // Calculate category stats
   const categoryStats = {};
@@ -1467,12 +1499,16 @@ async function getUnblockReasons() {
     categoryStats[entry.category] = (categoryStats[entry.category] || 0) + 1;
 
     // Domain counts
-    domainStats[entry.domain] = (domainStats[entry.domain] || 0) + 1;
+    if (isMeaningfulTrackedDomain(entry.domain)) {
+      domainStats[entry.domain] = (domainStats[entry.domain] || 0) + 1;
+    }
   }
 
   // Get recent reasons (last 7 days)
   const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-  const recentReasons = reasons.filter(r => r.timestamp > weekAgo);
+  const recentReasons = reasons.filter(r => {
+    return r.timestamp > weekAgo && isMeaningfulTrackedDomain(r.domain);
+  });
 
   // Find top category and domain
   let topCategory = null;
@@ -5047,9 +5083,8 @@ async function analyzeHistory(days = 7) {
         batch.map(async (item) => {
           if (!item.url) return null;
           try {
-            const urlObj = new URL(item.url);
-            const domain = urlObj.hostname.replace(/^www\./, '');
-            if (domain.includes('chrome-extension') || domain.includes('chrome://')) return null;
+            const domain = getHistoryTrackableDomain(item.url);
+            if (!domain) return null;
 
             // Get individual visits for this URL, filtered to our time range
             const visits = await chrome.history.getVisits({ url: item.url });
@@ -5332,9 +5367,8 @@ async function getBrowsingPatterns(days = 30) {
         batch.map(async (item) => {
           if (!item.url) return null;
           try {
-            const urlObj = new URL(item.url);
-            const domain = urlObj.hostname.replace(/^www\./, '');
-            if (domain.includes('chrome-extension') || domain.includes('chrome://')) return null;
+            const domain = getHistoryTrackableDomain(item.url);
+            if (!domain) return null;
 
             const visits = await chrome.history.getVisits({ url: item.url });
             const rangeVisits = visits.filter(v => v.visitTime >= startTime && v.visitTime <= endTime);
