@@ -964,9 +964,13 @@ textarea.input:focus {
 .setting-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-4);
   padding: 16px 0;
+}
+
+.setting-row:not(.setting-row-stacked) > :not(.setting-info) {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .setting-row-stacked {
@@ -1063,8 +1067,18 @@ textarea.input:focus {
 
 .method-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-4);
+}
+
+.method-header .method-info {
+  order: 1;
+}
+
+.method-header .toggle {
+  order: 2;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .method-icon {
@@ -1099,7 +1113,7 @@ textarea.input:focus {
 
 .method-options {
   margin-top: var(--space-4);
-  margin-left: calc(20px + var(--space-4));
+  margin-left: 0;
   padding: var(--space-4);
   background-color: var(--secondary);
   border-radius: var(--radius-md);
