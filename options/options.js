@@ -2012,7 +2012,9 @@ function setupEventListeners() {
 async function saveSettings() {
   // Show saving state
   const saveBtn = document.getElementById('save-btn');
+  saveBtn.classList.remove('saved');
   saveBtn.classList.add('saving');
+  saveBtn.setAttribute('aria-busy', 'true');
 
   // Gather all settings
   settings.mode = document.querySelector('input[name="mode"]:checked').value;
@@ -2152,15 +2154,16 @@ function showSaveSuccess() {
   // Trigger saved state with checkmark animation
   saveBtn.classList.remove('saving');
   saveBtn.classList.add('saved');
+  saveBtn.setAttribute('aria-busy', 'false');
 
-  // Hide save bar after animation completes (timings aligned with CSS: icon + checkmark ~0.5s)
+  // Keep the saved state visible long enough to read before the bar slides away.
   saveSuccessHideTimeoutId = setTimeout(() => {
     hideSaveBar();
     // Reset button state after bar transition
     saveSuccessResetTimeoutId = setTimeout(() => {
       saveBtn.classList.remove('saved');
     }, 200);
-  }, 550);
+  }, 900);
 }
 
 function resetSaveButton() {
@@ -2171,6 +2174,7 @@ function resetSaveButton() {
   saveSuccessResetTimeoutId = null;
   if (!saveBtn) return;
   saveBtn.classList.remove('saving', 'saved');
+  saveBtn.removeAttribute('aria-busy');
 }
 
 function showSaveStatus(message, isError = false) {

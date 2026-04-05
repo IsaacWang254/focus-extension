@@ -1537,12 +1537,11 @@
       <!-- Save Button -->
       <div class="save-bar hidden" id="save-bar">
         <span id="save-status" class="save-status"></span>
-        <button id="save-btn" class="btn btn-primary btn-large">
-          <span class="btn-text">Save Settings</span>
-          <span class="btn-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-              <polyline class="checkmark-path" points="20 6 9 17 4 12" />
-            </svg>
+        <button id="save-btn" class="btn btn-primary btn-large" type="button">
+          <span class="btn-labels" aria-live="polite">
+            <span class="btn-text btn-text-default">Save</span>
+            <span class="btn-text btn-text-saving">Saving...</span>
+            <span class="btn-text btn-text-saved">Saved</span>
           </span>
         </button>
       </div>

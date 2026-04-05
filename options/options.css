@@ -3388,8 +3388,9 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 /* Save button animation */
 #save-btn {
   position: relative;
-  overflow: hidden;
-  min-width: 140px;
+  display: inline-grid;
+  place-items: center;
+  min-width: 112px;
   transition:
     background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
     border-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
@@ -3398,37 +3399,39 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+#save-btn .btn-labels {
+  display: grid;
+  place-items: center;
+}
+
 #save-btn .btn-text {
+  grid-area: 1 / 1;
   display: inline-block;
-  transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-#save-btn .btn-icon {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transform: scale(0);
+  white-space: nowrap;
   transition:
-    opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-#save-btn .btn-icon svg {
-  width: 24px;
-  height: 24px;
-  stroke-width: 3;
-}
-
-#save-btn.saving .btn-text {
+#save-btn .btn-text-saving,
+#save-btn .btn-text-saved {
   opacity: 0;
-  transform: translateY(-10px);
+  transform: translateY(8px);
+}
+
+#save-btn.saving .btn-text-default,
+#save-btn.saved .btn-text-default {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 
 #save-btn.saving {
   pointer-events: none;
+}
+
+#save-btn.saving .btn-text-saving {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 #save-btn.saved {
@@ -3440,54 +3443,14 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   pointer-events: none;
 }
 
-#save-btn.saved .btn-text {
-  opacity: 0;
-  transform: translateY(-10px);
-}
-
-#save-btn.saved .btn-icon {
+#save-btn.saved .btn-text-saved {
   opacity: 1;
-  transform: scale(1);
-}
-
-/* Checkmark draw animation */
-#save-btn .checkmark-path {
-  stroke-dasharray: 24;
-  stroke-dashoffset: 24;
-}
-
-#save-btn.saved .btn-icon svg {
-  animation: saveIconSettle 0.34s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-#save-btn.saved .checkmark-path {
-  animation: drawCheck 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards 0.05s;
-}
-
-@keyframes drawCheck {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes saveIconSettle {
-  0% {
-    transform: scale(0.82);
-    opacity: 0;
-  }
-
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+  transform: translateY(0);
 }
 
 @media (prefers-reduced-motion: reduce) {
   #save-btn,
-  #save-btn .btn-text,
-  #save-btn .btn-icon,
-  #save-btn.saved .btn-icon svg,
-  #save-btn.saved .checkmark-path {
+  #save-btn .btn-text {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
