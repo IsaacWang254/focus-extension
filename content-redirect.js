@@ -17,7 +17,16 @@
     if (!settings || !settings.enabled) return;
     
     // Check for temporary unblock first
-    const unblockExpiry = tempUnblocks[currentDomain];
+    let unblockExpiry = tempUnblocks.__all__ || tempUnblocks[currentDomain];
+    if (!unblockExpiry && settings.unblockAllBlockedSites) {
+      for (const [domain, expiry] of Object.entries(tempUnblocks)) {
+        if (domain === '__all__') continue;
+        if (expiry === 'unlimited' || expiry > Date.now()) {
+          unblockExpiry = expiry;
+          break;
+        }
+      }
+    }
     if (unblockExpiry) {
       // Check if unlimited or not yet expired
       if (unblockExpiry === 'unlimited' || unblockExpiry > Date.now()) {

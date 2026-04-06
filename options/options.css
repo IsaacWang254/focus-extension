@@ -3385,6 +3385,47 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   color: var(--destructive);
 }
 
+.scroll-top-btn {
+  position: fixed;
+  right: var(--space-4);
+  bottom: calc(var(--space-4) + 60px);
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--settings-button-secondary-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background) 90%, var(--secondary) 10%);
+  color: var(--foreground);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  z-index: 59;
+  cursor: pointer;
+  transition:
+    opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.scroll-top-btn:hover {
+  background: var(--settings-button-secondary-hover);
+  border-color: var(--settings-surface-border);
+  transform: translateY(-2px);
+}
+
+.scroll-top-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.scroll-top-btn.hidden {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
 /* Save button animation */
 #save-btn {
   position: relative;
@@ -3449,6 +3490,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .scroll-top-btn,
   #save-btn,
   #save-btn .btn-text {
     transition-duration: 0.01ms !important;
@@ -3901,6 +3943,11 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     width: 100%;
     padding: var(--space-4) var(--space-4) calc(var(--space-6) + 96px);
     padding-bottom: calc(var(--space-6) + 96px);
+  }
+
+  .scroll-top-btn {
+    right: var(--space-4);
+    bottom: calc(var(--space-4) + 68px);
   }
 
   .settings-toolbar {

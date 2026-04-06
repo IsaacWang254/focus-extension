@@ -87,6 +87,7 @@ const DEFAULT_SETTINGS = {
   // URL whitelist - allow specific URLs even on blocked domains
   allowedUrls: [], // Array of exact URLs to allow (e.g., "https://www.youtube.com/watch?v=specific_video")
   allowUnlimitedTime: false,
+  unblockAllBlockedSites: false,
   inactivityTimeout: 5, // Minutes before auto-blocking when switched away (0 = disabled)
   dailyLimit: {
     enabled: false,
@@ -139,6 +140,8 @@ const DEFAULT_SETTINGS = {
     long: { workMinutes: 50, breakMinutes: 10, longBreakMinutes: 20, sessionsBeforeLongBreak: 3 }
   }
 };
+
+const TEMP_UNBLOCK_ALL_KEY = '__all__';
 
 const BEDTIME_REMINDER_ALARM = 'bedtimeReminder';
 const BEDTIME_REMINDER_NOTIFICATION_ID = 'bedtime-reminder';
@@ -517,7 +520,7 @@ chrome.storage.onChanged.addListener(async (changes, namespace) => {
 
 /**
  * Get settings with active profile merged in
- * Profile settings override: blockedSites, allowedSites, categories, blockedKeywords, allowedUrls, schedule, unblockMethods, requireAllMethods
+ * Profile settings override: blockedSites, allowedSites, categories, blockedKeywords, allowedUrls, schedule, unblockMethods, requireAllMethods, unblockAllBlockedSites
  * Global settings remain: enabled, mode, todoistToken, allowUnlimitedTime, inactivityTimeout, dailyLimit, earnedTime
  * @returns {Promise<object>} Settings object
  */
@@ -568,6 +571,7 @@ async function getSettings() {
       completeTodo: normalizeCompleteTodoSettings((activeProfile.unblockMethods || globalSettings.unblockMethods)?.completeTodo)
     },
     requireAllMethods: activeProfile.requireAllMethods !== undefined ? activeProfile.requireAllMethods : globalSettings.requireAllMethods,
+    unblockAllBlockedSites: activeProfile.unblockAllBlockedSites !== undefined ? activeProfile.unblockAllBlockedSites : globalSettings.unblockAllBlockedSites,
     // Keep reference to active profile
     _activeProfileId: activeProfileId,
     _activeProfileName: activeProfile.name
@@ -634,6 +638,107 @@ function normalizeTrackedDomain(domain) {
 
 function isMeaningfulTrackedDomain(domain) {
   return normalizeTrackedDomain(domain) !== 'unknown site';
+}
+
+function isTempUnblockActive(expiry, now = Date.now()) {
+  return expiry === 'unlimited' || (typeof expiry === 'number' && expiry > now);
+}
+
+function getSharedTempUnblockExpiry(tempUnblocks, now = Date.now()) {
+  let latestExpiry = null;
+
+  for (const [domain, expiry] of Object.entries(tempUnblocks)) {
+    if (domain === TEMP_UNBLOCK_ALL_KEY || !isTempUnblockActive(expiry, now)) {
+      continue;
+    }
+
+    if (expiry === 'unlimited') {
+      return 'unlimited';
+    }
+
+    if (!latestExpiry || expiry > latestExpiry) {
+      latestExpiry = expiry;
+    }
+  }
+
+  return latestExpiry;
+}
+
+function getTempUnblockExpiry(tempUnblocks, domain, settings = null, now = Date.now()) {
+  const globalExpiry = tempUnblocks[TEMP_UNBLOCK_ALL_KEY];
+  if (isTempUnblockActive(globalExpiry, now)) {
+    return globalExpiry;
+  }
+
+  const domainExpiry = tempUnblocks[domain];
+  if (isTempUnblockActive(domainExpiry, now)) {
+    return domainExpiry;
+  }
+
+  if (settings?.unblockAllBlockedSites && wouldBlockDomain(domain, settings)) {
+    return getSharedTempUnblockExpiry(tempUnblocks, now);
+  }
+
+  return null;
+}
+
+function hasGlobalTempUnblock(tempUnblocks, now = Date.now()) {
+  return isTempUnblockActive(tempUnblocks[TEMP_UNBLOCK_ALL_KEY], now);
+}
+
+function hasEffectiveGlobalTempUnblock(tempUnblocks, settings, now = Date.now()) {
+  return hasGlobalTempUnblock(tempUnblocks, now) ||
+    Boolean(settings?.unblockAllBlockedSites && getSharedTempUnblockExpiry(tempUnblocks, now));
+}
+
+function getAllBlockedDomains(settings) {
+  if (settings.mode !== 'blocklist') {
+    return [];
+  }
+
+  const domains = new Set((settings.blockedSites || []).map(extractDomain));
+  for (const category of settings.categories || []) {
+    if (!category.enabled) continue;
+    for (const site of category.sites || []) {
+      domains.add(extractDomain(site));
+    }
+  }
+
+  return [...domains];
+}
+
+function wouldBlockDomain(domain, settings) {
+  if (!domain || !settings?.enabled) return false;
+
+  if (settings.mode === 'blocklist') {
+    const blockedDomains = getAllBlockedDomains(settings);
+    return blockedDomains.some((blockedDomain) => {
+      return domain === blockedDomain || domain.endsWith('.' + blockedDomain);
+    });
+  }
+
+  return !(settings.allowedSites || []).some((site) => {
+    const allowedDomain = site.replace(/^www\./, '');
+    return domain === allowedDomain || domain.endsWith('.' + allowedDomain);
+  });
+}
+
+async function redirectTabsThatShouldNowBeBlocked(reason = 'expired') {
+  const tabs = await chrome.tabs.query({});
+  const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
+
+  for (const tab of tabs) {
+    if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+      continue;
+    }
+
+    const tabDomain = extractDomain(tab.url);
+    if (await shouldBlockDomain(tabDomain)) {
+      await chrome.tabs.update(tab.id, {
+        url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=${encodeURIComponent(reason)}`
+      });
+    }
+  }
 }
 
 function getHistoryTrackableDomain(url) {
@@ -741,7 +846,7 @@ async function updateBlockingRules() {
     const now = Date.now();
     if (scheduleAllowsUnblock) {
       for (const [domain, expiry] of Object.entries(tempUnblocks)) {
-        if (expiry === 'unlimited' || expiry > now) {
+        if (isTempUnblockActive(expiry, now)) {
           activeUnblocks.add(domain);
         }
       }
@@ -775,6 +880,8 @@ async function updateBlockingRules() {
         }
       });
 
+      const hasGlobalUnblock = hasEffectiveGlobalTempUnblock(tempUnblocks, settings, now);
+
       if (settings.mode === 'blocklist') {
         // First, add allow rules for whitelisted URLs (higher priority)
         const allowedUrls = settings.allowedUrls || [];
@@ -796,48 +903,35 @@ async function updateBlockingRules() {
         }
 
         // Combine blocked sites with sites from enabled categories
-        const allBlockedSites = new Set(settings.blockedSites.map(extractDomain));
-
-        // Add sites from enabled categories
-        const categories = settings.categories || [];
-        for (const category of categories) {
-          if (category.enabled) {
-            for (const site of category.sites) {
-              allBlockedSites.add(extractDomain(site));
+        if (!hasGlobalUnblock) {
+          // Block specific sites (excluding temporarily unblocked ones)
+          for (const domain of getAllBlockedDomains(settings)) {
+            if (activeUnblocks.has(domain)) {
+              continue;
             }
-          }
-        }
 
-        // Block specific sites (excluding temporarily unblocked ones)
-        for (const domain of allBlockedSites) {
-          // Skip if temporarily unblocked
-          if (activeUnblocks.has(domain)) {
-            continue;
-          }
+            const escapedDomain = domain.replace(/\./g, '\\.');
 
-          // Redirect to blocked page with known blocked domain (safer than full URL substitution)
-          // Escape dots in domain for regex
-          const escapedDomain = domain.replace(/\./g, '\\.');
-
-          newRules.push({
-            id: ruleId++,
-            priority: 1,
-            action: {
-              type: 'redirect',
-              redirect: {
-                regexSubstitution: `${blockedPageUrl}?url=\\0`
+            newRules.push({
+              id: ruleId++,
+              priority: 1,
+              action: {
+                type: 'redirect',
+                redirect: {
+                  regexSubstitution: `${blockedPageUrl}?url=\\0`
+                }
+              },
+              condition: {
+                regexFilter: `^https?://(www\\.)?${escapedDomain}.*`,
+                resourceTypes: ['main_frame']
               }
-            },
-            condition: {
-              regexFilter: `^https?://(www\\.)?${escapedDomain}.*`,
-              resourceTypes: ['main_frame']
-            }
-          });
+            });
+          }
         }
 
         // Add keyword blocking rules (if enabled)
         const keywordSettings = settings.blockedKeywords || { enabled: false, keywords: [] };
-        if (keywordSettings.enabled && keywordSettings.keywords.length > 0) {
+        if (!hasGlobalUnblock && keywordSettings.enabled && keywordSettings.keywords.length > 0) {
           for (const keywordObj of keywordSettings.keywords) {
             // Escape special regex characters in the keyword
             const escapedKeyword = keywordObj.keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -867,67 +961,68 @@ async function updateBlockingRules() {
         // Combine allowedSites with temporarily unblocked sites
         const allAllowedDomains = new Set([
           ...settings.allowedSites.map(extractDomain),
-          ...activeUnblocks
+          ...[...activeUnblocks].filter((domain) => domain !== TEMP_UNBLOCK_ALL_KEY)
         ]);
 
-        // First, add a rule to block all sites
-        newRules.push({
-          id: ruleId++,
-          priority: 1,
-          action: {
-            type: 'redirect',
-            redirect: {
-              regexSubstitution: `${blockedPageUrl}?url=\\0`
-            }
-          },
-          condition: {
-            regexFilter: '^https?://.*',
-            resourceTypes: ['main_frame'],
-            excludedInitiatorDomains: ['chrome-extension']
-          }
-        });
-
-        // Add exceptions for allowed sites (higher priority)
-        for (const domain of allAllowedDomains) {
-
+        if (!hasGlobalUnblock) {
+          // First, add a rule to block all sites
           newRules.push({
             id: ruleId++,
-            priority: 2, // Higher priority to override the block-all rule
+            priority: 1,
+            action: {
+              type: 'redirect',
+              redirect: {
+                regexSubstitution: `${blockedPageUrl}?url=\\0`
+              }
+            },
+            condition: {
+              regexFilter: '^https?://.*',
+              resourceTypes: ['main_frame'],
+              excludedInitiatorDomains: ['chrome-extension']
+            }
+          });
+
+          // Add exceptions for allowed sites (higher priority)
+          for (const domain of allAllowedDomains) {
+            newRules.push({
+              id: ruleId++,
+              priority: 2,
+              action: {
+                type: 'allow'
+              },
+              condition: {
+                urlFilter: `||${domain}^`,
+                resourceTypes: ['main_frame']
+              }
+            });
+          }
+
+          // Always allow extension pages
+          newRules.push({
+            id: ruleId++,
+            priority: 3,
             action: {
               type: 'allow'
             },
             condition: {
-              urlFilter: `||${domain}^`,
+              urlFilter: '|chrome-extension://',
+              resourceTypes: ['main_frame']
+            }
+          });
+
+          // Allow chrome:// pages
+          newRules.push({
+            id: ruleId++,
+            priority: 3,
+            action: {
+              type: 'allow'
+            },
+            condition: {
+              urlFilter: '|chrome://',
               resourceTypes: ['main_frame']
             }
           });
         }
-
-        // Always allow extension pages
-        newRules.push({
-          id: ruleId++,
-          priority: 3,
-          action: {
-            type: 'allow'
-          },
-          condition: {
-            urlFilter: '|chrome-extension://',
-            resourceTypes: ['main_frame']
-          }
-        });
-
-        // Allow chrome:// pages
-        newRules.push({
-          id: ruleId++,
-          priority: 3,
-          action: {
-            type: 'allow'
-          },
-          condition: {
-            urlFilter: '|chrome://',
-            resourceTypes: ['main_frame']
-          }
-        });
       }
     }
 
@@ -984,7 +1079,7 @@ async function handleMessage(message, sender) {
 
     case 'UPDATE_SETTINGS':
       // Profile-specific fields that should be saved to the active profile
-      const profileSpecificFields = ['blockedSites', 'allowedSites', 'unblockMethods', 'requireAllMethods',
+      const profileSpecificFields = ['blockedSites', 'allowedSites', 'unblockMethods', 'requireAllMethods', 'unblockAllBlockedSites',
         'allowUnlimitedTime', 'dailyLimit', 'earnedTime', 'inactivityTimeout', 'schedule',
         'categories', 'blockedKeywords', 'allowedUrls'];
 
@@ -1361,10 +1456,37 @@ async function removeAllowedSite(site) {
  */
 async function getTempUnblocks() {
   const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
+  const settings = await getSettings();
   const now = Date.now();
   const active = [];
 
+  const globalExpiry = tempUnblocks[TEMP_UNBLOCK_ALL_KEY];
+  if (isTempUnblockActive(globalExpiry, now)) {
+    return [{
+      domain: TEMP_UNBLOCK_ALL_KEY,
+      label: 'All blocked sites',
+      expiry: globalExpiry,
+      remaining: globalExpiry === 'unlimited' ? null : globalExpiry - now
+    }];
+  }
+
+  if (settings.unblockAllBlockedSites) {
+    const sharedExpiry = getSharedTempUnblockExpiry(tempUnblocks, now);
+    if (sharedExpiry) {
+      return [{
+        domain: TEMP_UNBLOCK_ALL_KEY,
+        label: 'All blocked sites',
+        expiry: sharedExpiry,
+        remaining: sharedExpiry === 'unlimited' ? null : sharedExpiry - now
+      }];
+    }
+  }
+
   for (const [domain, expiry] of Object.entries(tempUnblocks)) {
+    if (domain === TEMP_UNBLOCK_ALL_KEY) {
+      continue;
+    }
+
     if (expiry === 'unlimited') {
       active.push({ domain, expiry: 'unlimited', remaining: null });
     } else if (expiry > now) {
@@ -1557,42 +1679,48 @@ async function clearUnblockReasons() {
  */
 async function endTempUnblock(domain) {
   const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
+  const isGlobalUnblock = domain === TEMP_UNBLOCK_ALL_KEY;
 
   // Remove the domain and any related domains
   const relatedDomains = {
     'twitter.com': ['x.com'],
     'x.com': ['twitter.com']
   };
-  const domainsToRemove = [domain, ...(relatedDomains[domain] || [])];
+  const domainsToRemove = isGlobalUnblock
+    ? Object.keys(tempUnblocks)
+    : [domain, ...(relatedDomains[domain] || [])];
 
   for (const d of domainsToRemove) {
     delete tempUnblocks[d];
     // Clear any pending alarm
     chrome.alarms.clear(`reblock_${d}`);
+    chrome.alarms.clear(`inactivity_${d}`);
   }
 
   await chrome.storage.local.set({ tempUnblocks });
   await updateBlockingRules();
   await updateBadgeTimer();
 
-  // Redirect any tabs currently on the blocked domain(s) to the blocked page
-  const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
-  const tabs = await chrome.tabs.query({});
+  if (isGlobalUnblock) {
+    await redirectTabsThatShouldNowBeBlocked('expired');
+  } else {
+    const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
+    const tabs = await chrome.tabs.query({});
 
-  for (const tab of tabs) {
-    if (!tab.url) continue;
+    for (const tab of tabs) {
+      if (!tab.url) continue;
 
-    try {
-      const tabUrl = new URL(tab.url);
-      const tabDomain = tabUrl.hostname.replace(/^www\./, '');
+      try {
+        const tabUrl = new URL(tab.url);
+        const tabDomain = tabUrl.hostname.replace(/^www\./, '');
 
-      if (domainsToRemove.includes(tabDomain)) {
-        // Redirect this tab to the blocked page
-        const redirectUrl = `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}`;
-        chrome.tabs.update(tab.id, { url: redirectUrl });
+        if (domainsToRemove.includes(tabDomain)) {
+          const redirectUrl = `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}`;
+          chrome.tabs.update(tab.id, { url: redirectUrl });
+        }
+      } catch (e) {
+        // Invalid URL, skip
       }
-    } catch (e) {
-      // Invalid URL, skip
     }
   }
 
@@ -1653,6 +1781,7 @@ function getCurrentWindowEndTime(schedule) {
 async function temporaryUnblock(site, minutes, useEarnedTimeFlag = false) {
   const domain = extractDomain(site);
   const settings = await getSettings();
+  const unblockAllBlockedSites = settings.unblockAllBlockedSites === true;
 
   // Check if nuclear mode is active
   if (await isNuclearModeActive()) {
@@ -1679,15 +1808,6 @@ async function temporaryUnblock(site, minutes, useEarnedTimeFlag = false) {
       return { success: false, error: 'insufficient_earned_time', available: bank.minutes, requested: minutes };
     }
   }
-
-  // Related domains that should be unblocked together
-  const relatedDomains = {
-    'twitter.com': ['x.com'],
-    'x.com': ['twitter.com']
-  };
-
-  // Get all domains to unblock (the main one + any related)
-  const domainsToUnblock = [domain, ...(relatedDomains[domain] || [])];
 
   // Store the unblock expiry time (0 = unlimited)
   const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
@@ -1765,6 +1885,21 @@ async function temporaryUnblock(site, minutes, useEarnedTimeFlag = false) {
     console.log(`Deducted ${minutesToDeduct} minutes from earned time bank`);
   }
 
+  const domainsToUnblock = unblockAllBlockedSites
+    ? [TEMP_UNBLOCK_ALL_KEY]
+    : [domain, ...({
+      'twitter.com': ['x.com'],
+      'x.com': ['twitter.com']
+    }[domain] || [])];
+
+  if (unblockAllBlockedSites) {
+    for (const existingDomain of Object.keys(tempUnblocks)) {
+      chrome.alarms.clear(`reblock_${existingDomain}`);
+      chrome.alarms.clear(`inactivity_${existingDomain}`);
+      delete tempUnblocks[existingDomain];
+    }
+  }
+
   for (const d of domainsToUnblock) {
     tempUnblocks[d] = expiryTime;
   }
@@ -1776,7 +1911,7 @@ async function temporaryUnblock(site, minutes, useEarnedTimeFlag = false) {
   // Set alarms to re-block each domain (only if not unlimited)
   if (expiryTime !== 'unlimited') {
     for (const d of domainsToUnblock) {
-      chrome.alarms.create(`reblock_${d}`, { delayInMinutes: actualMinutes });
+      chrome.alarms.create(`reblock_${d}`, { when: Date.now() + (actualMinutes * 60 * 1000) });
     }
   }
 
@@ -1805,20 +1940,25 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await scheduleBedtimeReminderAlarm(settings);
   } else if (alarm.name.startsWith('reblock_')) {
     const domain = alarm.name.replace('reblock_', '');
+    const isGlobalUnblock = domain === TEMP_UNBLOCK_ALL_KEY;
 
     // Related domains that should also be re-blocked together
     const relatedDomains = {
       'twitter.com': ['x.com'],
       'x.com': ['twitter.com']
     };
-    const domainsToReblock = [domain, ...(relatedDomains[domain] || [])];
+    const currentTempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
+    const domainsToReblock = isGlobalUnblock
+      ? Object.keys(currentTempUnblocks)
+      : [domain, ...(relatedDomains[domain] || [])];
 
     // Remove from temporary unblocks
-    const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
+    const tempUnblocks = currentTempUnblocks;
     for (const d of domainsToReblock) {
       delete tempUnblocks[d];
       // Clear any related alarms too
       chrome.alarms.clear(`reblock_${d}`);
+      chrome.alarms.clear(`inactivity_${d}`);
     }
     await chrome.storage.local.set({ tempUnblocks });
 
@@ -1828,18 +1968,21 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
     console.log(`Re-blocked site: ${domain} (and related: ${domainsToReblock.join(', ')})`);
 
-    // Redirect any tabs currently on this domain to the blocked page
     try {
-      const tabs = await chrome.tabs.query({});
-      const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
+      if (isGlobalUnblock) {
+        await redirectTabsThatShouldNowBeBlocked('expired');
+      } else {
+        const tabs = await chrome.tabs.query({});
+        const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
 
-      for (const tab of tabs) {
-        if (tab.url) {
-          const tabDomain = extractDomain(tab.url);
-          if (domainsToReblock.includes(tabDomain) || domainsToReblock.some(d => tabDomain.endsWith('.' + d))) {
-            await chrome.tabs.update(tab.id, {
-              url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=expired`
-            });
+        for (const tab of tabs) {
+          if (tab.url) {
+            const tabDomain = extractDomain(tab.url);
+            if (domainsToReblock.includes(tabDomain) || domainsToReblock.some(d => tabDomain.endsWith('.' + d))) {
+              await chrome.tabs.update(tab.id, {
+                url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=expired`
+              });
+            }
           }
         }
       }
@@ -1848,13 +1991,19 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     }
   } else if (alarm.name.startsWith('inactivity_')) {
     const domain = alarm.name.replace('inactivity_', '');
+    const isGlobalUnblock = domain === TEMP_UNBLOCK_ALL_KEY;
 
     // Check if user is currently on this domain
     try {
       const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (activeTab && activeTab.url) {
         const activeDomain = extractDomain(activeTab.url);
-        if (activeDomain === domain || activeDomain === `www.${domain}`) {
+        const settings = await getSettings();
+        const stillOnAllowedTarget = isGlobalUnblock
+          ? wouldBlockDomain(activeDomain, settings)
+          : activeDomain === domain || activeDomain === `www.${domain}`;
+
+        if (stillOnAllowedTarget) {
           // User is back on the site, don't block
           console.log(`Inactivity timer fired but user is on ${domain}, not blocking`);
           return;
@@ -1869,18 +2018,21 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     // End the temporary unblock due to inactivity
     await endTempUnblock(domain);
 
-    // Also close or redirect any tabs on this domain
     try {
-      const tabs = await chrome.tabs.query({});
-      const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
+      if (isGlobalUnblock) {
+        await redirectTabsThatShouldNowBeBlocked('inactivity');
+      } else {
+        const tabs = await chrome.tabs.query({});
+        const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
 
-      for (const tab of tabs) {
-        if (tab.url) {
-          const tabDomain = extractDomain(tab.url);
-          if (tabDomain === domain || tabDomain === `www.${domain}`) {
-            await chrome.tabs.update(tab.id, {
-              url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=inactivity`
-            });
+        for (const tab of tabs) {
+          if (tab.url) {
+            const tabDomain = extractDomain(tab.url);
+            if (tabDomain === domain || tabDomain === `www.${domain}`) {
+              await chrome.tabs.update(tab.id, {
+                url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=inactivity`
+              });
+            }
           }
         }
       }
@@ -2087,6 +2239,7 @@ async function enforceSchedule() {
     if (Object.keys(tempUnblocks).length > 0) {
       // Get domains to redirect
       const domainsToBlock = Object.keys(tempUnblocks);
+      const shouldRedirectAll = domainsToBlock.includes(TEMP_UNBLOCK_ALL_KEY);
 
       // Clear all temp unblocks
       await chrome.storage.local.set({ tempUnblocks: {} });
@@ -2103,16 +2256,20 @@ async function enforceSchedule() {
 
       // Redirect any tabs on blocked domains
       try {
-        const tabs = await chrome.tabs.query({});
-        const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
+        if (shouldRedirectAll) {
+          await redirectTabsThatShouldNowBeBlocked('schedule');
+        } else {
+          const tabs = await chrome.tabs.query({});
+          const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
 
-        for (const tab of tabs) {
-          if (tab.url) {
-            const tabDomain = extractDomain(tab.url);
-            if (domainsToBlock.includes(tabDomain) || domainsToBlock.some(d => tabDomain.endsWith('.' + d))) {
-              await chrome.tabs.update(tab.id, {
-                url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=schedule`
-              });
+          for (const tab of tabs) {
+            if (tab.url) {
+              const tabDomain = extractDomain(tab.url);
+              if (domainsToBlock.includes(tabDomain) || domainsToBlock.some(d => tabDomain.endsWith('.' + d))) {
+                await chrome.tabs.update(tab.id, {
+                  url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=schedule`
+                });
+              }
             }
           }
         }
@@ -2158,24 +2315,13 @@ async function shouldBlockDomain(domain) {
   // Check temp unblocks first (only if schedule allows)
   if (scheduleAllowsUnblock) {
     const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
-    const expiry = tempUnblocks[domain];
-    if (expiry === 'unlimited' || (expiry && expiry > Date.now())) {
+    const expiry = getTempUnblockExpiry(tempUnblocks, domain, settings);
+    if (expiry) {
       return false; // Temporarily unblocked
     }
   }
 
-  if (settings.mode === 'blocklist') {
-    return settings.blockedSites.some(site => {
-      const blockedDomain = site.replace(/^www\./, '');
-      return domain === blockedDomain || domain.endsWith('.' + blockedDomain);
-    });
-  } else {
-    // Allowlist mode
-    return !settings.allowedSites.some(site => {
-      const allowedDomain = site.replace(/^www\./, '');
-      return domain === allowedDomain || domain.endsWith('.' + allowedDomain);
-    });
-  }
+  return wouldBlockDomain(domain, settings);
 }
 
 /**
@@ -2216,7 +2362,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     // Get all tabs to find which ones we switched away from
     const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
     const activeUnblockDomains = Object.entries(tempUnblocks)
-      .filter(([_, expiry]) => expiry === 'unlimited' || expiry > Date.now())
+      .filter(([_, expiry]) => isTempUnblockActive(expiry))
       .map(([domain]) => domain);
 
     if (activeUnblockDomains.length === 0) return;
@@ -2228,8 +2374,11 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     // For each unblocked domain, check if we're still on it
     for (const domain of activeUnblockDomains) {
       const alarmName = `inactivity_${domain}`;
+      const keepAlive = domain === TEMP_UNBLOCK_ALL_KEY
+        ? wouldBlockDomain(activeDomain, settings)
+        : activeDomain === domain || activeDomain === `www.${domain}`;
 
-      if (activeDomain === domain || activeDomain === `www.${domain}`) {
+      if (keepAlive) {
         // We're on this domain, clear any inactivity timer
         await chrome.alarms.clear(alarmName);
       } else {
@@ -2258,7 +2407,7 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
     const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
 
     for (const [domain, expiry] of Object.entries(tempUnblocks)) {
-      if (expiry === 'unlimited' || expiry > Date.now()) {
+      if (isTempUnblockActive(expiry)) {
         const alarmName = `inactivity_${domain}`;
         const existingAlarm = await chrome.alarms.get(alarmName);
         if (!existingAlarm) {
@@ -2273,6 +2422,9 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
       if (activeTab && activeTab.url) {
         const activeDomain = extractDomain(activeTab.url);
         await chrome.alarms.clear(`inactivity_${activeDomain}`);
+        if (wouldBlockDomain(activeDomain, await getSettings())) {
+          await chrome.alarms.clear(`inactivity_${TEMP_UNBLOCK_ALL_KEY}`);
+        }
       }
     } catch (e) {
       // Ignore errors
@@ -2389,18 +2541,13 @@ async function trackActiveTabUsage() {
 
     // Check if this domain is a blocked site that's currently unblocked
     const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
-    const isTemporarilyUnblocked = tempUnblocks[domain] &&
-      (tempUnblocks[domain] === 'unlimited' || tempUnblocks[domain] > Date.now());
+    const isTemporarilyUnblocked = Boolean(getTempUnblockExpiry(tempUnblocks, domain, settings));
 
     if (!isTemporarilyUnblocked) {
       return; // Not on an unblocked blocked-site
     }
 
-    // Check if this domain is in the blocked sites list
-    const isBlockedSite = settings.blockedSites.some(site => {
-      const blockedDomain = site.replace(/^www\./, '');
-      return domain === blockedDomain || domain.endsWith('.' + blockedDomain);
-    });
+    const isBlockedSite = wouldBlockDomain(domain, settings);
 
     if (!isBlockedSite) {
       return; // Not a blocked site
@@ -2431,6 +2578,7 @@ async function enforceDailyLimit() {
   }
 
   const domainsToBlock = Object.keys(tempUnblocks);
+  const shouldRedirectAll = domainsToBlock.includes(TEMP_UNBLOCK_ALL_KEY);
 
   // Clear all temp unblocks
   await chrome.storage.local.set({ tempUnblocks: {} });
@@ -2443,25 +2591,30 @@ async function enforceDailyLimit() {
 
   // Update blocking rules
   await updateBlockingRules();
+
+  if (shouldRedirectAll) {
+    await redirectTabsThatShouldNowBeBlocked('daily-limit');
+  }
   await updateBadgeTimer();
 
-  // Redirect any tabs on blocked domains
-  try {
-    const tabs = await chrome.tabs.query({});
-    const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
+  if (!shouldRedirectAll) {
+    try {
+      const tabs = await chrome.tabs.query({});
+      const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
 
-    for (const tab of tabs) {
-      if (tab.url) {
-        const tabDomain = extractDomain(tab.url);
-        if (domainsToBlock.includes(tabDomain) || domainsToBlock.some(d => tabDomain.endsWith('.' + d))) {
-          await chrome.tabs.update(tab.id, {
-            url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=dailylimit`
-          });
+      for (const tab of tabs) {
+        if (tab.url) {
+          const tabDomain = extractDomain(tab.url);
+          if (domainsToBlock.includes(tabDomain) || domainsToBlock.some(d => tabDomain.endsWith('.' + d))) {
+            await chrome.tabs.update(tab.id, {
+              url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=dailylimit`
+            });
+          }
         }
       }
+    } catch (e) {
+      console.error('Error redirecting tabs after daily limit exceeded:', e);
     }
-  } catch (e) {
-    console.error('Error redirecting tabs after daily limit exceeded:', e);
   }
 }
 
@@ -3984,6 +4137,7 @@ async function activateNuclearMode(minutes) {
   // End all current temporary unblocks
   const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
   const domainsToBlock = Object.keys(tempUnblocks);
+  const shouldRedirectAll = domainsToBlock.includes(TEMP_UNBLOCK_ALL_KEY);
 
   if (domainsToBlock.length > 0) {
     // Clear all temp unblocks
@@ -3998,24 +4152,27 @@ async function activateNuclearMode(minutes) {
     // Update blocking rules
     await updateBlockingRules();
 
-    // Redirect any tabs on blocked domains
     try {
-      const tabs = await chrome.tabs.query({});
-      const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
-      const settings = await getSettings();
+      if (shouldRedirectAll) {
+        await redirectTabsThatShouldNowBeBlocked('nuclear');
+      } else {
+        const tabs = await chrome.tabs.query({});
+        const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
+        const settings = await getSettings();
 
-      for (const tab of tabs) {
-        if (tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
-          const tabDomain = extractDomain(tab.url);
-          const isBlockedSite = settings.blockedSites.some(site => {
-            const blockedDomain = site.replace(/^www\./, '');
-            return tabDomain === blockedDomain || tabDomain.endsWith('.' + blockedDomain);
-          });
-
-          if (isBlockedSite) {
-            await chrome.tabs.update(tab.id, {
-              url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=nuclear`
+        for (const tab of tabs) {
+          if (tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
+            const tabDomain = extractDomain(tab.url);
+            const isBlockedSite = settings.blockedSites.some(site => {
+              const blockedDomain = site.replace(/^www\./, '');
+              return tabDomain === blockedDomain || tabDomain.endsWith('.' + blockedDomain);
             });
+
+            if (isBlockedSite) {
+              await chrome.tabs.update(tab.id, {
+                url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=nuclear`
+              });
+            }
           }
         }
       }

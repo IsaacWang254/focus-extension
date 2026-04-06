@@ -152,6 +152,19 @@
 
         <hr class="divider">
 
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Unblock All Blocked Sites</span>
+            <span class="setting-desc">When you unblock one site, temporarily unblock every blocked site for the same session</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="unblock-all-sites">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <hr class="divider">
+
         <!-- Inactivity Timeout -->
         <div class="setting-row">
           <div class="setting-info">
@@ -1545,6 +1558,13 @@
           </span>
         </button>
       </div>
+
+      <button id="scroll-top-btn" class="scroll-top-btn hidden" type="button" title="Back to top" aria-label="Back to top">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 19V5"></path>
+          <path d="m5 12 7-7 7 7"></path>
+        </svg>
+      </button>
     </div>
   </div>
 

@@ -29,6 +29,11 @@ let currentReason = ''; // Store the reason for unblocking
 let earnedTimeInfo = null; // Store earned time info
 let completeTodoProgress = null;
 
+const RELATED_BLOCKED_DOMAINS = {
+  'twitter.com': ['x.com'],
+  'x.com': ['twitter.com']
+};
+
 const COMMON_REASON_WORDS = new Set([
   'a', 'about', 'after', 'am', 'an', 'and', 'because', 'before', 'but', 'for',
   'from', 'have', 'i', 'if', 'in', 'into', 'is', 'it', 'just', 'me', 'my',
@@ -180,6 +185,35 @@ function showInitializationFallback(error) {
   }
 }
 
+function getBlockedPageTargetUrl() {
+  return originalUrl.startsWith('http')
+    ? originalUrl
+    : `https://${blockedDomain}`;
+}
+
+async function redirectIfAlreadyTemporarilyUnblocked() {
+  const sessions = await chrome.runtime.sendMessage({ type: 'GET_TEMP_UNBLOCKS' });
+  if (!Array.isArray(sessions) || sessions.length === 0) {
+    return false;
+  }
+
+  const coveredDomains = new Set([
+    blockedDomain,
+    ...(RELATED_BLOCKED_DOMAINS[blockedDomain] || [])
+  ]);
+
+  const hasActiveSession = sessions.some((session) => {
+    return session.domain === '__all__' || coveredDomains.has(session.domain);
+  });
+
+  if (!hasActiveSession) {
+    return false;
+  }
+
+  window.location.replace(getBlockedPageTargetUrl());
+  return true;
+}
+
 // =============================================================================
 // TOAST NOTIFICATIONS
 // =============================================================================
@@ -315,6 +349,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
     if (!settings || settings.error) {
       throw new Error(settings?.error || 'Failed to load settings');
+    }
+
+    if (await redirectIfAlreadyTemporarilyUnblocked()) {
+      return;
     }
 
     // Update schedule info card
@@ -2225,10 +2263,7 @@ function setupEventListeners() {
       await new Promise(resolve => setTimeout(resolve, 200));
 
       // Navigate to the original URL (full URL if available, otherwise just domain)
-      const targetUrl = originalUrl.startsWith('http')
-        ? originalUrl
-        : `https://${blockedDomain}`;
-      window.location.href = targetUrl;
+      window.location.href = getBlockedPageTargetUrl();
     } catch (error) {
       console.error('Failed to unblock:', error);
       unblockButton.dataset.navigating = 'false';

@@ -339,7 +339,7 @@ async function loadActiveSessions() {
   }
 
   container.style.display = 'flex';
-  const first = sessions[0].domain;
+  const first = sessions[0].label || (sessions[0].domain === '__all__' ? 'All blocked sites' : sessions[0].domain);
   summaryEl.textContent = sessions.length === 1
     ? `${first} temporarily unblocked`
     : `${first} +${sessions.length - 1} more unblocked`;

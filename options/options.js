@@ -190,6 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupSidebar();
   initializeSearchIcons();
   setupSearch();
+  setupScrollTopButton();
 
   // Store original settings snapshot AFTER DOM is fully populated,
   // so it matches the shape returned by gatherCurrentSettings()
@@ -260,6 +261,28 @@ function setActivePage(pageId, { updateHash = true } = {}) {
   if (updateHash) {
     window.history.replaceState(null, '', `#${resolvedPageId}`);
   }
+}
+
+function setupScrollTopButton() {
+  const scrollTarget = document.querySelector('.main-wrapper');
+  const scrollTopBtn = document.getElementById('scroll-top-btn');
+  if (!scrollTarget || !scrollTopBtn) return;
+
+  const toggleVisibility = () => {
+    scrollTopBtn.classList.toggle('hidden', scrollTarget.scrollTop < 280);
+  };
+
+  scrollTarget.addEventListener('scroll', toggleVisibility, { passive: true });
+
+  scrollTopBtn.addEventListener('click', () => {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    scrollTarget.scrollTo({
+      top: 0,
+      behavior: prefersReducedMotion ? 'auto' : 'smooth'
+    });
+  });
+
+  toggleVisibility();
 }
 
 function initializePageLayout() {
@@ -1410,6 +1433,7 @@ function populateSettings() {
 
   // Allow unlimited time
   document.getElementById('allow-unlimited').checked = settings.allowUnlimitedTime || false;
+  document.getElementById('unblock-all-sites').checked = settings.unblockAllBlockedSites || false;
 
   // Inactivity timeout
   document.getElementById('inactivity-timeout').value = settings.inactivityTimeout ?? 5;
@@ -2020,6 +2044,7 @@ async function saveSettings() {
   settings.mode = document.querySelector('input[name="mode"]:checked').value;
   settings.requireAllMethods = document.getElementById('require-mode').value === 'all';
   settings.allowUnlimitedTime = document.getElementById('allow-unlimited').checked;
+  settings.unblockAllBlockedSites = document.getElementById('unblock-all-sites').checked;
   settings.inactivityTimeout = parseInt(document.getElementById('inactivity-timeout').value, 10) || 0;
 
   // Daily limit settings
@@ -2528,6 +2553,7 @@ function gatherCurrentSettings() {
     allowedSites: settings.allowedSites,
     requireAllMethods: document.getElementById('require-mode').value === 'all',
     allowUnlimitedTime: document.getElementById('allow-unlimited').checked,
+    unblockAllBlockedSites: document.getElementById('unblock-all-sites').checked,
     inactivityTimeout: parseInt(document.getElementById('inactivity-timeout').value, 10) || 0,
     dailyLimit: {
       enabled: document.getElementById('daily-limit-enabled').checked,
