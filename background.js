@@ -727,7 +727,7 @@ function normalizeAllowedUrlInput(url) {
   };
 }
 
-function buildExactAllowedUrlRegex(url) {
+function buildAllowedUrlRegex(url) {
   const normalizedResult = normalizeAllowedUrlInput(url);
   if (!normalizedResult.success) {
     throw new Error(normalizedResult.error);
@@ -739,14 +739,34 @@ function buildExactAllowedUrlRegex(url) {
   const escapedSearch = (parsedUrl.search || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   if (parsedUrl.pathname === '/' && !parsedUrl.search) {
-    return `^${escapedOrigin}/?(?:#.*)?$`;
+    return `^${escapedOrigin}(?:$|[/?#].*)`;
   }
 
   if (parsedUrl.search) {
     return `^${escapedOrigin}${escapedPath}${escapedSearch}(?:#.*)?$`;
   }
 
-  return `^${escapedOrigin}${escapedPath}/?(?:#.*)?$`;
+  return `^${escapedOrigin}${escapedPath}(?:$|[/?#].*)`;
+}
+
+function doesAllowedUrlMatch(normalizedTargetUrl, normalizedAllowedUrl) {
+  const targetUrl = new URL(normalizedTargetUrl);
+  const allowedUrl = new URL(normalizedAllowedUrl);
+
+  if (targetUrl.origin !== allowedUrl.origin) {
+    return false;
+  }
+
+  if (allowedUrl.search) {
+    return normalizedTargetUrl === normalizedAllowedUrl;
+  }
+
+  if (allowedUrl.pathname === '/') {
+    return true;
+  }
+
+  return targetUrl.pathname === allowedUrl.pathname ||
+    targetUrl.pathname.startsWith(`${allowedUrl.pathname}/`);
 }
 
 function getAllBlockedDomains(settings) {
@@ -959,9 +979,9 @@ async function updateBlockingRules() {
         // First, add allow rules for whitelisted URLs (higher priority)
         const allowedUrls = settings.allowedUrls || [];
         for (const url of allowedUrls) {
-          let exactUrlRegex;
+          let allowedUrlRegex;
           try {
-            exactUrlRegex = buildExactAllowedUrlRegex(url);
+            allowedUrlRegex = buildAllowedUrlRegex(url);
           } catch {
             continue;
           }
@@ -973,7 +993,7 @@ async function updateBlockingRules() {
               type: 'allow'
             },
             condition: {
-              regexFilter: exactUrlRegex,
+              regexFilter: allowedUrlRegex,
               resourceTypes: ['main_frame']
             }
           });
@@ -2370,14 +2390,15 @@ function isUrlWhitelistedWithSettings(url, settings) {
     return allowedResult.success ? allowedResult.normalizedUrl : allowedUrl;
   });
 
-  if (normalizedAllowedUrls.includes(normalizedUrl)) {
-    return true;
-  }
-
-  const urlWithoutProtocol = normalizedUrl.replace(/^https?:\/\//, '');
   return normalizedAllowedUrls.some((allowed) => {
     const allowedWithoutProtocol = allowed.replace(/^https?:\/\//, '');
-    return allowedWithoutProtocol === urlWithoutProtocol;
+    const targetWithoutProtocol = normalizedUrl.replace(/^https?:\/\//, '');
+
+    if (doesAllowedUrlMatch(normalizedUrl, allowed)) {
+      return true;
+    }
+
+    return allowedWithoutProtocol === targetWithoutProtocol;
   });
 }
 
