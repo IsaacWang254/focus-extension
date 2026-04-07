@@ -315,6 +315,24 @@
         </button>
         <p id="unblock-hint" class="unblock-hint">Complete the requirements above to unlock</p>
       </div>
+
+      <div id="whitelist-link-action" class="whitelist-link-action" style="display: none;">
+        <div class="whitelist-link-card">
+          <div class="whitelist-link-header">
+            <h3>Whitelist This Exact Link</h3>
+            <p>Allow just this page permanently. This does not unblock the whole site.</p>
+          </div>
+          <p id="whitelist-link-target" class="whitelist-link-target"></p>
+          <textarea id="whitelist-reason-input" class="input reason-textarea" placeholder="Why should this exact link stay accessible?" rows="3"></textarea>
+          <div class="reason-counter">
+            <span id="whitelist-reason-char-count">0</span> / <span id="whitelist-reason-min-chars">50</span> characters
+          </div>
+          <p id="whitelist-reason-validation-message" class="reason-validation-message">Write a short sentence with real words.</p>
+          <button id="whitelist-link-button" class="btn btn-large btn-secondary" disabled>
+            Whitelist This Exact Link
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Schedule Info Card -->

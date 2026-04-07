@@ -26,6 +26,7 @@ let timerInterval = null;
 let mathProblem = { a: 0, b: 0, op: '+', answer: 0 };
 let currentRandomPhrase = '';
 let currentReason = ''; // Store the reason for unblocking
+let currentWhitelistReason = ''; // Store the reason for exact-link whitelisting
 let earnedTimeInfo = null; // Store earned time info
 let completeTodoProgress = null;
 
@@ -191,6 +192,132 @@ function getBlockedPageTargetUrl() {
     : `https://${blockedDomain}`;
 }
 
+function getExactWhitelistTargetUrl() {
+  return originalUrl.startsWith('http') ? originalUrl : '';
+}
+
+function getReasonMinLength() {
+  return settings?.unblockMethods?.typeReason?.minLength || 50;
+}
+
+function updateReasonFieldState(input, countEl, messageEl, text) {
+  const minLength = getReasonMinLength();
+  const validation = getReasonValidation(text, minLength);
+  const charCount = text.length;
+
+  if (countEl) {
+    countEl.textContent = charCount;
+  }
+
+  if (messageEl) {
+    messageEl.textContent = charCount === 0
+      ? `Write at least ${minLength} characters and use real words.`
+      : validation.message;
+    messageEl.classList.toggle('error', !validation.isValid && charCount > 0);
+    messageEl.classList.toggle('success', validation.isValid);
+  }
+
+  if (input) {
+    input.classList.remove('success', 'error');
+    if (validation.isValid) {
+      input.classList.add('success');
+    } else if (charCount > 0) {
+      input.classList.add('error');
+    }
+  }
+
+  return validation;
+}
+
+function formatUrlForDisplay(url) {
+  if (typeof url !== 'string' || !url) {
+    return '';
+  }
+
+  return url.length > 120 ? `${url.slice(0, 117)}...` : url;
+}
+
+function updateWhitelistLinkButtonState() {
+  const whitelistButton = document.getElementById('whitelist-link-button');
+  if (!whitelistButton) {
+    return;
+  }
+
+  const targetUrl = getExactWhitelistTargetUrl();
+  const validation = getReasonValidation(currentWhitelistReason, getReasonMinLength());
+  whitelistButton.disabled = !targetUrl || !validation.isValid;
+}
+
+function setupWhitelistLinkAction() {
+  const container = document.getElementById('whitelist-link-action');
+  if (!container) {
+    return;
+  }
+
+  const targetUrl = getExactWhitelistTargetUrl();
+  if (!targetUrl) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+  document.getElementById('whitelist-link-target').textContent = formatUrlForDisplay(targetUrl);
+  document.getElementById('whitelist-reason-min-chars').textContent = getReasonMinLength();
+  document.getElementById('whitelist-reason-validation-message').textContent =
+    `Write at least ${getReasonMinLength()} characters and use real words.`;
+  updateWhitelistLinkButtonState();
+}
+
+function shouldFallbackWhitelistMessage(errorMessage) {
+  if (typeof errorMessage !== 'string') {
+    return false;
+  }
+
+  return errorMessage.includes('Unknown message type: ADD_ALLOWED_URL_WITH_REASON')
+    || errorMessage.includes('Receiving end does not exist')
+    || errorMessage.includes('Extension context invalidated');
+}
+
+async function whitelistExactLink(targetUrl, reason) {
+  const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
+
+  try {
+    const result = await chrome.runtime.sendMessage({
+      type: 'ADD_ALLOWED_URL_WITH_REASON',
+      url: targetUrl,
+      reason: trimmedReason,
+      domain: blockedDomain
+    });
+
+    if (result?.success) {
+      return result;
+    }
+
+    if (!shouldFallbackWhitelistMessage(result?.error)) {
+      return result;
+    }
+  } catch (error) {
+    if (!shouldFallbackWhitelistMessage(error?.message)) {
+      throw error;
+    }
+  }
+
+  const fallbackResult = await chrome.runtime.sendMessage({
+    type: 'ADD_ALLOWED_URL',
+    url: targetUrl
+  });
+
+  if (fallbackResult?.error && fallbackResult.error !== 'URL already whitelisted') {
+    return fallbackResult;
+  }
+
+  return {
+    success: true,
+    fallback: true,
+    alreadyWhitelisted: fallbackResult?.error === 'URL already whitelisted'
+  };
+}
+
 async function redirectIfAlreadyTemporarilyUnblocked() {
   const sessions = await chrome.runtime.sendMessage({ type: 'GET_TEMP_UNBLOCKS' });
   if (!Array.isArray(sessions) || sessions.length === 0) {
@@ -211,6 +338,25 @@ async function redirectIfAlreadyTemporarilyUnblocked() {
   }
 
   window.location.replace(getBlockedPageTargetUrl());
+  return true;
+}
+
+async function redirectIfUrlIsWhitelisted() {
+  const targetUrl = getExactWhitelistTargetUrl();
+  if (!targetUrl) {
+    return false;
+  }
+
+  const isWhitelisted = await chrome.runtime.sendMessage({
+    type: 'IS_URL_WHITELISTED',
+    url: targetUrl
+  });
+
+  if (!isWhitelisted) {
+    return false;
+  }
+
+  window.location.replace(targetUrl);
   return true;
 }
 
@@ -351,6 +497,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       throw new Error(settings?.error || 'Failed to load settings');
     }
 
+    if (await redirectIfUrlIsWhitelisted()) {
+      return;
+    }
+
     if (await redirectIfAlreadyTemporarilyUnblocked()) {
       return;
     }
@@ -381,6 +531,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Setup unblock methods
     await setupUnblockMethods();
+    setupWhitelistLinkAction();
 
     // Setup event listeners
     setupEventListeners();
@@ -2173,38 +2324,33 @@ function setupEventListeners() {
   preventBulkTextEntry(reasonInput);
   reasonInput.addEventListener('input', () => {
     const text = reasonInput.value;
-    const charCount = text.length;
-    const minLength = settings.unblockMethods.typeReason?.minLength || 50;
-    const validation = getReasonValidation(text, minLength);
-
-    // Update character counter
-    reasonCharCount.textContent = charCount;
-
-    // Store the reason
     currentReason = text;
-
-    reasonValidationMessage.textContent = validation.message;
-    reasonValidationMessage.classList.toggle('error', !validation.isValid && charCount > 0);
-    reasonValidationMessage.classList.toggle('success', validation.isValid);
+    const validation = updateReasonFieldState(reasonInput, reasonCharCount, reasonValidationMessage, text);
 
     if (validation.isValid) {
-      reasonInput.classList.remove('error');
-      reasonInput.classList.add('success');
       completedMethods.typeReason = true;
       updateMethodStatus('method-reason', 'reason-status', true);
       checkUnblockReady();
     } else {
-      reasonInput.classList.remove('success');
-      if (charCount > 0) {
-        reasonInput.classList.add('error');
-      } else {
-        reasonInput.classList.remove('error');
-        reasonValidationMessage.classList.remove('error', 'success');
-        reasonValidationMessage.textContent = `Write at least ${minLength} characters and use real words.`;
-      }
       completedMethods.typeReason = false;
       updateMethodStatus('method-reason', 'reason-status', false);
     }
+  });
+
+  const whitelistReasonInput = document.getElementById('whitelist-reason-input');
+  const whitelistReasonCharCount = document.getElementById('whitelist-reason-char-count');
+  const whitelistReasonValidationMessage = document.getElementById('whitelist-reason-validation-message');
+
+  preventBulkTextEntry(whitelistReasonInput);
+  whitelistReasonInput.addEventListener('input', () => {
+    currentWhitelistReason = whitelistReasonInput.value;
+    updateReasonFieldState(
+      whitelistReasonInput,
+      whitelistReasonCharCount,
+      whitelistReasonValidationMessage,
+      currentWhitelistReason
+    );
+    updateWhitelistLinkButtonState();
   });
 
   // Unblock button
@@ -2268,6 +2414,52 @@ function setupEventListeners() {
       console.error('Failed to unblock:', error);
       unblockButton.dataset.navigating = 'false';
       unblockButton.textContent = 'Continue to Site';
+    }
+  });
+
+  const whitelistButton = document.getElementById('whitelist-link-button');
+  whitelistButton.addEventListener('click', async () => {
+    if (whitelistButton.dataset.navigating === 'true') return;
+
+    const targetUrl = getExactWhitelistTargetUrl();
+    if (!targetUrl) {
+      return;
+    }
+
+    const validation = updateReasonFieldState(
+      whitelistReasonInput,
+      whitelistReasonCharCount,
+      whitelistReasonValidationMessage,
+      currentWhitelistReason
+    );
+
+    if (!validation.isValid) {
+      updateWhitelistLinkButtonState();
+      whitelistReasonInput.focus();
+      return;
+    }
+
+    whitelistButton.dataset.navigating = 'true';
+    whitelistButton.textContent = 'Whitelisting...';
+
+    try {
+      const result = await whitelistExactLink(targetUrl, currentWhitelistReason);
+
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to whitelist link');
+      }
+
+      whitelistButton.textContent = 'Opening...';
+      await new Promise(resolve => setTimeout(resolve, 200));
+      window.location.href = targetUrl;
+    } catch (error) {
+      console.error('Failed to whitelist exact link:', error);
+      whitelistButton.dataset.navigating = 'false';
+      whitelistButton.textContent = 'Whitelist This Exact Link';
+      whitelistReasonValidationMessage.textContent = error.message || 'Failed to whitelist link';
+      whitelistReasonValidationMessage.classList.add('error');
+      whitelistReasonValidationMessage.classList.remove('success');
+      updateWhitelistLinkButtonState();
     }
   });
 }

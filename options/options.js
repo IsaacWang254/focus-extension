@@ -3234,19 +3234,22 @@ async function addKeyword() {
 // =============================================================================
 
 async function loadWhitelistUrls() {
-  const allowedUrls = await chrome.runtime.sendMessage({ type: 'GET_ALLOWED_URLS' });
+  const allowedUrls = await chrome.runtime.sendMessage({ type: 'GET_ALLOWED_URLS_WITH_REASONS' });
   renderWhitelistUrls(allowedUrls);
 }
 
-function renderWhitelistUrls(urls) {
+function renderWhitelistUrls(urlEntries) {
   const list = document.getElementById('whitelist-urls-list');
 
-  if (!urls || urls.length === 0) {
+  if (!urlEntries || urlEntries.length === 0) {
     list.innerHTML = '<li class="empty-whitelist">No URLs whitelisted. Add specific URLs you want to access on blocked domains.</li>';
     return;
   }
 
-  list.innerHTML = urls.map(url => {
+  list.innerHTML = urlEntries.map((entry) => {
+    const url = typeof entry === 'string' ? entry : entry.url;
+    const reason = typeof entry === 'string' ? '' : (entry.reason || '').trim();
+
     // Extract domain for display
     let domain = '';
     try {
@@ -3261,8 +3264,18 @@ function renderWhitelistUrls(urls) {
 
     return `
       <li class="whitelist-url-item">
-        <span class="whitelist-url-domain">${escapeHtml(domain)}</span>
-        <span class="whitelist-url-text" title="${escapeHtml(url)}">${escapeHtml(displayUrl)}</span>
+        <div class="whitelist-url-main">
+          <div class="whitelist-url-meta">
+            <span class="whitelist-url-domain">${escapeHtml(domain)}</span>
+            <span class="whitelist-url-text" title="${escapeHtml(url)}">${escapeHtml(displayUrl)}</span>
+          </div>
+          ${reason ? `
+            <p class="whitelist-url-reason">
+              <span class="whitelist-url-reason-label">Reason</span>
+              <span class="whitelist-url-reason-text">${escapeHtml(reason)}</span>
+            </p>
+          ` : ''}
+        </div>
         <button class="whitelist-remove" data-url="${escapeHtml(url)}" title="Remove">&times;</button>
       </li>
     `;

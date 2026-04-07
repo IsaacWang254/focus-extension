@@ -1418,6 +1418,78 @@ body::before {
   color: var(--muted-foreground);
 }
 
+.whitelist-link-action {
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+.whitelist-link-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--card) 88%, var(--secondary) 12%);
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  border-radius: 22px;
+}
+
+.whitelist-link-header h3 {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.whitelist-link-header p {
+  margin: var(--space-1) 0 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+.whitelist-link-target {
+  margin: 0;
+  padding: var(--space-3);
+  background-color: color-mix(in srgb, var(--card) 82%, var(--secondary) 18%);
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  border-radius: 16px;
+  color: var(--foreground);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  word-break: break-word;
+  font-family: var(--font-mono);
+}
+
+.whitelist-link-card .btn-large {
+  width: 100%;
+  padding: var(--space-4) var(--space-6);
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border-radius: 18px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-secondary {
+  background: color-mix(in srgb, var(--foreground) 8%, var(--secondary) 92%);
+  color: var(--foreground);
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--foreground) 11%, var(--secondary) 89%);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:disabled {
+  background: var(--secondary);
+  color: var(--muted-foreground);
+  border-color: transparent;
+  box-shadow: none;
+}
+
 /* ============================================
    Info Cards
    ============================================ */

@@ -1701,7 +1701,7 @@ textarea.input:focus {
 
 .whitelist-url-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
   background-color: var(--settings-surface-strong);
@@ -1709,11 +1709,51 @@ textarea.input:focus {
   border-radius: var(--radius-md);
 }
 
-.whitelist-url {
+.whitelist-url-main {
   flex: 1;
-  font-size: 0.875rem;
+  min-width: 0;
+}
+
+.whitelist-url-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.whitelist-url-domain {
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--foreground);
+}
+
+.whitelist-url-text {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
   word-break: break-all;
+}
+
+.whitelist-url-reason {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: var(--space-2) 0 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid color-mix(in srgb, var(--settings-surface-border) 82%, transparent);
+}
+
+.whitelist-url-reason-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+
+.whitelist-url-reason-text {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--foreground);
+  word-break: break-word;
 }
 
 .whitelist-hint {

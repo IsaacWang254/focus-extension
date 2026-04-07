@@ -691,6 +691,64 @@ function hasEffectiveGlobalTempUnblock(tempUnblocks, settings, now = Date.now())
     Boolean(settings?.unblockAllBlockedSites && getSharedTempUnblockExpiry(tempUnblocks, now));
 }
 
+function normalizeAllowedUrlInput(url) {
+  let candidateUrl = typeof url === 'string' ? url.trim() : '';
+
+  if (!candidateUrl) {
+    return { success: false, error: 'URL cannot be empty' };
+  }
+
+  if (!candidateUrl.startsWith('http://') && !candidateUrl.startsWith('https://')) {
+    candidateUrl = 'https://' + candidateUrl;
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(candidateUrl);
+  } catch {
+    return { success: false, error: 'Invalid URL format' };
+  }
+
+  parsedUrl.hash = '';
+
+  let normalizedPathname = parsedUrl.pathname || '/';
+  if (normalizedPathname.length > 1 && normalizedPathname.endsWith('/')) {
+    normalizedPathname = normalizedPathname.slice(0, -1);
+  }
+
+  const keepRootSlash = normalizedPathname === '/' && Boolean(parsedUrl.search);
+  const pathSegment = normalizedPathname === '/'
+    ? (keepRootSlash ? '/' : '')
+    : normalizedPathname;
+
+  return {
+    success: true,
+    normalizedUrl: `${parsedUrl.origin}${pathSegment}${parsedUrl.search}`
+  };
+}
+
+function buildExactAllowedUrlRegex(url) {
+  const normalizedResult = normalizeAllowedUrlInput(url);
+  if (!normalizedResult.success) {
+    throw new Error(normalizedResult.error);
+  }
+
+  const parsedUrl = new URL(normalizedResult.normalizedUrl);
+  const escapedOrigin = parsedUrl.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedPath = parsedUrl.pathname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedSearch = (parsedUrl.search || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  if (parsedUrl.pathname === '/' && !parsedUrl.search) {
+    return `^${escapedOrigin}/?(?:#.*)?$`;
+  }
+
+  if (parsedUrl.search) {
+    return `^${escapedOrigin}${escapedPath}${escapedSearch}(?:#.*)?$`;
+  }
+
+  return `^${escapedOrigin}${escapedPath}/?(?:#.*)?$`;
+}
+
 function getAllBlockedDomains(settings) {
   if (settings.mode !== 'blocklist') {
     return [];
@@ -725,7 +783,22 @@ function wouldBlockDomain(domain, settings) {
 
 async function redirectTabsThatShouldNowBeBlocked(reason = 'expired') {
   const tabs = await chrome.tabs.query({});
-  const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
+
+  for (const tab of tabs) {
+    if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+      continue;
+    }
+
+    await redirectTabIfNeeded(tab.id, tab.url, reason);
+  }
+}
+
+function doesDomainMatchAny(tabDomain, domains = []) {
+  return domains.includes(tabDomain) || domains.some((domain) => tabDomain.endsWith(`.${domain}`));
+}
+
+async function redirectMatchingDomainTabsIfNeeded(domains, reason = 'navigation') {
+  const tabs = await chrome.tabs.query({});
 
   for (const tab of tabs) {
     if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
@@ -733,11 +806,11 @@ async function redirectTabsThatShouldNowBeBlocked(reason = 'expired') {
     }
 
     const tabDomain = extractDomain(tab.url);
-    if (await shouldBlockDomain(tabDomain)) {
-      await chrome.tabs.update(tab.id, {
-        url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=${encodeURIComponent(reason)}`
-      });
+    if (!tabDomain || !doesDomainMatchAny(tabDomain, domains)) {
+      continue;
     }
+
+    await redirectTabIfNeeded(tab.id, tab.url, reason);
   }
 }
 
@@ -886,8 +959,12 @@ async function updateBlockingRules() {
         // First, add allow rules for whitelisted URLs (higher priority)
         const allowedUrls = settings.allowedUrls || [];
         for (const url of allowedUrls) {
-          // Escape special regex characters in the URL
-          const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          let exactUrlRegex;
+          try {
+            exactUrlRegex = buildExactAllowedUrlRegex(url);
+          } catch {
+            continue;
+          }
 
           newRules.push({
             id: ruleId++,
@@ -896,7 +973,7 @@ async function updateBlockingRules() {
               type: 'allow'
             },
             condition: {
-              regexFilter: `^${escapedUrl}(/.*)?$`,
+              regexFilter: exactUrlRegex,
               resourceTypes: ['main_frame']
             }
           });
@@ -1278,8 +1355,14 @@ async function handleMessage(message, sender) {
     case 'GET_ALLOWED_URLS':
       return await getAllowedUrls();
 
+    case 'GET_ALLOWED_URLS_WITH_REASONS':
+      return await getAllowedUrlsWithReasons();
+
     case 'ADD_ALLOWED_URL':
       return await addAllowedUrl(message.url);
+
+    case 'ADD_ALLOWED_URL_WITH_REASON':
+      return await addAllowedUrlWithReason(message.url, message.reason, message.domain);
 
     case 'REMOVE_ALLOWED_URL':
       return await removeAllowedUrl(message.url);
@@ -1704,24 +1787,7 @@ async function endTempUnblock(domain) {
   if (isGlobalUnblock) {
     await redirectTabsThatShouldNowBeBlocked('expired');
   } else {
-    const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
-    const tabs = await chrome.tabs.query({});
-
-    for (const tab of tabs) {
-      if (!tab.url) continue;
-
-      try {
-        const tabUrl = new URL(tab.url);
-        const tabDomain = tabUrl.hostname.replace(/^www\./, '');
-
-        if (domainsToRemove.includes(tabDomain)) {
-          const redirectUrl = `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}`;
-          chrome.tabs.update(tab.id, { url: redirectUrl });
-        }
-      } catch (e) {
-        // Invalid URL, skip
-      }
-    }
+    await redirectMatchingDomainTabsIfNeeded(domainsToRemove, 'expired');
   }
 
   return { success: true };
@@ -1972,19 +2038,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       if (isGlobalUnblock) {
         await redirectTabsThatShouldNowBeBlocked('expired');
       } else {
-        const tabs = await chrome.tabs.query({});
-        const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
-
-        for (const tab of tabs) {
-          if (tab.url) {
-            const tabDomain = extractDomain(tab.url);
-            if (domainsToReblock.includes(tabDomain) || domainsToReblock.some(d => tabDomain.endsWith('.' + d))) {
-              await chrome.tabs.update(tab.id, {
-                url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=expired`
-              });
-            }
-          }
-        }
+        await redirectMatchingDomainTabsIfNeeded(domainsToReblock, 'expired');
       }
     } catch (e) {
       console.error('Error redirecting tabs after timer expiry:', e);
@@ -2022,19 +2076,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       if (isGlobalUnblock) {
         await redirectTabsThatShouldNowBeBlocked('inactivity');
       } else {
-        const tabs = await chrome.tabs.query({});
-        const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
-
-        for (const tab of tabs) {
-          if (tab.url) {
-            const tabDomain = extractDomain(tab.url);
-            if (tabDomain === domain || tabDomain === `www.${domain}`) {
-              await chrome.tabs.update(tab.id, {
-                url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=inactivity`
-              });
-            }
-          }
-        }
+        await redirectMatchingDomainTabsIfNeeded([domain], 'inactivity');
       }
     } catch (e) {
       console.error('Error redirecting tabs after inactivity:', e);
@@ -2259,19 +2301,7 @@ async function enforceSchedule() {
         if (shouldRedirectAll) {
           await redirectTabsThatShouldNowBeBlocked('schedule');
         } else {
-          const tabs = await chrome.tabs.query({});
-          const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
-
-          for (const tab of tabs) {
-            if (tab.url) {
-              const tabDomain = extractDomain(tab.url);
-              if (domainsToBlock.includes(tabDomain) || domainsToBlock.some(d => tabDomain.endsWith('.' + d))) {
-                await chrome.tabs.update(tab.id, {
-                  url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=schedule`
-                });
-              }
-            }
-          }
+          await redirectMatchingDomainTabsIfNeeded(domainsToBlock, 'schedule');
         }
       } catch (e) {
         console.error('Error redirecting tabs after schedule change:', e);
@@ -2324,6 +2354,81 @@ async function shouldBlockDomain(domain) {
   return wouldBlockDomain(domain, settings);
 }
 
+function isUrlWhitelistedWithSettings(url, settings) {
+  if (!url || !settings) {
+    return false;
+  }
+
+  const normalizedResult = normalizeAllowedUrlInput(url);
+  if (!normalizedResult.success) {
+    return false;
+  }
+
+  const normalizedUrl = normalizedResult.normalizedUrl;
+  const normalizedAllowedUrls = (settings.allowedUrls || []).map((allowedUrl) => {
+    const allowedResult = normalizeAllowedUrlInput(allowedUrl);
+    return allowedResult.success ? allowedResult.normalizedUrl : allowedUrl;
+  });
+
+  if (normalizedAllowedUrls.includes(normalizedUrl)) {
+    return true;
+  }
+
+  const urlWithoutProtocol = normalizedUrl.replace(/^https?:\/\//, '');
+  return normalizedAllowedUrls.some((allowed) => {
+    const allowedWithoutProtocol = allowed.replace(/^https?:\/\//, '');
+    return allowedWithoutProtocol === urlWithoutProtocol;
+  });
+}
+
+async function shouldBlockUrl(url) {
+  if (!url) return false;
+
+  const settings = await getSettings();
+  if (!settings.enabled) return false;
+
+  // During pomodoro breaks, all sites are unblocked as a reward
+  if (await isOnFocusBreak()) return false;
+
+  if (isUrlWhitelistedWithSettings(url, settings)) {
+    return false;
+  }
+
+  const domain = extractDomain(url);
+  if (!domain) return false;
+
+  // Check if schedule allows unblocks
+  const scheduleAllowsUnblock = isInAllowedTimeWindow(settings.schedule);
+
+  // Check temp unblocks first (only if schedule allows)
+  if (scheduleAllowsUnblock) {
+    const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
+    const expiry = getTempUnblockExpiry(tempUnblocks, domain, settings);
+    if (expiry) {
+      return false;
+    }
+  }
+
+  return wouldBlockDomain(domain, settings);
+}
+
+async function redirectTabIfNeeded(tabId, url, reason = 'navigation') {
+  const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
+  if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
+    return;
+  }
+
+  if (url.startsWith(blockedPageUrl)) {
+    return;
+  }
+
+  if (await shouldBlockUrl(url)) {
+    await chrome.tabs.update(tabId, {
+      url: `${blockedPageUrl}?url=${encodeURIComponent(url)}&reason=${encodeURIComponent(reason)}`
+    });
+  }
+}
+
 /**
  * Handle tab activation - check if we need to block the tab
  */
@@ -2334,18 +2439,33 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
       return;
     }
 
-    const domain = extractDomain(tab.url);
-    const shouldBlock = await shouldBlockDomain(domain);
-
-    if (shouldBlock) {
-      // Redirect to blocked page
-      const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
-      await chrome.tabs.update(activeInfo.tabId, {
-        url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}`
-      });
-    }
+    await redirectTabIfNeeded(activeInfo.tabId, tab.url, 'activated');
   } catch (e) {
     console.error('Tab activation handler error:', e);
+  }
+});
+
+chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
+  if (details.frameId !== 0) {
+    return;
+  }
+
+  try {
+    await redirectTabIfNeeded(details.tabId, details.url, 'history-state-updated');
+  } catch (e) {
+    console.error('History state navigation handler error:', e);
+  }
+});
+
+chrome.webNavigation.onReferenceFragmentUpdated.addListener(async (details) => {
+  if (details.frameId !== 0) {
+    return;
+  }
+
+  try {
+    await redirectTabIfNeeded(details.tabId, details.url, 'fragment-updated');
+  } catch (e) {
+    console.error('Fragment navigation handler error:', e);
   }
 });
 
@@ -4820,6 +4940,36 @@ async function getAllowedUrls() {
   return settings.allowedUrls || [];
 }
 
+async function getAllowedUrlsWithReasons() {
+  const [allowedUrls, result] = await Promise.all([
+    getAllowedUrls(),
+    chrome.storage.local.get('whitelistUrlReasons')
+  ]);
+
+  const reasonEntries = result.whitelistUrlReasons || [];
+  const latestReasonByUrl = new Map();
+
+  for (const entry of reasonEntries) {
+    if (!entry?.url || !entry?.reason) {
+      continue;
+    }
+
+    const existingEntry = latestReasonByUrl.get(entry.url);
+    if (!existingEntry || (entry.timestamp || 0) > (existingEntry.timestamp || 0)) {
+      latestReasonByUrl.set(entry.url, entry);
+    }
+  }
+
+  return allowedUrls.map((url) => {
+    const latestEntry = latestReasonByUrl.get(url);
+    return {
+      url,
+      reason: latestEntry?.reason || '',
+      reasonTimestamp: latestEntry?.timestamp || null
+    };
+  });
+}
+
 /**
  * Add a URL to the whitelist
  * @param {string} url - URL to allow
@@ -4828,26 +4978,12 @@ async function getAllowedUrls() {
 async function addAllowedUrl(url) {
   const settings = await getSettings();
   const allowedUrls = settings.allowedUrls || [];
-
-  // Normalize URL (ensure it has a protocol)
-  let normalizedUrl = url.trim();
-  if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
-    normalizedUrl = 'https://' + normalizedUrl;
+  const normalizedResult = normalizeAllowedUrlInput(url);
+  if (!normalizedResult.success) {
+    return normalizedResult;
   }
 
-  // Remove trailing slash for consistency
-  normalizedUrl = normalizedUrl.replace(/\/$/, '');
-
-  if (!normalizedUrl) {
-    return { success: false, error: 'URL cannot be empty' };
-  }
-
-  // Validate URL
-  try {
-    new URL(normalizedUrl);
-  } catch {
-    return { success: false, error: 'Invalid URL format' };
-  }
+  const { normalizedUrl } = normalizedResult;
 
   // Check if URL already exists
   if (allowedUrls.includes(normalizedUrl)) {
@@ -4860,6 +4996,76 @@ async function addAllowedUrl(url) {
   await updateBlockingRules();
 
   return { success: true, allowedUrls };
+}
+
+async function saveAllowedUrlReason(url, domain, reason) {
+  const result = await chrome.storage.local.get('whitelistUrlReasons');
+  const reasons = result.whitelistUrlReasons || [];
+
+  let derivedDomain = normalizeTrackedDomain(domain);
+  try {
+    if (!isMeaningfulTrackedDomain(derivedDomain)) {
+      derivedDomain = normalizeTrackedDomain(new URL(url).hostname);
+    }
+  } catch {
+    // Keep the existing fallback domain if URL parsing fails.
+  }
+
+  const entry = {
+    id: Date.now().toString(),
+    url,
+    domain: derivedDomain,
+    reason,
+    timestamp: Date.now(),
+    date: new Date().toISOString()
+  };
+
+  reasons.push(entry);
+
+  await chrome.storage.local.set({
+    whitelistUrlReasons: reasons.slice(-100)
+  });
+
+  return entry;
+}
+
+/**
+ * Add a URL to the whitelist and persist the user's written reason.
+ * @param {string} url - URL to allow
+ * @param {string} reason - Written reason for allowing it
+ * @param {string} domain - Blocked domain shown on the blocked page
+ * @returns {Promise<{success: boolean, allowedUrls?: Array, normalizedUrl?: string, alreadyWhitelisted?: boolean}>}
+ */
+async function addAllowedUrlWithReason(url, reason, domain) {
+  const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
+  if (!trimmedReason) {
+    return { success: false, error: 'A written reason is required' };
+  }
+
+  const normalizedResult = normalizeAllowedUrlInput(url);
+  if (!normalizedResult.success) {
+    return normalizedResult;
+  }
+
+  const { normalizedUrl } = normalizedResult;
+  const settings = await getSettings();
+  const allowedUrls = settings.allowedUrls || [];
+  const alreadyWhitelisted = allowedUrls.includes(normalizedUrl);
+
+  if (!alreadyWhitelisted) {
+    allowedUrls.push(normalizedUrl);
+    await saveProfileSettings({ allowedUrls });
+    await updateBlockingRules();
+  }
+
+  await saveAllowedUrlReason(normalizedUrl, domain, trimmedReason);
+
+  return {
+    success: true,
+    allowedUrls,
+    normalizedUrl,
+    alreadyWhitelisted
+  };
 }
 
 /**
@@ -4891,22 +5097,7 @@ async function removeAllowedUrl(url) {
  */
 async function isUrlWhitelisted(url) {
   const settings = await getSettings();
-  const allowedUrls = settings.allowedUrls || [];
-
-  // Normalize URL for comparison
-  let normalizedUrl = url.trim().replace(/\/$/, '');
-
-  // Check for exact match
-  if (allowedUrls.includes(normalizedUrl)) {
-    return true;
-  }
-
-  // Also check without protocol
-  const urlWithoutProtocol = normalizedUrl.replace(/^https?:\/\//, '');
-  return allowedUrls.some(allowed => {
-    const allowedWithoutProtocol = allowed.replace(/^https?:\/\//, '');
-    return allowedWithoutProtocol === urlWithoutProtocol;
-  });
+  return isUrlWhitelistedWithSettings(url, settings);
 }
 
 // =============================================================================
