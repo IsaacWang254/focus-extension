@@ -1756,6 +1756,43 @@ textarea.input:focus {
   word-break: break-word;
 }
 
+.whitelist-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  margin-top: 1px;
+  padding: 0;
+  background: color-mix(in srgb, var(--settings-surface) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--settings-surface-border) 88%, transparent);
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.whitelist-remove span {
+  display: block;
+  font-size: 1rem;
+  line-height: 1;
+  transform: translateY(-0.5px);
+}
+
+.whitelist-remove:hover {
+  background-color: var(--settings-button-danger-bg);
+  border-color: color-mix(in srgb, var(--destructive) 24%, var(--settings-button-danger-bg) 76%);
+  color: var(--destructive-foreground);
+  transform: translateY(-1px);
+}
+
+.whitelist-remove:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--destructive) 20%, transparent);
+  border-color: color-mix(in srgb, var(--destructive) 34%, var(--settings-surface-border) 66%);
+}
+
 .whitelist-hint {
   font-size: 0.75rem;
   color: color-mix(in srgb, var(--foreground) 66%, var(--muted-foreground) 34%);

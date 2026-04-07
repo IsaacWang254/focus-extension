@@ -3276,7 +3276,14 @@ function renderWhitelistUrls(urlEntries) {
             </p>
           ` : ''}
         </div>
-        <button class="whitelist-remove" data-url="${escapeHtml(url)}" title="Remove">&times;</button>
+        <button
+          class="whitelist-remove"
+          data-url="${escapeHtml(url)}"
+          title="Remove URL"
+          aria-label="Remove whitelisted URL ${escapeHtml(url)}"
+        >
+          <span aria-hidden="true">×</span>
+        </button>
       </li>
     `;
   }).join('');
@@ -3295,8 +3302,9 @@ function setupWhitelistListeners() {
 
   // Remove URL (delegated)
   document.getElementById('whitelist-urls-list').addEventListener('click', async (e) => {
-    if (e.target.classList.contains('whitelist-remove')) {
-      const url = e.target.dataset.url;
+    const removeButton = e.target.closest('.whitelist-remove');
+    if (removeButton) {
+      const url = removeButton.dataset.url;
       await chrome.runtime.sendMessage({ type: 'REMOVE_ALLOWED_URL', url });
       await loadWhitelistUrls();
       showSaveStatus('URL removed from whitelist');
