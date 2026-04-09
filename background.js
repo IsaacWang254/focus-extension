@@ -1447,6 +1447,12 @@ async function handleMessage(message, sender) {
     case 'REMOVE_SITE_CATEGORY_OVERRIDE':
       return await removeSiteCategoryOverride(message.domain);
 
+    case 'GET_SITE_CATEGORY_SCAN_STATUS':
+      return await getSiteCategoryScanStatus(message.domain);
+
+    case 'SAVE_SITE_CATEGORY_CONTENT_SCAN':
+      return await saveSiteCategoryContentScan(message.payload);
+
     // Google Calendar operations
     case 'CONNECT_GOOGLE_CALENDAR':
       return await connectGoogleCalendar();
@@ -5453,6 +5459,22 @@ const SITE_CATEGORY_HEURISTICS = {
   }
 };
 
+const SITE_CATEGORY_CONTENT_KEYWORDS = {
+  socialMedia: ['follow', 'followers', 'following', 'likes', 'comments', 'share', 'timeline', 'feed', 'profile', 'profiles', 'creator', 'post', 'posts', 'stories', 'reels'],
+  entertainment: ['watch', 'stream', 'playlist', 'episode', 'episodes', 'trailer', 'music', 'album', 'movie', 'movies', 'show', 'shows', 'video', 'videos', 'listen'],
+  news: ['breaking', 'analysis', 'headline', 'headlines', 'reporting', 'opinion', 'latest', 'article', 'articles', 'coverage', 'journalist', 'newsroom'],
+  gaming: ['gameplay', 'walkthrough', 'patch', 'patches', 'review', 'reviews', 'quest', 'level', 'steam', 'xbox', 'playstation', 'nintendo', 'multiplayer', 'esports'],
+  shopping: ['add to cart', 'buy now', 'checkout', 'shop', 'store', 'sale', 'discount', 'shipping', 'product', 'products', 'price', 'prices', 'wishlist'],
+  forums: ['thread', 'threads', 'discussion', 'discussions', 'community', 'communities', 'comment', 'comments', 'reply', 'replies', 'posted by'],
+  productivity: ['dashboard', 'workspace', 'project', 'projects', 'task', 'tasks', 'document', 'documents', 'spreadsheet', 'meeting', 'notes', 'kanban', 'api', 'reference'],
+  education: ['course', 'courses', 'lesson', 'lessons', 'tutorial', 'tutorials', 'lecture', 'lectures', 'study', 'quiz', 'practice', 'learn'],
+  email: ['inbox', 'compose', 'sender', 'recipients', 'drafts', 'sent', 'archive', 'message', 'messages', 'unread']
+};
+
+const SITE_CATEGORY_SCAN_VERSION = 1;
+const SITE_CATEGORY_SUGGESTION_TTL_MS = 21 * 24 * 60 * 60 * 1000;
+const SITE_CATEGORY_NEGATIVE_SCAN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 function normalizeCategoryDomain(domain) {
   return typeof domain === 'string'
     ? domain.toLowerCase().trim().replace(/^www\./, '')
@@ -5514,12 +5536,29 @@ function inferCategoryFromSignals(domain, url = '', title = '') {
   return bestScore >= 3 ? bestCategory : null;
 }
 
+async function getSiteCategorySuggestions() {
+  const result = await chrome.storage.local.get('siteCategorySuggestions');
+  return result.siteCategorySuggestions || {};
+}
+
+function getSiteCategorySuggestionTtl(entry) {
+  return entry?.category ? SITE_CATEGORY_SUGGESTION_TTL_MS : SITE_CATEGORY_NEGATIVE_SCAN_TTL_MS;
+}
+
+function isFreshSiteCategorySuggestion(entry, now = Date.now()) {
+  if (!entry || entry.version !== SITE_CATEGORY_SCAN_VERSION || !entry.scannedAt) {
+    return false;
+  }
+
+  return (now - entry.scannedAt) < getSiteCategorySuggestionTtl(entry);
+}
+
 async function getSiteCategoryOverrides() {
   const result = await chrome.storage.local.get('siteCategoryOverrides');
   return result.siteCategoryOverrides || {};
 }
 
-function findSiteCategoryOverride(domain, overrides = {}) {
+function findMatchingDomainEntry(domain, entries = {}) {
   const normalizedDomain = normalizeCategoryDomain(domain);
   if (!normalizedDomain) {
     return null;
@@ -5528,12 +5567,25 @@ function findSiteCategoryOverride(domain, overrides = {}) {
   const parts = normalizedDomain.split('.');
   for (let index = 0; index < parts.length - 1; index += 1) {
     const candidate = parts.slice(index).join('.');
-    if (overrides[candidate]) {
-      return overrides[candidate];
+    if (entries[candidate]) {
+      return entries[candidate];
     }
   }
 
-  return overrides[normalizedDomain] || null;
+  return entries[normalizedDomain] || null;
+}
+
+function findSiteCategoryOverride(domain, overrides = {}) {
+  return findMatchingDomainEntry(domain, overrides);
+}
+
+function findSiteCategorySuggestion(domain, suggestions = {}, now = Date.now()) {
+  const entry = findMatchingDomainEntry(domain, suggestions);
+  if (!isFreshSiteCategorySuggestion(entry, now)) {
+    return null;
+  }
+
+  return entry;
 }
 
 /**
@@ -5560,13 +5612,89 @@ function classifyDomain(domain, overrides = null) {
   return null;
 }
 
-function classifySiteContext({ domain, url = '', title = '', overrides = null }) {
-  const directCategory = classifyDomain(domain, overrides);
-  if (directCategory) {
-    return directCategory;
+function inferCategoryFromContentPayload(payload = {}) {
+  const titleTokens = tokenizeCategoryText(payload.title || '');
+  const descriptionTokens = tokenizeCategoryText(payload.description || '');
+  const headingTokens = tokenizeCategoryText(payload.headings || '');
+  const snippetTokens = tokenizeCategoryText(payload.snippet || '');
+
+  let bestCategory = null;
+  let bestScore = 0;
+  let runnerUpScore = 0;
+
+  for (const [categoryKey, keywords] of Object.entries(SITE_CATEGORY_CONTENT_KEYWORDS)) {
+    const score =
+      scoreHeuristicKeywords(titleTokens, keywords, 3) +
+      scoreHeuristicKeywords(descriptionTokens, keywords, 2) +
+      scoreHeuristicKeywords(headingTokens, keywords, 2) +
+      scoreHeuristicKeywords(snippetTokens, keywords, 1);
+
+    if (score > bestScore) {
+      runnerUpScore = bestScore;
+      bestScore = score;
+      bestCategory = categoryKey;
+    } else if (score > runnerUpScore) {
+      runnerUpScore = score;
+    }
   }
 
-  return inferCategoryFromSignals(domain, url, title);
+  if (!bestCategory || bestScore < 5 || bestScore < runnerUpScore + 2) {
+    return {
+      category: null,
+      confidence: 0
+    };
+  }
+
+  const confidence = Math.max(0.5, Math.min(0.96, 0.52 + (bestScore * 0.05) + ((bestScore - runnerUpScore) * 0.04)));
+
+  return {
+    category: bestCategory,
+    confidence: Number(confidence.toFixed(2))
+  };
+}
+
+function resolveSiteCategoryContext({ domain, url = '', title = '', overrides = null, suggestions = null }) {
+  const overrideCategory = findSiteCategoryOverride(domain, overrides || {});
+  if (overrideCategory && SITE_CATEGORIES[overrideCategory]) {
+    return {
+      category: overrideCategory,
+      source: 'override',
+      confidence: 1
+    };
+  }
+
+  const builtInCategory = classifyDomain(domain, null);
+  if (builtInCategory) {
+    return {
+      category: builtInCategory,
+      source: 'built-in',
+      confidence: 1
+    };
+  }
+
+  const suggestedEntry = findSiteCategorySuggestion(domain, suggestions || {});
+  if (suggestedEntry?.category && SITE_CATEGORIES[suggestedEntry.category]) {
+    return {
+      category: suggestedEntry.category,
+      source: suggestedEntry.source || 'suggested',
+      confidence: suggestedEntry.confidence || 0.7
+    };
+  }
+
+  const heuristicCategory = inferCategoryFromSignals(domain, url, title);
+  if (heuristicCategory) {
+    return {
+      category: heuristicCategory,
+      source: 'heuristic',
+      confidence: 0.58
+    };
+  }
+
+  return {
+    category: null,
+    source: null,
+    confidence: 0
+  };
 }
 
 /**
@@ -5580,6 +5708,7 @@ async function analyzeHistory(days = 7) {
 
   try {
     const siteCategoryOverrides = await getSiteCategoryOverrides();
+    const siteCategorySuggestions = await getSiteCategorySuggestions();
 
     // Get history items (returns unique URLs visited in the time range)
     const historyItems = await chrome.history.search({
@@ -5625,11 +5754,12 @@ async function analyzeHistory(days = 7) {
         const { domain, visits: rangeVisits } = result;
         const visitCount = rangeVisits.length;
         totalVisits += visitCount;
-        const category = classifySiteContext({
+        const categoryResult = resolveSiteCategoryContext({
           domain,
           url: result.item?.url || '',
           title: result.item?.title || '',
-          overrides: siteCategoryOverrides
+          overrides: siteCategoryOverrides,
+          suggestions: siteCategorySuggestions
         });
 
         // Domain stats
@@ -5639,6 +5769,8 @@ async function analyzeHistory(days = 7) {
             visits: 0,
             category: null,
             categoryVotes: {},
+            categorySourceVotes: {},
+            categoryConfidenceVotes: {},
             lastVisit: 0
           };
         }
@@ -5647,13 +5779,18 @@ async function analyzeHistory(days = 7) {
           domainStats[domain].lastVisit,
           ...rangeVisits.map(v => v.visitTime)
         );
-        if (category) {
+        if (categoryResult.category) {
+          const { category, source, confidence } = categoryResult;
           domainStats[domain].categoryVotes[category] =
             (domainStats[domain].categoryVotes[category] || 0) + visitCount;
+          domainStats[domain].categorySourceVotes[category] = source || null;
+          domainStats[domain].categoryConfidenceVotes[category] =
+            Math.max(domainStats[domain].categoryConfidenceVotes[category] || 0, confidence || 0);
         }
 
         // Category stats
-        if (category) {
+        if (categoryResult.category) {
+          const { category } = categoryResult;
           if (!categoryStats[category]) {
             categoryStats[category] = {
               ...SITE_CATEGORIES[category],
@@ -5684,8 +5821,22 @@ async function analyzeHistory(days = 7) {
     for (const entry of Object.values(domainStats)) {
       const sortedCategories = Object.entries(entry.categoryVotes || {})
         .sort((a, b) => b[1] - a[1]);
-      entry.category = sortedCategories[0]?.[0] || classifyDomain(entry.domain, siteCategoryOverrides);
+      const resolvedCategory = sortedCategories[0]?.[0];
+      const fallbackCategory = resolveSiteCategoryContext({
+        domain: entry.domain,
+        overrides: siteCategoryOverrides,
+        suggestions: siteCategorySuggestions
+      });
+      entry.category = resolvedCategory || fallbackCategory.category;
+      entry.categorySource = entry.category
+        ? (entry.categorySourceVotes?.[entry.category] || fallbackCategory.source || null)
+        : null;
+      entry.categoryConfidence = entry.category
+        ? (entry.categoryConfidenceVotes?.[entry.category] || fallbackCategory.confidence || 0)
+        : 0;
       delete entry.categoryVotes;
+      delete entry.categorySourceVotes;
+      delete entry.categoryConfidenceVotes;
     }
 
     // Convert category uniqueDomains Set to count
@@ -5888,6 +6039,7 @@ async function getBrowsingPatterns(days = 30) {
 
   try {
     const siteCategoryOverrides = await getSiteCategoryOverrides();
+    const siteCategorySuggestions = await getSiteCategorySuggestions();
 
     const historyItems = await chrome.history.search({
       text: '',
@@ -5925,12 +6077,14 @@ async function getBrowsingPatterns(days = 30) {
         if (!result || result.visits.length === 0) continue;
 
         const { domain, visits: rangeVisits } = result;
-        const category = classifySiteContext({
+        const categoryResult = resolveSiteCategoryContext({
           domain,
           url: result.url,
           title: result.title,
-          overrides: siteCategoryOverrides
+          overrides: siteCategoryOverrides,
+          suggestions: siteCategorySuggestions
         });
+        const category = categoryResult.category;
 
         for (const visit of rangeVisits) {
           const visitDate = new Date(visit.visitTime);
@@ -5973,6 +6127,92 @@ async function getBrowsingPatterns(days = 30) {
  */
 function getSiteCategories() {
   return SITE_CATEGORIES;
+}
+
+async function getSiteCategoryScanStatus(domain) {
+  const normalizedDomain = normalizeCategoryDomain(domain);
+  if (!normalizedDomain) {
+    return { shouldScan: false, reason: 'invalid-domain' };
+  }
+
+  const [overrides, suggestions] = await Promise.all([
+    getSiteCategoryOverrides(),
+    getSiteCategorySuggestions()
+  ]);
+
+  const overrideCategory = findSiteCategoryOverride(normalizedDomain, overrides);
+  if (overrideCategory && SITE_CATEGORIES[overrideCategory]) {
+    return { shouldScan: false, reason: 'manual-override', category: overrideCategory };
+  }
+
+  const builtInCategory = classifyDomain(normalizedDomain, null);
+  if (builtInCategory) {
+    return { shouldScan: false, reason: 'built-in-category', category: builtInCategory };
+  }
+
+  const suggestionEntry = findMatchingDomainEntry(normalizedDomain, suggestions);
+  if (isFreshSiteCategorySuggestion(suggestionEntry)) {
+    return {
+      shouldScan: false,
+      reason: suggestionEntry?.category ? 'suggestion-cached' : 'negative-cache',
+      category: suggestionEntry?.category || null,
+      confidence: suggestionEntry?.confidence || 0
+    };
+  }
+
+  return { shouldScan: true, reason: 'uncategorized-domain' };
+}
+
+async function saveSiteCategoryContentScan(payload = {}) {
+  const normalizedDomain = normalizeCategoryDomain(payload.domain);
+  if (!normalizedDomain) {
+    return { success: false, error: 'Domain is required' };
+  }
+
+  const [overrides, suggestions] = await Promise.all([
+    getSiteCategoryOverrides(),
+    getSiteCategorySuggestions()
+  ]);
+
+  const overrideCategory = findSiteCategoryOverride(normalizedDomain, overrides);
+  if (overrideCategory && SITE_CATEGORIES[overrideCategory]) {
+    return { success: true, skipped: true, reason: 'manual-override', category: overrideCategory };
+  }
+
+  const builtInCategory = classifyDomain(normalizedDomain, null);
+  if (builtInCategory) {
+    return { success: true, skipped: true, reason: 'built-in-category', category: builtInCategory };
+  }
+
+  const existingSuggestion = findMatchingDomainEntry(normalizedDomain, suggestions);
+  if (isFreshSiteCategorySuggestion(existingSuggestion)) {
+    return {
+      success: true,
+      skipped: true,
+      reason: existingSuggestion.category ? 'suggestion-cached' : 'negative-cache',
+      suggestion: existingSuggestion
+    };
+  }
+
+  const inferred = inferCategoryFromContentPayload(payload);
+  const entry = {
+    domain: normalizedDomain,
+    category: inferred.category,
+    confidence: inferred.confidence,
+    source: 'content-scan',
+    scannedAt: Date.now(),
+    version: SITE_CATEGORY_SCAN_VERSION,
+    sampleUrl: typeof payload.url === 'string' ? payload.url.slice(0, 300) : '',
+    sampleTitle: typeof payload.title === 'string' ? payload.title.slice(0, 160) : ''
+  };
+
+  suggestions[normalizedDomain] = entry;
+  await chrome.storage.local.set({ siteCategorySuggestions: suggestions });
+
+  return {
+    success: true,
+    suggestion: entry
+  };
 }
 
 async function setSiteCategoryOverride(domain, category) {

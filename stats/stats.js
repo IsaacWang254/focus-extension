@@ -814,6 +814,8 @@ function renderTopSites(sites) {
     const rankClass = index < 3 ? ` rank-${index + 1}` : '';
     const categoryName = availableSiteCategories[site.category]?.name || site.category || 'Uncategorized';
     const isUncategorized = !site.category;
+    const isSuggested = site.categorySource === 'content-scan';
+    const showCategoryEditor = isUncategorized || isSuggested;
 
     return `
       <div class="top-site-item${isUncategorized ? ' is-uncategorized' : ''}">
@@ -822,18 +824,21 @@ function renderTopSites(sites) {
           <div class="top-site-domain">${escapeHtml(formatDomainLabel(site.domain))}</div>
           <div class="top-site-meta">
             <div class="top-site-category">${escapeHtml(categoryName)}</div>
-            ${isUncategorized ? `
+            ${isSuggested ? `<span class="top-site-category-hint">Suggested</span>` : ''}
+            ${showCategoryEditor ? `
               <button class="top-site-categorize-btn" type="button">
-                Set category
+                ${isUncategorized ? 'Set category' : 'Change'}
               </button>
             ` : ''}
           </div>
-          ${isUncategorized ? `
+          ${showCategoryEditor ? `
             <div class="top-site-categorize-panel">
               <label class="top-site-categorize-label" for="top-site-category-${index}">Category</label>
               <select id="top-site-category-${index}" class="top-site-category-select" data-domain="${escapeHtml(site.domain)}">
                 <option value="">Choose one...</option>
-                ${categoryOptions}
+                ${Object.entries(availableSiteCategories).map(([key, category]) => `
+                  <option value="${escapeHtml(key)}" ${site.category === key ? 'selected' : ''}>${escapeHtml(category.name)}</option>
+                `).join('')}
               </select>
             </div>
           ` : ''}

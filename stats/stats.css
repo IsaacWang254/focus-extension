@@ -851,6 +851,12 @@ html {
   width: fit-content;
 }
 
+.top-site-category-hint {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
 .top-site-categorize-btn {
   padding: 0;
   border: none;

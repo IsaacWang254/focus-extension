@@ -50,6 +50,95 @@ function hasActiveTempUnblock(settings, tempUnblocks, currentDomain, now) {
 let evaluationInFlight = false;
 let pendingEvaluation = false;
 let lastEvaluatedUrl = '';
+let categoryScanInFlight = false;
+let scheduledCategoryScanDomain = '';
+
+function trimText(text, maxLength) {
+  const normalized = (text || '').replace(/\s+/g, ' ').trim();
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, maxLength - 3)}...`
+    : normalized;
+}
+
+function collectCategoryScanPayload(domain, url) {
+  const contentRoot = document.querySelector('main, article, [role="main"]') || document.body;
+  const title = trimText(document.title, 160);
+  const description = trimText(
+    document.querySelector('meta[name="description"]')?.getAttribute('content') || '',
+    280
+  );
+  const headings = trimText(
+    Array.from(document.querySelectorAll('h1, h2'))
+      .slice(0, 3)
+      .map((element) => trimText(element.textContent || '', 120))
+      .filter((text) => text.length >= 12)
+      .join(' '),
+    260
+  );
+  const snippet = trimText(
+    Array.from(contentRoot.querySelectorAll('p'))
+      .slice(0, 4)
+      .map((element) => trimText(element.textContent || '', 320))
+      .filter((text) => text.length >= 32)
+      .join(' '),
+    1200
+  );
+
+  return {
+    domain,
+    url,
+    title,
+    description,
+    headings,
+    snippet
+  };
+}
+
+async function waitForCategoryScanReady() {
+  if (document.readyState === 'loading') {
+    await new Promise((resolve) => {
+      document.addEventListener('DOMContentLoaded', resolve, { once: true });
+    });
+  }
+
+  await new Promise(resolve => setTimeout(resolve, 450));
+}
+
+async function maybeRunCategoryScan(settings, domain, url) {
+  if (categoryScanInFlight || !settings || settings.historyAnalysisEnabled === false) {
+    return;
+  }
+
+  if (!domain || domain === scheduledCategoryScanDomain) {
+    return;
+  }
+
+  categoryScanInFlight = true;
+  scheduledCategoryScanDomain = domain;
+
+  try {
+    const status = await chrome.runtime.sendMessage({
+      type: 'GET_SITE_CATEGORY_SCAN_STATUS',
+      domain
+    });
+
+    if (!status?.shouldScan) {
+      return;
+    }
+
+    await waitForCategoryScanReady();
+
+    const payload = collectCategoryScanPayload(domain, url);
+    await chrome.runtime.sendMessage({
+      type: 'SAVE_SITE_CATEGORY_CONTENT_SCAN',
+      payload
+    });
+  } catch (error) {
+    console.error('Focus Extension: site category scan error', error);
+  } finally {
+    categoryScanInFlight = false;
+  }
+}
 
 async function evaluateCurrentUrl() {
   if (evaluationInFlight) {
@@ -75,10 +164,14 @@ async function evaluateCurrentUrl() {
     ]);
 
     if (!settings || settings.error || !settings.enabled || isWhitelisted) {
+      if (settings && !settings.error && settings.enabled && isWhitelisted) {
+        queueMicrotask(() => maybeRunCategoryScan(settings, currentDomain, currentUrl));
+      }
       return;
     }
 
     if (hasActiveTempUnblock(settings, tempUnblocks, currentDomain, Date.now())) {
+      queueMicrotask(() => maybeRunCategoryScan(settings, currentDomain, currentUrl));
       return;
     }
 
@@ -87,6 +180,7 @@ async function evaluateCurrentUrl() {
       : !isDomainMatch(currentDomain, settings.allowedSites);
 
     if (!shouldBlock) {
+      queueMicrotask(() => maybeRunCategoryScan(settings, currentDomain, currentUrl));
       return;
     }
 

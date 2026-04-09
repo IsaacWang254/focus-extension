@@ -3465,7 +3465,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 .scroll-top-btn {
   position: fixed;
   left: calc(220px + ((100vw - 220px) / 2));
-  bottom: calc(var(--space-4) + 60px);
+  top: var(--space-4);
   width: 42px;
   height: 42px;
   display: inline-flex;
@@ -3504,7 +3504,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
 .scroll-top-btn.hidden {
   opacity: 0;
-  transform: translate(-50%, 10px);
+  transform: translate(-50%, -10px);
   pointer-events: none;
 }
 
@@ -4029,7 +4029,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
   .scroll-top-btn {
     left: 50%;
-    bottom: calc(var(--space-4) + 68px);
+    top: var(--space-4);
   }
 
   .settings-toolbar {
