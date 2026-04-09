@@ -3464,7 +3464,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
 .scroll-top-btn {
   position: fixed;
-  right: var(--space-4);
+  left: calc(220px + ((100vw - 220px) / 2));
   bottom: calc(var(--space-4) + 60px);
   width: 42px;
   height: 42px;
@@ -3479,6 +3479,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
   z-index: 59;
   cursor: pointer;
+  transform: translateX(-50%);
   transition:
     opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1),
     transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
@@ -3486,10 +3487,14 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     border-color 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.sidebar.collapsed + .main-wrapper .scroll-top-btn {
+  left: 50%;
+}
+
 .scroll-top-btn:hover {
   background: var(--settings-button-secondary-hover);
   border-color: var(--settings-surface-border);
-  transform: translateY(-2px);
+  transform: translate(-50%, -2px);
 }
 
 .scroll-top-btn svg {
@@ -3499,7 +3504,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
 .scroll-top-btn.hidden {
   opacity: 0;
-  transform: translateY(10px);
+  transform: translate(-50%, 10px);
   pointer-events: none;
 }
 
@@ -4023,7 +4028,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   }
 
   .scroll-top-btn {
-    right: var(--space-4);
+    left: 50%;
     bottom: calc(var(--space-4) + 68px);
   }
 

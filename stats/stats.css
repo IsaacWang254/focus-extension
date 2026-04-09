@@ -830,6 +830,13 @@ html {
   text-overflow: ellipsis;
 }
 
+.top-site-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 .top-site-category {
   display: inline-flex;
   align-items: center;
@@ -842,6 +849,50 @@ html {
   border-radius: var(--radius-full);
   color: var(--foreground);
   width: fit-content;
+}
+
+.top-site-categorize-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.top-site-categorize-btn:hover {
+  color: var(--indigo);
+}
+
+.top-site-categorize-panel {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.top-site-item.categorize-open .top-site-categorize-panel {
+  display: flex;
+}
+
+.top-site-categorize-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+
+.top-site-category-select {
+  max-width: 180px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.75rem;
 }
 
 .top-site-visits {

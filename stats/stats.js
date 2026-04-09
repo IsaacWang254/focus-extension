@@ -7,6 +7,7 @@
 // =============================================================================
 
 // All overview stats show all-time values for consistency
+let availableSiteCategories = {};
 
 // =============================================================================
 // INITIALIZATION
@@ -237,6 +238,44 @@ function setupEventListeners() {
   document.getElementById('back-btn').addEventListener('click', () => {
     window.close();
   });
+
+  const topSitesList = document.getElementById('top-sites-list');
+  topSitesList?.addEventListener('click', (event) => {
+    const categorizeButton = event.target.closest('.top-site-categorize-btn');
+    if (!categorizeButton) {
+      return;
+    }
+
+    const topSiteItem = categorizeButton.closest('.top-site-item');
+    topSiteItem?.classList.toggle('categorize-open');
+    topSiteItem?.querySelector('.top-site-category-select')?.focus();
+  });
+
+  topSitesList?.addEventListener('change', async (event) => {
+    const categorySelect = event.target.closest('.top-site-category-select');
+    if (!categorySelect) {
+      return;
+    }
+
+    const domain = categorySelect.dataset.domain;
+    const category = categorySelect.value;
+    if (!domain || !category) {
+      return;
+    }
+
+    try {
+      categorySelect.disabled = true;
+      await chrome.runtime.sendMessage({
+        type: 'SET_SITE_CATEGORY_OVERRIDE',
+        domain,
+        category
+      });
+      await loadHistoryAnalysis();
+    } catch (error) {
+      console.error('Failed to save site category override:', error);
+      categorySelect.disabled = false;
+    }
+  });
 }
 
 // =============================================================================
@@ -446,16 +485,20 @@ async function loadHistoryAnalysis() {
 
     // Load all history data in parallel
     const [
+      siteCategories,
       historyData,
       productivityData,
       weeklyPatterns,
       suggestions
     ] = await Promise.all([
+      chrome.runtime.sendMessage({ type: 'GET_SITE_CATEGORIES' }),
       chrome.runtime.sendMessage({ type: 'ANALYZE_HISTORY', days: 7 }),
       chrome.runtime.sendMessage({ type: 'GET_PRODUCTIVITY_SCORE', days: 7 }),
       chrome.runtime.sendMessage({ type: 'GET_BROWSING_PATTERNS', days: 7 }),
       chrome.runtime.sendMessage({ type: 'GET_BLOCK_SUGGESTIONS' })
     ]);
+
+    availableSiteCategories = siteCategories || {};
 
     // Check for errors in responses
     if (historyData?.error) {
@@ -763,29 +806,37 @@ function renderTopSites(sites) {
     return;
   }
 
-  // Category key to friendly name mapping
-  const categoryNames = {
-    socialMedia: 'Social Media',
-    entertainment: 'Entertainment',
-    news: 'News & Media',
-    gaming: 'Gaming',
-    shopping: 'Shopping',
-    forums: 'Forums & Communities',
-    productivity: 'Productivity',
-    education: 'Education',
-    email: 'Email'
-  };
+  const categoryOptions = Object.entries(availableSiteCategories)
+    .map(([key, category]) => `<option value="${escapeHtml(key)}">${escapeHtml(category.name)}</option>`)
+    .join('');
 
   container.innerHTML = sites.slice(0, 10).map((site, index) => {
     const rankClass = index < 3 ? ` rank-${index + 1}` : '';
-    const categoryName = categoryNames[site.category] || site.category || 'Uncategorized';
+    const categoryName = availableSiteCategories[site.category]?.name || site.category || 'Uncategorized';
+    const isUncategorized = !site.category;
 
     return `
-      <div class="top-site-item">
+      <div class="top-site-item${isUncategorized ? ' is-uncategorized' : ''}">
         <span class="top-site-rank${rankClass}">${index + 1}</span>
         <div class="top-site-info">
           <div class="top-site-domain">${escapeHtml(formatDomainLabel(site.domain))}</div>
-          <div class="top-site-category">${escapeHtml(categoryName)}</div>
+          <div class="top-site-meta">
+            <div class="top-site-category">${escapeHtml(categoryName)}</div>
+            ${isUncategorized ? `
+              <button class="top-site-categorize-btn" type="button">
+                Set category
+              </button>
+            ` : ''}
+          </div>
+          ${isUncategorized ? `
+            <div class="top-site-categorize-panel">
+              <label class="top-site-categorize-label" for="top-site-category-${index}">Category</label>
+              <select id="top-site-category-${index}" class="top-site-category-select" data-domain="${escapeHtml(site.domain)}">
+                <option value="">Choose one...</option>
+                ${categoryOptions}
+              </select>
+            </div>
+          ` : ''}
         </div>
         <span class="top-site-visits">${site.visits} visits</span>
       </div>

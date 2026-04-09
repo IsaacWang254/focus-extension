@@ -1441,6 +1441,12 @@ async function handleMessage(message, sender) {
     case 'GET_SITE_CATEGORIES':
       return getSiteCategories();
 
+    case 'SET_SITE_CATEGORY_OVERRIDE':
+      return await setSiteCategoryOverride(message.domain, message.category);
+
+    case 'REMOVE_SITE_CATEGORY_OVERRIDE':
+      return await removeSiteCategoryOverride(message.domain);
+
     // Google Calendar operations
     case 'CONNECT_GOOGLE_CALENDAR':
       return await connectGoogleCalendar();
@@ -5383,7 +5389,7 @@ const SITE_CATEGORIES = {
     name: 'Productivity',
     icon: 'PR',
     color: '#22c55e',
-    domains: ['google.com', 'docs.google.com', 'drive.google.com', 'notion.so', 'trello.com', 'asana.com', 'monday.com', 'slack.com', 'zoom.us', 'meet.google.com', 'teams.microsoft.com', 'github.com', 'gitlab.com', 'bitbucket.org', 'figma.com', 'canva.com']
+    domains: ['google.com', 'docs.google.com', 'drive.google.com', 'notion.so', 'trello.com', 'asana.com', 'monday.com', 'slack.com', 'zoom.us', 'meet.google.com', 'teams.microsoft.com', 'github.com', 'gitlab.com', 'bitbucket.org', 'figma.com', 'canva.com', 'openai.com', 'chatgpt.com', 'claude.ai', 'perplexity.ai', 'gemini.google.com']
   },
   education: {
     name: 'Education',
@@ -5399,13 +5405,149 @@ const SITE_CATEGORIES = {
   }
 };
 
+const SITE_CATEGORY_HEURISTICS = {
+  socialMedia: {
+    hostKeywords: ['social', 'community', 'thread', 'timeline', 'feed', 'microblog'],
+    pathKeywords: ['reel', 'reels', 'shorts', 'stories', 'story', 'post', 'posts', 'profile', 'profiles', 'status'],
+    titleKeywords: ['followers', 'following', 'likes', 'comments', 'timeline', 'profile', 'posts']
+  },
+  entertainment: {
+    hostKeywords: ['video', 'stream', 'music', 'podcast', 'movie', 'tv'],
+    pathKeywords: ['watch', 'listen', 'playlist', 'album', 'episode', 'episodes', 'show', 'shows', 'movie', 'movies', 'video', 'videos', 'stream'],
+    titleKeywords: ['watch', 'trailer', 'episode', 'playlist', 'listen', 'soundtrack']
+  },
+  news: {
+    hostKeywords: ['news', 'press', 'media', 'journal', 'times', 'post', 'herald', 'chronicle'],
+    pathKeywords: ['news', 'article', 'articles', 'politics', 'world', 'business', 'breaking', 'opinion'],
+    titleKeywords: ['breaking news', 'analysis', 'opinion', 'live updates', 'latest news']
+  },
+  gaming: {
+    hostKeywords: ['game', 'games', 'gaming', 'esports', 'steam', 'xbox', 'playstation', 'nintendo'],
+    pathKeywords: ['game', 'games', 'gaming', 'walkthrough', 'review', 'reviews', 'dlc', 'patch-notes'],
+    titleKeywords: ['game review', 'walkthrough', 'gameplay', 'esports', 'patch notes']
+  },
+  shopping: {
+    hostKeywords: ['shop', 'store', 'market', 'cart', 'checkout', 'deal', 'deals'],
+    pathKeywords: ['product', 'products', 'shop', 'store', 'cart', 'checkout', 'sale', 'deals', 'item', 'items'],
+    titleKeywords: ['buy now', 'shopping cart', 'checkout', 'free shipping', 'add to cart']
+  },
+  forums: {
+    hostKeywords: ['forum', 'forums', 'community', 'board', 'boards', 'discussion', 'discuss'],
+    pathKeywords: ['thread', 'threads', 'forum', 'forums', 'discussion', 'discussions', 'community', 'communities', 'comments'],
+    titleKeywords: ['discussion', 'forum', 'thread', 'community', 'comments']
+  },
+  productivity: {
+    hostKeywords: ['docs', 'drive', 'calendar', 'workspace', 'task', 'tasks', 'project', 'projects', 'crm', 'developer', 'api'],
+    pathKeywords: ['dashboard', 'docs', 'document', 'documents', 'sheet', 'sheets', 'task', 'tasks', 'project', 'projects', 'workspace', 'board', 'developer', 'reference', 'api'],
+    titleKeywords: ['dashboard', 'workspace', 'project', 'task', 'meeting notes', 'kanban', 'developer documentation', 'api reference']
+  },
+  education: {
+    hostKeywords: ['learn', 'course', 'courses', 'academy', 'school', 'university', 'edu', 'study'],
+    pathKeywords: ['learn', 'course', 'courses', 'lesson', 'lessons', 'tutorial', 'tutorials', 'lecture', 'lectures', 'class', 'classes'],
+    titleKeywords: ['course', 'tutorial', 'lesson', 'lecture', 'study guide']
+  },
+  email: {
+    hostKeywords: ['mail', 'inbox', 'email', 'webmail'],
+    pathKeywords: ['inbox', 'compose', 'mail', 'message', 'messages', 'email'],
+    titleKeywords: ['inbox', 'compose', 'sent mail', 'drafts']
+  }
+};
+
+function normalizeCategoryDomain(domain) {
+  return typeof domain === 'string'
+    ? domain.toLowerCase().trim().replace(/^www\./, '')
+    : '';
+}
+
+function tokenizeCategoryText(text) {
+  return (text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function keywordMatchesToken(tokens, keyword) {
+  return tokens.some((token) => token === keyword || token.includes(keyword));
+}
+
+function scoreHeuristicKeywords(tokens, keywords = [], weight = 1) {
+  let score = 0;
+  for (const keyword of keywords) {
+    if (keywordMatchesToken(tokens, keyword)) {
+      score += weight;
+    }
+  }
+  return score;
+}
+
+function inferCategoryFromSignals(domain, url = '', title = '') {
+  const normalizedDomain = normalizeCategoryDomain(domain);
+  const urlString = typeof url === 'string' ? url : '';
+  let pathname = '';
+
+  try {
+    pathname = new URL(urlString).pathname || '';
+  } catch {
+    pathname = '';
+  }
+
+  const hostTokens = tokenizeCategoryText(normalizedDomain.replace(/\./g, ' '));
+  const pathTokens = tokenizeCategoryText(pathname.replace(/[/_-]/g, ' '));
+  const titleTokens = tokenizeCategoryText(title);
+
+  let bestCategory = null;
+  let bestScore = 0;
+
+  for (const [categoryKey, signals] of Object.entries(SITE_CATEGORY_HEURISTICS)) {
+    const score =
+      scoreHeuristicKeywords(hostTokens, signals.hostKeywords, 3) +
+      scoreHeuristicKeywords(pathTokens, signals.pathKeywords, 2) +
+      scoreHeuristicKeywords(titleTokens, signals.titleKeywords, 2);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestCategory = categoryKey;
+    }
+  }
+
+  return bestScore >= 3 ? bestCategory : null;
+}
+
+async function getSiteCategoryOverrides() {
+  const result = await chrome.storage.local.get('siteCategoryOverrides');
+  return result.siteCategoryOverrides || {};
+}
+
+function findSiteCategoryOverride(domain, overrides = {}) {
+  const normalizedDomain = normalizeCategoryDomain(domain);
+  if (!normalizedDomain) {
+    return null;
+  }
+
+  const parts = normalizedDomain.split('.');
+  for (let index = 0; index < parts.length - 1; index += 1) {
+    const candidate = parts.slice(index).join('.');
+    if (overrides[candidate]) {
+      return overrides[candidate];
+    }
+  }
+
+  return overrides[normalizedDomain] || null;
+}
+
 /**
  * Classify a domain into a category
  * @param {string} domain - Domain to classify
  * @returns {string|null} Category key or null
  */
-function classifyDomain(domain) {
-  const normalizedDomain = domain.toLowerCase().replace(/^www\./, '');
+function classifyDomain(domain, overrides = null) {
+  const normalizedDomain = normalizeCategoryDomain(domain);
+
+  const overrideCategory = findSiteCategoryOverride(normalizedDomain, overrides || {});
+  if (overrideCategory && SITE_CATEGORIES[overrideCategory]) {
+    return overrideCategory;
+  }
 
   for (const [categoryKey, category] of Object.entries(SITE_CATEGORIES)) {
     for (const catDomain of category.domains) {
@@ -5418,6 +5560,15 @@ function classifyDomain(domain) {
   return null;
 }
 
+function classifySiteContext({ domain, url = '', title = '', overrides = null }) {
+  const directCategory = classifyDomain(domain, overrides);
+  if (directCategory) {
+    return directCategory;
+  }
+
+  return inferCategoryFromSignals(domain, url, title);
+}
+
 /**
  * Get browsing history for analysis
  * @param {number} days - Number of days to analyze (default 7)
@@ -5428,6 +5579,8 @@ async function analyzeHistory(days = 7) {
   const startTime = endTime - (days * 24 * 60 * 60 * 1000);
 
   try {
+    const siteCategoryOverrides = await getSiteCategoryOverrides();
+
     // Get history items (returns unique URLs visited in the time range)
     const historyItems = await chrome.history.search({
       text: '',
@@ -5472,13 +5625,20 @@ async function analyzeHistory(days = 7) {
         const { domain, visits: rangeVisits } = result;
         const visitCount = rangeVisits.length;
         totalVisits += visitCount;
+        const category = classifySiteContext({
+          domain,
+          url: result.item?.url || '',
+          title: result.item?.title || '',
+          overrides: siteCategoryOverrides
+        });
 
         // Domain stats
         if (!domainStats[domain]) {
           domainStats[domain] = {
             domain,
             visits: 0,
-            category: classifyDomain(domain),
+            category: null,
+            categoryVotes: {},
             lastVisit: 0
           };
         }
@@ -5487,9 +5647,12 @@ async function analyzeHistory(days = 7) {
           domainStats[domain].lastVisit,
           ...rangeVisits.map(v => v.visitTime)
         );
+        if (category) {
+          domainStats[domain].categoryVotes[category] =
+            (domainStats[domain].categoryVotes[category] || 0) + visitCount;
+        }
 
         // Category stats
-        const category = classifyDomain(domain);
         if (category) {
           if (!categoryStats[category]) {
             categoryStats[category] = {
@@ -5516,6 +5679,13 @@ async function analyzeHistory(days = 7) {
           dailyStats[dateKey] += 1;
         }
       }
+    }
+
+    for (const entry of Object.values(domainStats)) {
+      const sortedCategories = Object.entries(entry.categoryVotes || {})
+        .sort((a, b) => b[1] - a[1]);
+      entry.category = sortedCategories[0]?.[0] || classifyDomain(entry.domain, siteCategoryOverrides);
+      delete entry.categoryVotes;
     }
 
     // Convert category uniqueDomains Set to count
@@ -5717,6 +5887,8 @@ async function getBrowsingPatterns(days = 30) {
   const startTime = endTime - (days * 24 * 60 * 60 * 1000);
 
   try {
+    const siteCategoryOverrides = await getSiteCategoryOverrides();
+
     const historyItems = await chrome.history.search({
       text: '',
       startTime,
@@ -5742,7 +5914,7 @@ async function getBrowsingPatterns(days = 30) {
             const visits = await chrome.history.getVisits({ url: item.url });
             const rangeVisits = visits.filter(v => v.visitTime >= startTime && v.visitTime <= endTime);
 
-            return { domain, visits: rangeVisits };
+            return { domain, visits: rangeVisits, url: item.url, title: item.title || '' };
           } catch (e) {
             return null;
           }
@@ -5753,7 +5925,12 @@ async function getBrowsingPatterns(days = 30) {
         if (!result || result.visits.length === 0) continue;
 
         const { domain, visits: rangeVisits } = result;
-        const category = classifyDomain(domain);
+        const category = classifySiteContext({
+          domain,
+          url: result.url,
+          title: result.title,
+          overrides: siteCategoryOverrides
+        });
 
         for (const visit of rangeVisits) {
           const visitDate = new Date(visit.visitTime);
@@ -5796,6 +5973,43 @@ async function getBrowsingPatterns(days = 30) {
  */
 function getSiteCategories() {
   return SITE_CATEGORIES;
+}
+
+async function setSiteCategoryOverride(domain, category) {
+  const normalizedDomain = normalizeCategoryDomain(domain);
+  if (!normalizedDomain) {
+    return { success: false, error: 'Domain is required' };
+  }
+
+  if (!SITE_CATEGORIES[category]) {
+    return { success: false, error: 'Invalid category' };
+  }
+
+  const overrides = await getSiteCategoryOverrides();
+  overrides[normalizedDomain] = category;
+  await chrome.storage.local.set({ siteCategoryOverrides: overrides });
+
+  return {
+    success: true,
+    domain: normalizedDomain,
+    category
+  };
+}
+
+async function removeSiteCategoryOverride(domain) {
+  const normalizedDomain = normalizeCategoryDomain(domain);
+  if (!normalizedDomain) {
+    return { success: false, error: 'Domain is required' };
+  }
+
+  const overrides = await getSiteCategoryOverrides();
+  delete overrides[normalizedDomain];
+  await chrome.storage.local.set({ siteCategoryOverrides: overrides });
+
+  return {
+    success: true,
+    domain: normalizedDomain
+  };
 }
 
 // =============================================================================
