@@ -2336,6 +2336,17 @@ function setupEventListeners() {
       updateMethodStatus('method-reason', 'reason-status', false);
     }
   });
+  reasonInput.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' || event.shiftKey) return;
+
+    const unblockButton = document.getElementById('unblock-button');
+    if (!completedMethods.typeReason || unblockButton.disabled || unblockButton.dataset.navigating === 'true') {
+      return;
+    }
+
+    event.preventDefault();
+    unblockButton.click();
+  });
 
   const whitelistReasonInput = document.getElementById('whitelist-reason-input');
   const whitelistReasonCharCount = document.getElementById('whitelist-reason-char-count');
