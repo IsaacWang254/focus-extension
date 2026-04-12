@@ -27,3 +27,4 @@ dist/
 # Generated local config
 lib/config.js
 worker/wrangler.toml
+.superpowers/

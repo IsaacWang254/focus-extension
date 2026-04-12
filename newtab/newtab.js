@@ -329,7 +329,8 @@ function formatElapsedDuration(totalMinutes) {
 function renderBedtimeReminder(settings) {
   const reminderEl = document.getElementById('bedtime-reminder');
   const textEl = document.getElementById('bedtime-reminder-text');
-  if (!reminderEl || !textEl) {
+  const subEl = document.getElementById('bedtime-reminder-sub');
+  if (!reminderEl || !textEl || !subEl) {
     return;
   }
 
@@ -348,11 +349,12 @@ function renderBedtimeReminder(settings) {
   const elapsedText = formatElapsedDuration(elapsedMinutes);
 
   if (elapsedText) {
-    textEl.innerHTML = `You are <span class="bedtime-reminder-elapsed">${elapsedText}</span> past your planned shutdown time of ${formatReminderTime(startTime)}. Stay off until ${formatReminderTime(endTime)}.`;
-    return;
+    textEl.innerHTML = `You're <span class="bedtime-reminder-elapsed">${elapsedText}</span> past your ${formatReminderTime(startTime)} shutdown time.`;
+  } else {
+    textEl.textContent = `You planned to shut down at ${formatReminderTime(startTime)}.`;
   }
 
-  textEl.textContent = `You planned to start winding down at ${formatReminderTime(startTime)} and stay off until ${formatReminderTime(endTime)}. Wrap up, close the laptop, and head toward bed.`;
+  subEl.textContent = `Stay off until ${formatReminderTime(endTime)}`;
 }
 
 async function refreshBedtimeReminder() {

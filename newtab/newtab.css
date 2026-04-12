@@ -377,27 +377,16 @@ body {
 
 .bedtime-reminder {
   position: fixed;
-  top: 50%;
-  left: 50%;
+  inset: 0;
   z-index: 80;
-  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
-  width: min(calc(100vw - (var(--space-6) * 2)), 760px);
-  margin: 0;
-  padding: clamp(24px, 3vw, 32px);
-  border: 1px solid rgba(245, 158, 11, 0.34);
-  border-radius: 28px;
-  background:
-    linear-gradient(180deg, rgba(255, 251, 235, 0.94), rgba(255, 247, 237, 0.92)),
-    radial-gradient(circle at top, rgba(251, 191, 36, 0.18), transparent 58%);
-  box-shadow:
-    0 28px 80px rgba(15, 23, 42, 0.18),
-    0 0 0 1px rgba(255, 255, 255, 0.3) inset;
-  backdrop-filter: blur(18px);
-  animation: bedtimeReminderIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  justify-content: center;
+  padding: 40px 32px;
+  box-sizing: border-box;
+  background: var(--background);
+  animation: bedtimeReminderIn 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
   text-align: center;
 }
 
@@ -405,89 +394,57 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
-  border-radius: 999px;
-  color: #f59e0b;
-  background: rgba(255, 255, 255, 0.75);
-  box-shadow: 0 10px 24px rgba(245, 158, 11, 0.2);
+  border-radius: 50%;
+  color: var(--muted-foreground);
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  margin-bottom: 28px;
 }
 
 .bedtime-reminder-icon svg {
-  width: 26px;
-  height: 26px;
-}
-
-.bedtime-reminder-copy {
-  min-width: 0;
-  max-width: 58ch;
-}
-
-.bedtime-reminder-eyebrow {
-  margin: 0 0 8px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #b45309;
+  width: 20px;
+  height: 20px;
 }
 
 .bedtime-reminder-title {
-  margin: 0 0 10px;
-  font-size: clamp(1.5rem, 2.8vw, 2rem);
-  line-height: 1.08;
+  margin: 0 0 20px;
+  font-size: clamp(1.625rem, 4vw, 2.125rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
   color: var(--foreground);
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+.bedtime-reminder-divider {
+  width: 32px;
+  height: 1px;
+  background: var(--border);
+  margin: 0 auto 20px;
 }
 
 .bedtime-reminder-text {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.875rem;
   line-height: 1.7;
   color: var(--muted-foreground);
+  max-width: 320px;
 }
 
 .bedtime-reminder-elapsed {
-  color: #f59e0b;
-  font-weight: 600;
+  color: var(--foreground);
+  font-weight: 500;
 }
 
-[data-theme='dark'] .bedtime-reminder {
-  border-color: rgba(251, 191, 36, 0.28);
-  background:
-    linear-gradient(180deg, rgba(41, 24, 8, 0.9), rgba(59, 27, 10, 0.82)),
-    radial-gradient(circle at top, rgba(251, 191, 36, 0.14), transparent 58%);
-  box-shadow:
-    0 30px 80px rgba(0, 0, 0, 0.35),
-    0 0 0 1px rgba(251, 191, 36, 0.08) inset;
-}
-
-[data-theme='dark'] .bedtime-reminder-icon {
-  background: rgba(15, 23, 42, 0.58);
-}
-
-[data-theme='dark'] .bedtime-reminder-eyebrow {
-  color: #fbbf24;
-}
-
-[data-theme='dashboard-light'] .bedtime-reminder,
-[data-theme='dashboard-dark'] .bedtime-reminder {
-  border-color: var(--foreground);
-  background: var(--card);
-  box-shadow:
-    0 24px 60px rgba(15, 23, 42, 0.18),
-    0 0 0 1px var(--border) inset;
-}
-
-[data-theme='dashboard-light'] .bedtime-reminder-icon,
-[data-theme='dashboard-dark'] .bedtime-reminder-icon {
-  background: var(--foreground);
-  color: var(--background);
-}
-
-[data-theme='dashboard-light'] .bedtime-reminder-eyebrow,
-[data-theme='dashboard-dark'] .bedtime-reminder-eyebrow {
+.bedtime-reminder-sub {
+  margin: 8px 0 0;
+  font-size: 0.8125rem;
   color: var(--muted-foreground);
+  opacity: 0.7;
 }
 
 .settings-open {
@@ -1210,11 +1167,9 @@ body {
 @keyframes bedtimeReminderIn {
   from {
     opacity: 0;
-    transform: translate(-50%, calc(-50% - 14px)) scale(0.975);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
   }
 }
 
@@ -1603,15 +1558,7 @@ body {
   }
 
   .bedtime-reminder {
-    top: 50%;
-    width: calc(100vw - (var(--space-4) * 2));
-    padding: var(--space-4);
-    gap: var(--space-3);
-    border-radius: 24px;
-  }
-
-  .bedtime-reminder-title {
-    font-size: 1.1rem;
+    padding: 32px var(--space-4);
   }
 
   .content-panels {
