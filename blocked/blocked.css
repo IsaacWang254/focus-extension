@@ -1451,14 +1451,41 @@ body::before {
 .whitelist-link-target {
   margin: 0;
   padding: var(--space-3);
+  width: 100%;
+  box-sizing: border-box;
   background-color: color-mix(in srgb, var(--card) 82%, var(--secondary) 18%);
   border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
   border-radius: 16px;
   color: var(--foreground);
   font-size: 0.75rem;
   line-height: 1.45;
-  word-break: break-word;
+  word-break: break-all;
   font-family: var(--font-mono);
+  resize: vertical;
+  min-height: 3.5rem;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.whitelist-link-target:focus {
+  outline: none;
+  border-color: var(--ring);
+  background-color: var(--card);
+}
+
+.whitelist-link-target.error {
+  border-color: var(--destructive);
+}
+
+.whitelist-link-target-message {
+  margin: calc(var(--space-2) * -1) 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--destructive);
+  min-height: 1.05rem;
+}
+
+.whitelist-link-target-message:empty {
+  display: none;
 }
 
 .whitelist-link-card .btn-large {

@@ -538,8 +538,8 @@ body {
 
 [data-theme="dashboard-light"] .alert-item.locked,
 [data-theme="dashboard-dark"] .alert-item.locked {
-  border-color: var(--border);
-  border-left: 2px solid var(--foreground);
-  padding-left: calc(var(--space-3) - 1px);
+  background-color: var(--secondary);
+  border-color: var(--foreground);
+  color: var(--foreground);
   font-weight: 500;
 }

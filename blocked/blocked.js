@@ -237,15 +237,53 @@ function formatUrlForDisplay(url) {
   return url.length > 120 ? `${url.slice(0, 117)}...` : url;
 }
 
+function validateWhitelistUrl(rawValue) {
+  const trimmed = typeof rawValue === 'string' ? rawValue.trim() : '';
+  if (!trimmed) {
+    return { isValid: false, message: 'Enter a link to whitelist.', url: '' };
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return { isValid: false, message: 'Only http:// or https:// links can be whitelisted.', url: '' };
+    }
+    return { isValid: true, message: '', url: parsed.toString() };
+  } catch (_err) {
+    return { isValid: false, message: 'That does not look like a valid URL.', url: '' };
+  }
+}
+
+function getCurrentWhitelistUrlInput() {
+  const input = document.getElementById('whitelist-link-target');
+  return input ? input.value : '';
+}
+
 function updateWhitelistLinkButtonState() {
   const whitelistButton = document.getElementById('whitelist-link-button');
   if (!whitelistButton) {
     return;
   }
 
-  const targetUrl = getExactWhitelistTargetUrl();
-  const validation = getReasonValidation(currentWhitelistReason, getReasonMinLength());
-  whitelistButton.disabled = !targetUrl || !validation.isValid;
+  const urlValidation = validateWhitelistUrl(getCurrentWhitelistUrlInput());
+  const reasonValidation = getReasonValidation(currentWhitelistReason, getReasonMinLength());
+  whitelistButton.disabled = !urlValidation.isValid || !reasonValidation.isValid;
+}
+
+function updateWhitelistUrlFieldState() {
+  const input = document.getElementById('whitelist-link-target');
+  const message = document.getElementById('whitelist-link-target-message');
+  if (!input) return;
+
+  const raw = input.value;
+  const validation = validateWhitelistUrl(raw);
+  const hasContent = raw.trim().length > 0;
+  const showError = hasContent && !validation.isValid;
+
+  input.classList.toggle('error', showError);
+  if (message) {
+    message.textContent = showError ? validation.message : '';
+  }
 }
 
 function setupWhitelistLinkAction() {
@@ -261,10 +299,12 @@ function setupWhitelistLinkAction() {
   }
 
   container.style.display = 'block';
-  document.getElementById('whitelist-link-target').textContent = formatUrlForDisplay(targetUrl);
+  const urlInput = document.getElementById('whitelist-link-target');
+  urlInput.value = targetUrl;
   document.getElementById('whitelist-reason-min-chars').textContent = getReasonMinLength();
   document.getElementById('whitelist-reason-validation-message').textContent =
     `Write at least ${getReasonMinLength()} characters and use real words.`;
+  updateWhitelistUrlFieldState();
   updateWhitelistLinkButtonState();
 }
 
@@ -2364,6 +2404,22 @@ function setupEventListeners() {
     updateWhitelistLinkButtonState();
   });
 
+  const whitelistUrlInput = document.getElementById('whitelist-link-target');
+  if (whitelistUrlInput) {
+    whitelistUrlInput.addEventListener('input', () => {
+      updateWhitelistUrlFieldState();
+      updateWhitelistLinkButtonState();
+    });
+    whitelistUrlInput.addEventListener('blur', () => {
+      const validation = validateWhitelistUrl(whitelistUrlInput.value);
+      if (validation.isValid && validation.url) {
+        whitelistUrlInput.value = validation.url;
+      }
+      updateWhitelistUrlFieldState();
+      updateWhitelistLinkButtonState();
+    });
+  }
+
   // Unblock button
   const unblockButton = document.getElementById('unblock-button');
   unblockButton.addEventListener('click', async () => {
@@ -2432,10 +2488,15 @@ function setupEventListeners() {
   whitelistButton.addEventListener('click', async () => {
     if (whitelistButton.dataset.navigating === 'true') return;
 
-    const targetUrl = getExactWhitelistTargetUrl();
-    if (!targetUrl) {
+    const urlValidation = validateWhitelistUrl(getCurrentWhitelistUrlInput());
+    if (!urlValidation.isValid) {
+      updateWhitelistUrlFieldState();
+      updateWhitelistLinkButtonState();
+      const urlInput = document.getElementById('whitelist-link-target');
+      if (urlInput) urlInput.focus();
       return;
     }
+    const targetUrl = urlValidation.url;
 
     const validation = updateReasonFieldState(
       whitelistReasonInput,
