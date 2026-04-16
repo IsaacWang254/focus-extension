@@ -943,7 +943,7 @@ function renderInsights(productivityData) {
 
   if (insightsData.topProductiveSite) {
     insights.push({
-      type: 'neutral',
+      type: 'positive',
       title: 'Anchor site',
       text: `${insightsData.topProductiveSite} was the place you returned to most for productive work.`
     });
