@@ -190,6 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupSidebar();
   initializeSearchIcons();
   setupSearch();
+  setupCloseShortcut();
   setupScrollTopButton();
 
   // Store original settings snapshot AFTER DOM is fully populated,
@@ -283,6 +284,31 @@ function setupScrollTopButton() {
   });
 
   toggleVisibility();
+}
+
+function requestCloseSettingsWindow() {
+  if (isEmbeddedPopup && window.parent && window.parent !== window) {
+    window.parent.postMessage({ type: 'FOCUS_CLOSE_SETTINGS' }, '*');
+    return true;
+  }
+
+  return false;
+}
+
+function setupCloseShortcut() {
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || event.defaultPrevented) {
+      return;
+    }
+
+    const spotlightModal = document.getElementById('spotlight-modal');
+    if (spotlightModal && !spotlightModal.classList.contains('hidden')) {
+      return;
+    }
+
+    event.preventDefault();
+    requestCloseSettingsWindow();
+  });
 }
 
 function initializePageLayout() {
@@ -395,9 +421,10 @@ function setupSearch() {
       e.preventDefault();
       selectedIndex = selectedIndex <= 0 ? items.length - 1 : selectedIndex - 1;
       updateSearchSelection(items, selectedIndex);
-    } else if (e.key === 'Enter' && selectedIndex >= 0) {
+    } else if (e.key === 'Enter') {
       e.preventDefault();
-      items[selectedIndex]?.click();
+      const targetIndex = selectedIndex >= 0 ? selectedIndex : 0;
+      items[targetIndex]?.click();
       selectedIndex = -1;
     }
   });
@@ -557,12 +584,12 @@ function displaySearchResults(results, query) {
   }
 
   // Build results dropdown with tree-style hierarchy
-  searchResults.innerHTML = results.map(result => {
+  searchResults.innerHTML = results.map((result, index) => {
     const highlightedTitle = highlightMatch(result.title, query);
     const isSection = result.type === 'section';
 
     return `
-      <div class="search-result-item ${isSection ? 'is-section' : 'is-setting'}" data-section-id="${result.id}">
+      <div class="search-result-item ${isSection ? 'is-section' : 'is-setting'}" data-result-index="${index}">
         <div class="search-result-content">
           ${!isSection ? `<span class="search-result-parent">${escapeHtml(result.sectionTitle)}</span>` : ''}
           <div class="search-result-title">${highlightedTitle}</div>
@@ -576,23 +603,63 @@ function displaySearchResults(results, query) {
   // Handle result clicks
   searchResults.querySelectorAll('.search-result-item').forEach(item => {
     item.addEventListener('click', () => {
-      const sectionId = item.dataset.sectionId;
-      const section = document.getElementById(sectionId);
+      const resultIndex = Number(item.dataset.resultIndex);
+      const result = results[resultIndex];
+      if (!result) return;
 
-      if (section) {
-        hideSearchResults();
-        const pageId = getPageIdForSection(sectionId);
-        setActivePage(pageId);
-        requestAnimationFrame(() => {
-          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-      }
+      hideSearchResults();
+      navigateToSearchResult(result);
     });
   });
 }
 
 function getPageIdForSection(sectionId) {
   return document.getElementById(sectionId)?.dataset.page || activePageId;
+}
+
+function ensureSearchResultIsVisible(result) {
+  const section = document.getElementById(result.id);
+  if (!section) return null;
+
+  const targetSection = result.element?.closest?.('.section[id]') || section;
+
+  if (targetSection.id === 'section-allowed-sites') {
+    const modeRadio = document.querySelector('input[name="mode"][value="allowlist"]');
+    if (modeRadio && !modeRadio.checked) {
+      modeRadio.checked = true;
+      updateModeDisplay('allowlist');
+    }
+  }
+
+  return section;
+}
+
+function focusSearchTarget(target) {
+  if (!target || typeof target.focus !== 'function') return;
+
+  if (!target.hasAttribute('tabindex')) {
+    target.setAttribute('tabindex', '-1');
+  }
+
+  target.focus({ preventScroll: true });
+}
+
+function navigateToSearchResult(result) {
+  const section = ensureSearchResultIsVisible(result);
+  if (!section) return;
+
+  const pageId = getPageIdForSection(result.id);
+  const target = result.element || section;
+  setActivePage(pageId);
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      focusSearchTarget(target);
+      target.classList.add('search-highlight');
+      setTimeout(() => target.classList.remove('search-highlight'), 1500);
+    });
+  });
 }
 
 function highlightMatch(text, query) {
@@ -747,9 +814,10 @@ function setupSpotlightSearch(searchIndex) {
       e.preventDefault();
       selectedIndex = selectedIndex <= 0 ? items.length - 1 : selectedIndex - 1;
       updateSpotlightSelection(items, selectedIndex);
-    } else if (e.key === 'Enter' && selectedIndex >= 0) {
+    } else if (e.key === 'Enter') {
       e.preventDefault();
-      items[selectedIndex]?.click();
+      const targetIndex = selectedIndex >= 0 ? selectedIndex : 0;
+      items[targetIndex]?.click();
     }
   });
 
@@ -791,7 +859,7 @@ function displaySpotlightResults(results, query) {
     const isSection = result.type === 'section';
 
     return `
-      <div class="spotlight-result-item" data-section-id="${result.id}" data-index="${index}">
+      <div class="spotlight-result-item" data-index="${index}">
         <div class="spotlight-result-content">
           ${!isSection ? `<span class="spotlight-result-parent">${escapeHtml(result.sectionTitle)}</span>` : ''}
           <div class="spotlight-result-title">${highlightedTitle}</div>
@@ -804,22 +872,13 @@ function displaySpotlightResults(results, query) {
   // Handle result clicks
   resultsContainer.querySelectorAll('.spotlight-result-item').forEach(item => {
     item.addEventListener('click', () => {
-      const sectionId = item.dataset.sectionId;
-      const section = document.getElementById(sectionId);
+      const resultIndex = Number(item.dataset.index);
+      const result = results[resultIndex];
+      if (!result) return;
 
-      if (section) {
-        closeSpotlightSearch();
-        clearSearchFilter();
-
-        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        section.classList.add('search-highlight');
-        setTimeout(() => section.classList.remove('search-highlight'), 1500);
-
-        // Update sidebar active state
-        document.querySelectorAll('.sidebar-link').forEach(link => {
-          link.classList.toggle('active', link.getAttribute('href') === `#${sectionId}`);
-        });
-      }
+      closeSpotlightSearch();
+      clearSearchFilter();
+      navigateToSearchResult(result);
     });
   });
 }
@@ -2181,14 +2240,14 @@ function showSaveSuccess() {
   saveBtn.classList.add('saved');
   saveBtn.setAttribute('aria-busy', 'false');
 
-  // Keep the saved state visible long enough to read before the bar slides away.
+  // Keep the saved state visible long enough for the checkmark to draw + read.
   saveSuccessHideTimeoutId = setTimeout(() => {
     hideSaveBar();
     // Reset button state after bar transition
     saveSuccessResetTimeoutId = setTimeout(() => {
       saveBtn.classList.remove('saved');
-    }, 200);
-  }, 900);
+    }, 240);
+  }, 1250);
 }
 
 function resetSaveButton() {

@@ -640,6 +640,12 @@ function setupSettings() {
       closeSettings();
     }
   });
+
+  window.addEventListener('message', (event) => {
+    if (event.source !== frame.contentWindow) return;
+    if (event.data?.type !== 'FOCUS_CLOSE_SETTINGS') return;
+    closeSettings();
+  });
 }
 
 // =============================================================================
@@ -1352,6 +1358,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load settings and apply visibility
   await loadSettings();
   await loadFocusSnapshot();
+
 
   // Load data (in parallel)
   loadCalendar();

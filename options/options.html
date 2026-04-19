@@ -1553,8 +1553,18 @@
         <button id="save-btn" class="btn btn-primary btn-large" type="button">
           <span class="btn-labels" aria-live="polite">
             <span class="btn-text btn-text-default">Save</span>
-            <span class="btn-text btn-text-saving">Saving...</span>
-            <span class="btn-text btn-text-saved">Saved</span>
+            <span class="btn-text btn-text-saving">
+              <svg class="btn-spinner" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" pathLength="100" />
+              </svg>
+              <span>Saving</span>
+            </span>
+            <span class="btn-text btn-text-saved">
+              <svg class="btn-check" viewBox="0 0 24 24" aria-hidden="true">
+                <path class="btn-check-path" d="M5 12.5 L10 17 L19 7.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span>Saved</span>
+            </span>
           </span>
         </button>
       </div>

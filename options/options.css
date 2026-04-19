@@ -657,6 +657,24 @@ textarea.input:focus {
   color: var(--muted-foreground);
 }
 
+.search-highlight {
+  animation: searchTargetPulse 1.5s ease-out;
+}
+
+@keyframes searchTargetPulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--indigo) 28%, transparent);
+  }
+
+  35% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--indigo) 12%, transparent);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
 /* ============================================
    Sections
    ============================================ */
@@ -3513,13 +3531,13 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   position: relative;
   display: inline-grid;
   place-items: center;
-  min-width: 112px;
+  min-width: 132px;
   transition:
-    background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
-    color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    background-color 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    color 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 0.28s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 #save-btn .btn-labels {
@@ -3529,34 +3547,49 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
 #save-btn .btn-text {
   grid-area: 1 / 1;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   white-space: nowrap;
+  opacity: 0;
+  transform: translateY(6px) scale(0.96);
   transition:
-    opacity 0.18s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 0.16s cubic-bezier(0.4, 0, 1, 1),
+    transform 0.22s cubic-bezier(0.4, 0, 1, 1);
+  will-change: opacity, transform;
 }
 
-#save-btn .btn-text-saving,
-#save-btn .btn-text-saved {
-  opacity: 0;
-  transform: translateY(8px);
+/* Default: visible, no state class */
+#save-btn .btn-text-default {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity 0.22s cubic-bezier(0.32, 0.72, 0, 1) 0.08s,
+    transform 0.3s cubic-bezier(0.32, 0.72, 0, 1) 0.08s;
 }
 
-#save-btn.saving .btn-text-default,
-#save-btn.saved .btn-text-default {
+/* Saving state */
+#save-btn.saving .btn-text-default {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-6px) scale(0.96);
+  transition:
+    opacity 0.14s cubic-bezier(0.4, 0, 1, 1),
+    transform 0.2s cubic-bezier(0.4, 0, 1, 1);
+}
+
+#save-btn.saving .btn-text-saving {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity 0.22s cubic-bezier(0.32, 0.72, 0, 1) 0.1s,
+    transform 0.3s cubic-bezier(0.32, 0.72, 0, 1) 0.1s;
 }
 
 #save-btn.saving {
   pointer-events: none;
 }
 
-#save-btn.saving .btn-text-saving {
-  opacity: 1;
-  transform: translateY(0);
-}
-
+/* Saved state */
 #save-btn.saved {
   background: color-mix(in srgb, var(--background) 68%, #8faa92 32%);
   border-color: color-mix(in srgb, var(--border) 40%, #7f9b84 60%);
@@ -3566,17 +3599,73 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   pointer-events: none;
 }
 
+#save-btn.saved .btn-text-default,
+#save-btn.saved .btn-text-saving {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.96);
+  transition:
+    opacity 0.14s cubic-bezier(0.4, 0, 1, 1),
+    transform 0.2s cubic-bezier(0.4, 0, 1, 1);
+}
+
 #save-btn.saved .btn-text-saved {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
+  transition:
+    opacity 0.24s cubic-bezier(0.32, 0.72, 0, 1) 0.12s,
+    transform 0.34s cubic-bezier(0.34, 1.4, 0.64, 1) 0.12s;
+}
+
+/* Spinner icon (saving state) */
+#save-btn .btn-spinner {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  animation: btn-spinner-rotate 0.9s linear infinite;
+}
+
+#save-btn .btn-spinner circle {
+  stroke-dasharray: 72 100;
+  stroke-dashoffset: 0;
+  transform-origin: center;
+}
+
+@keyframes btn-spinner-rotate {
+  to { transform: rotate(360deg); }
+}
+
+/* Checkmark icon (saved state) */
+#save-btn .btn-check {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  overflow: visible;
+}
+
+#save-btn .btn-check-path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+}
+
+#save-btn.saved .btn-check-path {
+  animation: btn-check-draw 0.38s cubic-bezier(0.65, 0, 0.35, 1) 0.18s forwards;
+}
+
+@keyframes btn-check-draw {
+  to { stroke-dashoffset: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .scroll-top-btn,
   #save-btn,
-  #save-btn .btn-text {
+  #save-btn .btn-text,
+  #save-btn .btn-spinner,
+  #save-btn .btn-check-path {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+  #save-btn .btn-check-path {
+    stroke-dashoffset: 0 !important;
   }
 }
 
