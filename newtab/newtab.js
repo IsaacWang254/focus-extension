@@ -5,6 +5,7 @@
 
 import * as todoist from '../lib/todoist.js';
 import { getDailyQuote } from './quotes.js';
+import { initOceanShader } from './ocean-shader.js';
 
 // =============================================================================
 // CONSTANTS
@@ -21,6 +22,7 @@ const DEFAULTS = {
   newtabShowCalendar: true,
   newtabShowTodos: true,
   newtabShowFocusSnapshot: true,
+  newtabShowOceanBackground: true,
   newtabTempUnit: 'C', // 'C' or 'F'
   newtabBgImageLight: '',
   newtabBgImageDark: '',
@@ -185,6 +187,52 @@ function setupThemeToggle() {
     // Refresh background color for the new theme
     await refreshBgColor();
   });
+}
+
+// Classic (afl_ext-faithful) for light themes, night variant for dark themes
+const OCEAN_MODE = { CLASSIC: 2, NIGHT: 1 };
+
+function getOceanModeForTheme() {
+  const theme = document.documentElement.getAttribute('data-theme') || '';
+  return theme.includes('dark') ? OCEAN_MODE.NIGHT : OCEAN_MODE.CLASSIC;
+}
+
+let oceanShader = null;
+let oceanShaderInitFailed = false;
+
+function ensureOceanShader() {
+  if (oceanShader || oceanShaderInitFailed) return oceanShader;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    oceanShaderInitFailed = true;
+    return null;
+  }
+  const canvas = document.getElementById('bg-ocean');
+  if (!canvas) return null;
+  oceanShader = initOceanShader(canvas, { mode: getOceanModeForTheme() });
+  if (!oceanShader) {
+    oceanShaderInitFailed = true;
+    return null;
+  }
+  const observer = new MutationObserver(() => {
+    oceanShader.setMode(getOceanModeForTheme());
+  });
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  return oceanShader;
+}
+
+function applyOceanBackgroundSetting(enabled) {
+  const canvas = document.getElementById('bg-ocean');
+  if (!canvas) return;
+  if (enabled) {
+    canvas.style.display = '';
+    const handle = ensureOceanShader();
+    if (handle) handle.start();
+  } else if (oceanShader) {
+    oceanShader.stop();
+    canvas.style.display = 'none';
+  } else {
+    canvas.style.display = 'none';
+  }
 }
 
 function setupBrowserThemeSyncListener() {
@@ -558,6 +606,7 @@ async function loadSettings() {
 
   // Apply visibility
   applyVisibility(settings);
+  applyOceanBackgroundSetting(settings.newtabShowOceanBackground !== false);
   renderBedtimeReminder(settings);
 
   const bgImageKey = getBgImageStorageKey();
@@ -1291,6 +1340,7 @@ function setupStorageSync() {
       'newtabShowCalendar',
       'newtabShowTodos',
       'newtabShowFocusSnapshot',
+      'newtabShowOceanBackground',
       'bedtimeReminderEnabled',
       'bedtimeReminderTime',
       'bedtimeReminderEndTime',

@@ -108,6 +108,7 @@ const DEFAULT_SETTINGS = {
   newtabShowCalendar: true,
   newtabShowTodos: true,
   newtabShowFocusSnapshot: true,
+  newtabShowOceanBackground: true,
   newtabTempUnit: 'C',
   newtabBgImageLight: '',
   newtabBgImageDark: '',

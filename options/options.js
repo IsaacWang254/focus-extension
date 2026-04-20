@@ -1026,6 +1026,7 @@ function populateNewtabAppearanceSettings() {
   document.getElementById('newtab-show-calendar').checked = settings.newtabShowCalendar !== false;
   document.getElementById('newtab-show-todos').checked = settings.newtabShowTodos !== false;
   document.getElementById('newtab-show-focus-snapshot').checked = settings.newtabShowFocusSnapshot !== false;
+  document.getElementById('newtab-show-ocean-background').checked = settings.newtabShowOceanBackground !== false;
 
   const unit = settings.newtabTempUnit || 'C';
   document.querySelectorAll('.newtab-temp-unit-btn').forEach((button) => {
@@ -1041,7 +1042,8 @@ function setupNewtabAppearanceControls() {
     'newtab-show-quotes',
     'newtab-show-calendar',
     'newtab-show-todos',
-    'newtab-show-focus-snapshot'
+    'newtab-show-focus-snapshot',
+    'newtab-show-ocean-background'
   ];
 
   toggleIds.forEach((id) => {
@@ -2129,6 +2131,7 @@ async function saveSettings() {
   settings.newtabShowCalendar = document.getElementById('newtab-show-calendar').checked;
   settings.newtabShowTodos = document.getElementById('newtab-show-todos').checked;
   settings.newtabShowFocusSnapshot = document.getElementById('newtab-show-focus-snapshot').checked;
+  settings.newtabShowOceanBackground = document.getElementById('newtab-show-ocean-background').checked;
   settings.newtabTempUnit = document.querySelector('.newtab-temp-unit-btn.active')?.dataset.unit || 'C';
   settings.newtabBgImageLight = settings.newtabBgImageLight || '';
   settings.newtabBgImageDark = settings.newtabBgImageDark || '';
@@ -2200,6 +2203,7 @@ async function saveSettings() {
       newtabShowCalendar: settings.newtabShowCalendar,
       newtabShowTodos: settings.newtabShowTodos,
       newtabShowFocusSnapshot: settings.newtabShowFocusSnapshot,
+      newtabShowOceanBackground: settings.newtabShowOceanBackground,
       newtabTempUnit: settings.newtabTempUnit,
       newtabBgImageLight: settings.newtabBgImageLight,
       newtabBgImageDark: settings.newtabBgImageDark
@@ -2633,6 +2637,7 @@ function gatherCurrentSettings() {
     newtabShowCalendar: document.getElementById('newtab-show-calendar').checked,
     newtabShowTodos: document.getElementById('newtab-show-todos').checked,
     newtabShowFocusSnapshot: document.getElementById('newtab-show-focus-snapshot').checked,
+    newtabShowOceanBackground: document.getElementById('newtab-show-ocean-background').checked,
     newtabTempUnit: document.querySelector('.newtab-temp-unit-btn.active')?.dataset.unit || 'C',
     newtabBgImageLight: settings.newtabBgImageLight || '',
     newtabBgImageDark: settings.newtabBgImageDark || '',
