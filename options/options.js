@@ -1028,6 +1028,14 @@ function populateNewtabAppearanceSettings() {
   document.getElementById('newtab-show-focus-snapshot').checked = settings.newtabShowFocusSnapshot !== false;
   document.getElementById('newtab-show-ocean-background').checked = settings.newtabShowOceanBackground !== false;
 
+  const speedInput = document.getElementById('newtab-ocean-wave-speed');
+  const speedValue = document.getElementById('newtab-ocean-wave-speed-value');
+  if (speedInput && speedValue) {
+    const speed = Number.isFinite(settings.newtabOceanWaveSpeed) ? settings.newtabOceanWaveSpeed : 0.8;
+    speedInput.value = String(speed);
+    speedValue.textContent = `${Number(speed).toFixed(1)}×`;
+  }
+
   const unit = settings.newtabTempUnit || 'C';
   document.querySelectorAll('.newtab-temp-unit-btn').forEach((button) => {
     button.classList.toggle('active', button.dataset.unit === unit);
@@ -1049,6 +1057,15 @@ function setupNewtabAppearanceControls() {
   toggleIds.forEach((id) => {
     document.getElementById(id)?.addEventListener('change', markAsChanged);
   });
+
+  const speedInput = document.getElementById('newtab-ocean-wave-speed');
+  const speedValue = document.getElementById('newtab-ocean-wave-speed-value');
+  if (speedInput && speedValue) {
+    speedInput.addEventListener('input', () => {
+      speedValue.textContent = `${Number(speedInput.value).toFixed(1)}×`;
+      markAsChanged();
+    });
+  }
 
   document.querySelectorAll('.newtab-temp-unit-btn').forEach((button) => {
     button.addEventListener('click', () => {
@@ -2132,6 +2149,7 @@ async function saveSettings() {
   settings.newtabShowTodos = document.getElementById('newtab-show-todos').checked;
   settings.newtabShowFocusSnapshot = document.getElementById('newtab-show-focus-snapshot').checked;
   settings.newtabShowOceanBackground = document.getElementById('newtab-show-ocean-background').checked;
+  settings.newtabOceanWaveSpeed = parseFloat(document.getElementById('newtab-ocean-wave-speed')?.value) || 0.8;
   settings.newtabTempUnit = document.querySelector('.newtab-temp-unit-btn.active')?.dataset.unit || 'C';
   settings.newtabBgImageLight = settings.newtabBgImageLight || '';
   settings.newtabBgImageDark = settings.newtabBgImageDark || '';
@@ -2204,6 +2222,7 @@ async function saveSettings() {
       newtabShowTodos: settings.newtabShowTodos,
       newtabShowFocusSnapshot: settings.newtabShowFocusSnapshot,
       newtabShowOceanBackground: settings.newtabShowOceanBackground,
+      newtabOceanWaveSpeed: settings.newtabOceanWaveSpeed,
       newtabTempUnit: settings.newtabTempUnit,
       newtabBgImageLight: settings.newtabBgImageLight,
       newtabBgImageDark: settings.newtabBgImageDark
@@ -2638,6 +2657,7 @@ function gatherCurrentSettings() {
     newtabShowTodos: document.getElementById('newtab-show-todos').checked,
     newtabShowFocusSnapshot: document.getElementById('newtab-show-focus-snapshot').checked,
     newtabShowOceanBackground: document.getElementById('newtab-show-ocean-background').checked,
+    newtabOceanWaveSpeed: parseFloat(document.getElementById('newtab-ocean-wave-speed')?.value) || 0.8,
     newtabTempUnit: document.querySelector('.newtab-temp-unit-btn.active')?.dataset.unit || 'C',
     newtabBgImageLight: settings.newtabBgImageLight || '',
     newtabBgImageDark: settings.newtabBgImageDark || '',

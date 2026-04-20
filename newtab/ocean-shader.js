@@ -81,7 +81,8 @@ const FRAG_SRC = `
   vec3 getRay(vec2 frag){
     vec2 uv = ((frag / iResolution) * 2.0 - 1.0) * vec2(iResolution.x/iResolution.y, 1.0);
     vec3 proj = normalize(vec3(uv.x, uv.y, 1.5));
-    return rotAxis(vec3(1,0,0), 0.18) * proj;
+    // 0.14 tilt matches earendil's framing (more sky, gentler horizon)
+    return rotAxis(vec3(1,0,0), 0.14) * proj;
   }
 
   float intersectPlane(vec3 o, vec3 d, vec3 p, vec3 n){
@@ -105,44 +106,52 @@ const FRAG_SRC = `
     return bluesky2 * (1.0 + 1.0 * pow(1.0 - raydir.y, 3.0));
   }
 
+  // Grey atmosphere with subtle sundir influence. Used ONLY for water
+  // reflection — the sky itself is a flat color. This gives the waves
+  // their glossy earendil-style highlights without tinting the sky.
+  vec3 extra_cheap_atmosphere_grey(vec3 raydir, vec3 sundir) {
+    float t1 = 1.0 / (raydir.y * 1.0 + 0.1);
+    float t2 = 1.0 / (sundir.y * 11.0 + 1.0);
+    float raysundt = pow(abs(dot(sundir, raydir)), 2.0);
+    vec3 TINT = vec3(12.0, 12.0, 13.0) / 22.4;
+    vec3 suncolor = mix(vec3(1.0), max(vec3(0.0), vec3(1.0) - TINT), t2);
+    vec3 sky = TINT * suncolor;
+    vec3 sky2 = max(vec3(0.0), sky - vec3(12.0, 12.0, 13.0) * 0.002 * (t1 + -6.0 * sundir.y * sundir.y));
+    sky2 *= t1 * (0.24 + raysundt * 0.24);
+    return sky2 * (1.0 + 1.0 * pow(1.0 - raydir.y, 3.0)) * 0.5;
+  }
+
   vec3 getAtmosphere(vec3 dir) { return extra_cheap_atmosphere(dir, getSunDirection()) * 0.5; }
   float getSun(vec3 dir) { return pow(max(0.0, dot(dir, getSunDirection())), 720.0) * 210.0; }
 
   vec3 getClassicSky(vec3 d){ return getAtmosphere(d) + getSun(d); }
 
   float stars(vec3 d){
-    if(d.y < 0.04) return 0.0;
+    if(d.y < 0.02) return 0.0;
     float azim = atan(d.z, d.x) / (2.0 * PI) + 0.5;
     vec2 uv = vec2(azim, clamp(d.y, 0.0, 1.0));
-    vec2 gridSize = vec2(260.0, 110.0);
+    vec2 gridSize = vec2(300.0, 130.0);
     vec2 cell = floor(uv * gridSize);
     vec2 cellUv = fract(uv * gridSize);
     float r = hash21(cell);
-    if (r < 0.94) return 0.0;
-    vec2 starPos = vec2(0.25 + hash21(cell + 0.11) * 0.5,
-                        0.25 + hash21(cell + 0.13) * 0.5);
+    if (r < 0.88) return 0.0;
+    vec2 starPos = vec2(0.2 + hash21(cell + 0.11) * 0.6,
+                        0.2 + hash21(cell + 0.13) * 0.6);
     float dist = length(cellUv - starPos);
-    float size = 0.045 + hash21(cell + 0.17) * 0.03;
+    float size = 0.06 + hash21(cell + 0.17) * 0.05;
     float core = smoothstep(size, 0.0, dist);
-    float brightness = mix(0.5, 1.0, hash21(cell + 0.23));
-    float flicker = 0.8 + 0.2 * sin(iTime * (0.7 + hash21(cell + 0.29) * 1.3)
+    float brightness = mix(0.7, 1.0, hash21(cell + 0.23));
+    float flicker = 0.85 + 0.15 * sin(iTime * (0.7 + hash21(cell + 0.29) * 1.3)
                                    + hash21(cell + 0.31) * 6.28);
-    float horizonFade = smoothstep(0.04, 0.22, d.y);
+    float horizonFade = smoothstep(0.02, 0.16, d.y);
     return core * brightness * flicker * horizonFade;
   }
 
   vec3 getNightSky(vec3 d){
-    vec3 topColor = vec3(0.012, 0.018, 0.048);
-    vec3 botColor = vec3(0.03, 0.04, 0.075);
-    vec3 color = mix(botColor, topColor, smoothstep(0.0, 0.5, d.y));
-    color += vec3(0.92, 0.96, 1.0) * stars(d);
-    vec3 moonDir = normalize(vec3(0.4, 0.35, 0.82));
-    float moonDot = max(0.0, dot(d, moonDir));
-    float moonDisc = smoothstep(0.9990, 0.9998, moonDot);
-    float moonHalo = pow(moonDot, 220.0) * 0.3;
-    color += vec3(0.88, 0.91, 0.96) * (moonDisc * 2.0 + moonHalo);
-    float horizon = 1.0 - smoothstep(0.0, 0.15, d.y);
-    color += vec3(0.06, 0.10, 0.18) * horizon * 0.3;
+    // Flat grey sky — the time-of-day light source does NOT affect the sky,
+    // only the water. Stars are the only sky feature.
+    vec3 color = vec3(0.12);
+    color += vec3(1.0) * stars(d) * 1.4;
     return color;
   }
 
@@ -162,44 +171,59 @@ const FRAG_SRC = `
 
   void main(){
     vec3 ray = getRay(gl_FragCoord.xy);
-    if(ray.y >= 0.0){
-      vec3 C = skyFor(ray);
-      gl_FragColor = vec4(acesTonemap(C * 2.0), 1.0);
-      return;
-    }
-
-    vec3 origin = vec3(iTime*0.2, CAMERA_HEIGHT, 1.0);
-    float hiHit = intersectPlane(origin, ray, vec3(0), vec3(0,1,0));
-    float loHit = intersectPlane(origin, ray, vec3(0,-WATER_DEPTH,0), vec3(0,1,0));
-    vec3 hiPos = origin + ray*hiHit;
-    vec3 loPos = origin + ray*loHit;
-
-    float dist = raymarchwater(origin, hiPos, loPos, WATER_DEPTH);
-    vec3 hitPos = origin + ray*dist;
-    vec3 N = normalAt(hitPos.xz, 0.01, WATER_DEPTH);
-    N = mix(N, vec3(0,1,0), 0.8 * min(1.0, sqrt(dist*0.01)*1.1));
-
-    float fresnel = 0.04 + (1.0 - 0.04) * pow(1.0 - max(0.0, dot(-N, ray)), 5.0);
-    vec3 R = normalize(reflect(ray, N));
-    R.y = abs(R.y);
-
     vec3 C;
-    if(u_mode == 1){
-      vec3 reflection = getNightSky(R);
-      vec3 scattering = vec3(0.015, 0.02, 0.035) * (0.2 + (hitPos.y + WATER_DEPTH) / WATER_DEPTH);
-      vec3 moonDir = normalize(vec3(0.4, 0.35, 0.82));
-      float spec = pow(max(0.0, dot(R, moonDir)), 24.0);
-      C = fresnel * reflection + scattering + spec * vec3(0.85, 0.88, 0.95) * 0.3 * fresnel;
-      float fogAmount = 1.0 - exp(-dist * 0.02);
-      C = mix(C, vec3(0.03, 0.04, 0.07), fogAmount);
-      C *= 1.7;
+    if(ray.y >= 0.0){
+      C = skyFor(ray);
     } else {
-      vec3 reflection = getAtmosphere(R) + getSun(R);
-      vec3 scattering = vec3(0.0293, 0.0698, 0.1717) * 0.1 * (0.2 + (hitPos.y + WATER_DEPTH) / WATER_DEPTH);
-      C = fresnel * reflection + scattering;
+      vec3 origin = vec3(iTime*0.2, CAMERA_HEIGHT, 1.0);
+      float hiHit = intersectPlane(origin, ray, vec3(0), vec3(0,1,0));
+      float loHit = intersectPlane(origin, ray, vec3(0,-WATER_DEPTH,0), vec3(0,1,0));
+      vec3 hiPos = origin + ray*hiHit;
+      vec3 loPos = origin + ray*loHit;
+
+      float dist = raymarchwater(origin, hiPos, loPos, WATER_DEPTH);
+      vec3 hitPos = origin + ray*dist;
+      vec3 N = normalAt(hitPos.xz, 0.01, WATER_DEPTH);
+      N = mix(N, vec3(0,1,0), 0.8 * min(1.0, sqrt(dist*0.01)*1.1));
+
+      float fresnel = 0.04 + (1.0 - 0.04) * pow(1.0 - max(0.0, dot(-N, ray)), 5.0);
+      vec3 R = normalize(reflect(ray, N));
+      R.y = abs(R.y);
+
+      if(u_mode == 1){
+        // Water reflects the flat grey sky, plus a pinpointed specular
+        // highlight toward the time-of-day direction (the "sun"). The
+        // highlight is narrow — only a small glossy spot, not a full
+        // horizon band.
+        vec3 skyRefl = vec3(0.12);
+        float spec = pow(max(0.0, dot(R, getSunDirection())), 96.0);
+        vec3 reflection = skyRefl + vec3(1.4) * spec;
+        vec3 scattering = vec3(0.04, 0.04, 0.045) * (0.2 + (hitPos.y + WATER_DEPTH) / WATER_DEPTH);
+        C = fresnel * reflection + scattering;
+      } else {
+        vec3 reflection = getAtmosphere(R) + getSun(R);
+        vec3 scattering = vec3(0.0293, 0.0698, 0.1717) * 0.1 * (0.2 + (hitPos.y + WATER_DEPTH) / WATER_DEPTH);
+        C = fresnel * reflection + scattering;
+      }
     }
 
-    gl_FragColor = vec4(acesTonemap(C * 2.0), 1.0);
+    vec3 finalColor = acesTonemap(C * 2.0);
+
+    if(u_mode == 1){
+      // Film-grain post-process matching earendil: convert to grayscale,
+      // add gaussian-ish noise, then remap to a dark→light palette.
+      float gray = dot(finalColor, vec3(0.299, 0.587, 0.114));
+      vec2 nuv = gl_FragCoord.xy / iResolution;
+      float seed = dot(nuv * iResolution, vec2(12.9898, 78.233));
+      float n = fract(sin(seed) * 43758.5453 + iTime * 1.5);
+      float o = 0.36;
+      n = (1.0 / (o * 2.5066)) * exp(-(n * n) / (2.0 * o * o));
+      gray = clamp(gray + n * (1.0 - gray) * 0.065, 0.0, 1.0);
+      gray = pow(gray, 1.6);
+      finalColor = mix(vec3(0.01), vec3(0.42), gray);
+    }
+
+    gl_FragColor = vec4(finalColor, 1.0);
   }
 `;
 
@@ -248,10 +272,10 @@ export function initOceanShader(canvas, { mode = 0 } = {}) {
   const state = {
     running: false,
     rafId: null,
-    startMs: performance.now(),
-    accumMs: 0,
-    lastResumeMs: performance.now(),
+    virtualMs: 0,
+    lastTickMs: performance.now(),
     mode,
+    speed: 1.0,
     dpr: Math.min(window.devicePixelRatio || 1, 2),
     scale: 0.55,
   };
@@ -265,27 +289,33 @@ export function initOceanShader(canvas, { mode = 0 } = {}) {
     }
   }
 
-  function frame() {
-    if (!state.running) return;
+  function renderOnce() {
     resize();
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.uniform2f(uRes, canvas.width, canvas.height);
-    const elapsedSec = (state.accumMs + (performance.now() - state.lastResumeMs)) / 1000;
-    gl.uniform1f(uTime, elapsedSec);
+    gl.uniform1f(uTime, state.virtualMs / 1000);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
+
+  function frame() {
+    if (!state.running) return;
+    const now = performance.now();
+    const dt = Math.min(now - state.lastTickMs, 100);
+    state.lastTickMs = now;
+    state.virtualMs += dt * state.speed;
+    renderOnce();
     state.rafId = requestAnimationFrame(frame);
   }
 
   function start() {
     if (state.running) return;
     state.running = true;
-    state.lastResumeMs = performance.now();
+    state.lastTickMs = performance.now();
     state.rafId = requestAnimationFrame(frame);
   }
 
   function stop() {
     if (!state.running) return;
-    state.accumMs += performance.now() - state.lastResumeMs;
     state.running = false;
     if (state.rafId != null) {
       cancelAnimationFrame(state.rafId);
@@ -297,14 +327,12 @@ export function initOceanShader(canvas, { mode = 0 } = {}) {
     state.mode = m | 0;
     gl.useProgram(prog);
     gl.uniform1i(uMode, state.mode);
-    if (!state.running) {
-      resize();
-      gl.viewport(0, 0, canvas.width, canvas.height);
-      gl.uniform2f(uRes, canvas.width, canvas.height);
-      const elapsedSec = state.accumMs / 1000;
-      gl.uniform1f(uTime, elapsedSec);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-    }
+    if (!state.running) renderOnce();
+  }
+
+  function setSpeed(s) {
+    const clamped = Math.max(0, Math.min(3, Number.isFinite(s) ? s : 1));
+    state.speed = clamped;
   }
 
   const onResize = () => resize();
@@ -328,5 +356,5 @@ export function initOceanShader(canvas, { mode = 0 } = {}) {
 
   start();
 
-  return { setMode, start, stop, destroy };
+  return { setMode, setSpeed, start, stop, destroy };
 }

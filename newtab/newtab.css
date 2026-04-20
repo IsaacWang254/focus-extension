@@ -34,6 +34,82 @@ body {
 }
 
 /* ============================================
+   Readability over ocean shader
+   ============================================ */
+
+.ocean-active .clock,
+.ocean-active .weather-temp,
+.ocean-active .weather-desc,
+.ocean-active .weather-highlow,
+.ocean-active .weather-icon,
+.ocean-active .quote-text,
+.ocean-active .quote-author {
+  text-shadow:
+    0 0 18px rgba(0, 0, 0, 0.45),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dashboard-dark"].ocean-active .clock,
+[data-theme="dashboard-dark"].ocean-active .weather-temp,
+[data-theme="dashboard-dark"].ocean-active .weather-desc,
+[data-theme="dashboard-dark"].ocean-active .weather-highlow,
+[data-theme="dashboard-dark"].ocean-active .weather-icon,
+[data-theme="dashboard-dark"].ocean-active .quote-text,
+[data-theme="dashboard-dark"].ocean-active .quote-author,
+[data-theme="dark"].ocean-active .clock,
+[data-theme="dark"].ocean-active .weather-temp,
+[data-theme="dark"].ocean-active .weather-desc,
+[data-theme="dark"].ocean-active .weather-highlow,
+[data-theme="dark"].ocean-active .weather-icon,
+[data-theme="dark"].ocean-active .quote-text,
+[data-theme="dark"].ocean-active .quote-author {
+  text-shadow:
+    0 0 18px rgba(0, 0, 0, 0.7),
+    0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.ocean-active .clock,
+.ocean-active .weather-temp,
+.ocean-active .panel-title {
+  color: #ffffff;
+}
+
+.ocean-active .clock-separator {
+  opacity: 0.9;
+}
+
+.ocean-active .weather-desc,
+.ocean-active .weather-highlow,
+.ocean-active .quote-text,
+.ocean-active .quote-author {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.ocean-active .weather-icon {
+  color: #ffffff;
+}
+
+.ocean-active .panel {
+  background-color: color-mix(in srgb, var(--card) 72%, transparent 28%);
+  backdrop-filter: blur(18px) saturate(1.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  border-color: color-mix(in srgb, var(--border) 70%, rgba(255, 255, 255, 0.25) 30%);
+  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.28);
+}
+
+.ocean-active .panel-header {
+  border-bottom-color: color-mix(in srgb, var(--border) 60%, transparent 40%);
+}
+
+.ocean-active .theme-toggle {
+  background-color: color-mix(in srgb, var(--card) 72%, transparent 28%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid color-mix(in srgb, var(--border) 60%, rgba(255, 255, 255, 0.25) 40%);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+/* ============================================
    Top Bar
    ============================================ */
 

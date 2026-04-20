@@ -1487,11 +1487,25 @@
               <div class="setting-info">
                 <span class="setting-label">Ocean background</span>
                 <span class="setting-desc">Animated WebGL ocean behind the new-tab content.</span>
+                <span class="setting-warning reduced-motion-warning" id="ocean-reduced-motion-warning">
+                  Your system has <strong>Reduce motion</strong> enabled, so the ocean is hidden. Disable Reduce motion in your OS accessibility settings to see it.
+                </span>
               </div>
               <label class="toggle">
                 <input type="checkbox" id="newtab-show-ocean-background">
                 <span class="toggle-slider"></span>
               </label>
+            </div>
+
+            <div class="setting-row compact">
+              <div class="setting-info">
+                <span class="setting-label">Wave speed</span>
+                <span class="setting-desc">Adjust how fast the ocean animates.</span>
+              </div>
+              <div class="range-with-value">
+                <input type="range" id="newtab-ocean-wave-speed" min="0.2" max="2" step="0.1" value="1">
+                <span class="range-value" id="newtab-ocean-wave-speed-value">1.0×</span>
+              </div>
             </div>
 
             <div class="setting-row setting-row-stacked">

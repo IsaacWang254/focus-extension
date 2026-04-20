@@ -23,6 +23,7 @@ const DEFAULTS = {
   newtabShowTodos: true,
   newtabShowFocusSnapshot: true,
   newtabShowOceanBackground: true,
+  newtabOceanWaveSpeed: 0.8,
   newtabTempUnit: 'C', // 'C' or 'F'
   newtabBgImageLight: '',
   newtabBgImageDark: '',
@@ -223,6 +224,9 @@ function ensureOceanShader() {
 function applyOceanBackgroundSetting(enabled) {
   const canvas = document.getElementById('bg-ocean');
   if (!canvas) return;
+  const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const shaderActive = enabled && !reducedMotion;
+  document.body.classList.toggle('ocean-active', shaderActive);
   if (enabled) {
     canvas.style.display = '';
     const handle = ensureOceanShader();
@@ -233,6 +237,11 @@ function applyOceanBackgroundSetting(enabled) {
   } else {
     canvas.style.display = 'none';
   }
+}
+
+function applyOceanWaveSpeed(speed) {
+  if (!oceanShader) return;
+  oceanShader.setSpeed(speed);
 }
 
 function setupBrowserThemeSyncListener() {
@@ -607,6 +616,7 @@ async function loadSettings() {
   // Apply visibility
   applyVisibility(settings);
   applyOceanBackgroundSetting(settings.newtabShowOceanBackground !== false);
+  applyOceanWaveSpeed(Number.isFinite(settings.newtabOceanWaveSpeed) ? settings.newtabOceanWaveSpeed : 0.8);
   renderBedtimeReminder(settings);
 
   const bgImageKey = getBgImageStorageKey();
@@ -1341,6 +1351,7 @@ function setupStorageSync() {
       'newtabShowTodos',
       'newtabShowFocusSnapshot',
       'newtabShowOceanBackground',
+      'newtabOceanWaveSpeed',
       'bedtimeReminderEnabled',
       'bedtimeReminderTime',
       'bedtimeReminderEndTime',

@@ -2485,6 +2485,49 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   margin-bottom: var(--space-3);
 }
 
+.range-with-value {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 180px;
+}
+
+.range-with-value input[type="range"] {
+  flex: 1;
+  accent-color: var(--indigo);
+  cursor: pointer;
+}
+
+.range-value {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+.setting-warning {
+  display: none;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm, 6px);
+  background-color: var(--warning-subtle, #fef3c7);
+  color: var(--warning-foreground, #92400e);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  border: 1px solid color-mix(in srgb, var(--warning-subtle, #fef3c7) 60%, var(--warning-foreground, #92400e) 20%);
+}
+
+.setting-warning.is-visible {
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reduced-motion-warning {
+    display: block;
+  }
+}
+
 .profile-sites-input {
   display: flex;
   gap: var(--space-2);
