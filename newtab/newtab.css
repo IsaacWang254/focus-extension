@@ -49,20 +49,20 @@ body {
     0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
-[data-theme="dashboard-dark"].ocean-active .clock,
-[data-theme="dashboard-dark"].ocean-active .weather-temp,
-[data-theme="dashboard-dark"].ocean-active .weather-desc,
-[data-theme="dashboard-dark"].ocean-active .weather-highlow,
-[data-theme="dashboard-dark"].ocean-active .weather-icon,
-[data-theme="dashboard-dark"].ocean-active .quote-text,
-[data-theme="dashboard-dark"].ocean-active .quote-author,
-[data-theme="dark"].ocean-active .clock,
-[data-theme="dark"].ocean-active .weather-temp,
-[data-theme="dark"].ocean-active .weather-desc,
-[data-theme="dark"].ocean-active .weather-highlow,
-[data-theme="dark"].ocean-active .weather-icon,
-[data-theme="dark"].ocean-active .quote-text,
-[data-theme="dark"].ocean-active .quote-author {
+[data-theme="dashboard-dark"] .ocean-active .clock,
+[data-theme="dashboard-dark"] .ocean-active .weather-temp,
+[data-theme="dashboard-dark"] .ocean-active .weather-desc,
+[data-theme="dashboard-dark"] .ocean-active .weather-highlow,
+[data-theme="dashboard-dark"] .ocean-active .weather-icon,
+[data-theme="dashboard-dark"] .ocean-active .quote-text,
+[data-theme="dashboard-dark"] .ocean-active .quote-author,
+[data-theme="dark"] .ocean-active .clock,
+[data-theme="dark"] .ocean-active .weather-temp,
+[data-theme="dark"] .ocean-active .weather-desc,
+[data-theme="dark"] .ocean-active .weather-highlow,
+[data-theme="dark"] .ocean-active .weather-icon,
+[data-theme="dark"] .ocean-active .quote-text,
+[data-theme="dark"] .ocean-active .quote-author {
   text-shadow:
     0 0 18px rgba(0, 0, 0, 0.7),
     0 1px 2px rgba(0, 0, 0, 0.5);
@@ -107,6 +107,65 @@ body {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid color-mix(in srgb, var(--border) 60%, rgba(255, 255, 255, 0.25) 40%);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+[data-theme="light"] .ocean-active .clock,
+[data-theme="light"] .ocean-active .weather-temp,
+[data-theme="light"] .ocean-active .weather-icon,
+[data-theme="light"] .ocean-active .panel-title,
+[data-theme="dashboard-light"] .ocean-active .clock,
+[data-theme="dashboard-light"] .ocean-active .weather-temp,
+[data-theme="dashboard-light"] .ocean-active .weather-icon,
+[data-theme="dashboard-light"] .ocean-active .panel-title {
+  color: var(--foreground);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7),
+    0 0 12px rgba(255, 255, 255, 0.4);
+}
+
+[data-theme="light"] .ocean-active .weather-desc,
+[data-theme="light"] .ocean-active .weather-highlow,
+[data-theme="light"] .ocean-active .quote-text,
+[data-theme="light"] .ocean-active .quote-author,
+[data-theme="dashboard-light"] .ocean-active .weather-desc,
+[data-theme="dashboard-light"] .ocean-active .weather-highlow,
+[data-theme="dashboard-light"] .ocean-active .quote-text,
+[data-theme="dashboard-light"] .ocean-active .quote-author {
+  color: var(--muted-foreground);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.75),
+    0 0 10px rgba(255, 255, 255, 0.35);
+}
+
+[data-theme="light"] .ocean-active .focus-snapshot-inline,
+[data-theme="dashboard-light"] .ocean-active .focus-snapshot-inline {
+  padding: 10px 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, rgba(255, 255, 255, 0.5) 30%);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--card) 76%, transparent 24%);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(14px) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(1.05);
+}
+
+[data-theme="light"] .ocean-active .focus-snapshot-inline-label,
+[data-theme="light"] .ocean-active .focus-snapshot-saved-unit,
+[data-theme="dashboard-light"] .ocean-active .focus-snapshot-inline-label,
+[data-theme="dashboard-light"] .ocean-active .focus-snapshot-saved-unit {
+  color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground) 28%);
+  opacity: 0.92;
+}
+
+[data-theme="light"] .ocean-active .focus-snapshot-inline-value,
+[data-theme="light"] .ocean-active .focus-snapshot-saved-number,
+[data-theme="dashboard-light"] .ocean-active .focus-snapshot-inline-value,
+[data-theme="dashboard-light"] .ocean-active .focus-snapshot-saved-number {
+  color: var(--foreground);
+}
+
+[data-theme="light"] .ocean-active .focus-snapshot-metric + .focus-snapshot-metric,
+[data-theme="dashboard-light"] .ocean-active .focus-snapshot-metric + .focus-snapshot-metric {
+  border-left-color: color-mix(in srgb, var(--border) 80%, transparent 20%);
 }
 
 /* ============================================
@@ -1677,4 +1736,3 @@ body {
     max-height: 200px;
   }
 }
-

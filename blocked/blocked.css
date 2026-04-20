@@ -447,18 +447,18 @@ body::before {
 [data-theme$="dark"] .todo-label[data-color="taupe"] { background-color: rgba(204, 172, 147, 0.3); color: #f0d7c3; border-color: rgba(204, 172, 147, 0.38); }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not(.light) .todo-label {
+  :root:not([data-theme="light"]):not(.light):not([data-theme="dashboard-light"]) .todo-label {
     background-color: var(--secondary);
   }
   
-  :root:not([data-theme="light"]):not(.light) .todo-label[data-color="berry_red"] { background-color: rgba(184, 37, 95, 0.2); }
-  :root:not([data-theme="light"]):not(.light) .todo-label[data-color="red"] { background-color: rgba(219, 64, 53, 0.2); }
-  :root:not([data-theme="light"]):not(.light) .todo-label[data-color="orange"] { background-color: rgba(255, 153, 51, 0.2); }
-  :root:not([data-theme="light"]):not(.light) .todo-label[data-color="yellow"] { background-color: rgba(250, 208, 0, 0.2); color: #e0b000; }
-  :root:not([data-theme="light"]):not(.light) .todo-label[data-color="green"] { background-color: rgba(41, 148, 56, 0.2); color: #40c050; }
-  :root:not([data-theme="light"]):not(.light) .todo-label[data-color="blue"] { background-color: rgba(64, 115, 255, 0.2); }
-  :root:not([data-theme="light"]):not(.light) .todo-label[data-color="grape"] { background-color: rgba(136, 77, 255, 0.2); }
-  :root:not([data-theme="light"]):not(.light) .todo-label[data-color="violet"] { background-color: rgba(175, 56, 235, 0.2); }
+  :root:not([data-theme="light"]):not(.light):not([data-theme="dashboard-light"]) .todo-label[data-color="berry_red"] { background-color: rgba(184, 37, 95, 0.2); }
+  :root:not([data-theme="light"]):not(.light):not([data-theme="dashboard-light"]) .todo-label[data-color="red"] { background-color: rgba(219, 64, 53, 0.2); }
+  :root:not([data-theme="light"]):not(.light):not([data-theme="dashboard-light"]) .todo-label[data-color="orange"] { background-color: rgba(255, 153, 51, 0.2); }
+  :root:not([data-theme="light"]):not(.light):not([data-theme="dashboard-light"]) .todo-label[data-color="yellow"] { background-color: rgba(250, 208, 0, 0.2); color: #e0b000; }
+  :root:not([data-theme="light"]):not(.light):not([data-theme="dashboard-light"]) .todo-label[data-color="green"] { background-color: rgba(41, 148, 56, 0.2); color: #40c050; }
+  :root:not([data-theme="light"]):not(.light):not([data-theme="dashboard-light"]) .todo-label[data-color="blue"] { background-color: rgba(64, 115, 255, 0.2); }
+  :root:not([data-theme="light"]):not(.light):not([data-theme="dashboard-light"]) .todo-label[data-color="grape"] { background-color: rgba(136, 77, 255, 0.2); }
+  :root:not([data-theme="light"]):not(.light):not([data-theme="dashboard-light"]) .todo-label[data-color="violet"] { background-color: rgba(175, 56, 235, 0.2); }
 }
 
 /* Checkbox - Refined circular style */
@@ -853,19 +853,19 @@ body::before {
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not(.light) .todo-due::before {
+  :root:not([data-theme="light"]):not(.light):not([data-theme="dashboard-light"]) .todo-due::before {
     filter: invert(0.7);
   }
   
-  :root:not([data-theme="light"]):not(.light) .todo-due.overdue::before {
+  :root:not([data-theme="light"]):not(.light):not([data-theme="dashboard-light"]) .todo-due.overdue::before {
     filter: brightness(0) saturate(100%) invert(40%) sepia(89%) saturate(1359%) hue-rotate(331deg) brightness(91%) contrast(101%);
   }
   
-  :root:not([data-theme="light"]):not(.light) .todo-due.today::before {
+  :root:not([data-theme="light"]):not(.light):not([data-theme="dashboard-light"]) .todo-due.today::before {
     filter: brightness(0) saturate(100%) invert(64%) sepia(44%) saturate(533%) hue-rotate(93deg) brightness(92%) contrast(87%);
   }
   
-  :root:not([data-theme="light"]):not(.light) .subtask-count::before {
+  :root:not([data-theme="light"]):not(.light):not([data-theme="dashboard-light"]) .subtask-count::before {
     filter: invert(0.7);
   }
 }
@@ -1628,7 +1628,7 @@ body::before {
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not(.light) .toast {
+  :root:not([data-theme="light"]):not(.light):not([data-theme="dashboard-light"]) .toast {
     background-color: rgba(24, 24, 27, 0.95);
   }
 }
