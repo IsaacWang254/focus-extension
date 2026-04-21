@@ -140,7 +140,7 @@ const FRAG_SRC = `
     float dist = length(cellUv - starPos);
     float size = 0.06 + hash21(cell + 0.17) * 0.05;
     float core = smoothstep(size, 0.0, dist);
-    float brightness = mix(0.7, 1.0, hash21(cell + 0.23));
+    float brightness = mix(0.95, 1.28, hash21(cell + 0.23));
     float flicker = 0.85 + 0.15 * sin(iTime * (0.7 + hash21(cell + 0.29) * 1.3)
                                    + hash21(cell + 0.31) * 6.28);
     float horizonFade = smoothstep(0.02, 0.16, d.y);
@@ -151,7 +151,7 @@ const FRAG_SRC = `
     // Flat grey sky — the time-of-day light source does NOT affect the sky,
     // only the water. Stars are the only sky feature.
     vec3 color = vec3(0.12);
-    color += vec3(1.0) * stars(d) * 1.4;
+    color += vec3(1.0) * stars(d) * 2.0;
     return color;
   }
 
