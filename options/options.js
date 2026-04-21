@@ -1027,6 +1027,7 @@ function populateNewtabAppearanceSettings() {
   document.getElementById('newtab-show-todos').checked = settings.newtabShowTodos !== false;
   document.getElementById('newtab-show-focus-snapshot').checked = settings.newtabShowFocusSnapshot !== false;
   document.getElementById('newtab-show-ocean-background').checked = settings.newtabShowOceanBackground !== false;
+  document.getElementById('newtab-ocean-battery-saver').checked = settings.newtabOceanBatterySaver === true;
 
   const speedInput = document.getElementById('newtab-ocean-wave-speed');
   const speedValue = document.getElementById('newtab-ocean-wave-speed-value');
@@ -1051,7 +1052,8 @@ function setupNewtabAppearanceControls() {
     'newtab-show-calendar',
     'newtab-show-todos',
     'newtab-show-focus-snapshot',
-    'newtab-show-ocean-background'
+    'newtab-show-ocean-background',
+    'newtab-ocean-battery-saver'
   ];
 
   toggleIds.forEach((id) => {
@@ -2149,6 +2151,7 @@ async function saveSettings() {
   settings.newtabShowTodos = document.getElementById('newtab-show-todos').checked;
   settings.newtabShowFocusSnapshot = document.getElementById('newtab-show-focus-snapshot').checked;
   settings.newtabShowOceanBackground = document.getElementById('newtab-show-ocean-background').checked;
+  settings.newtabOceanBatterySaver = document.getElementById('newtab-ocean-battery-saver').checked;
   settings.newtabOceanWaveSpeed = parseFloat(document.getElementById('newtab-ocean-wave-speed')?.value) || 0.8;
   settings.newtabTempUnit = document.querySelector('.newtab-temp-unit-btn.active')?.dataset.unit || 'C';
   settings.newtabBgImageLight = settings.newtabBgImageLight || '';
@@ -2222,6 +2225,7 @@ async function saveSettings() {
       newtabShowTodos: settings.newtabShowTodos,
       newtabShowFocusSnapshot: settings.newtabShowFocusSnapshot,
       newtabShowOceanBackground: settings.newtabShowOceanBackground,
+      newtabOceanBatterySaver: settings.newtabOceanBatterySaver,
       newtabOceanWaveSpeed: settings.newtabOceanWaveSpeed,
       newtabTempUnit: settings.newtabTempUnit,
       newtabBgImageLight: settings.newtabBgImageLight,
@@ -2657,6 +2661,7 @@ function gatherCurrentSettings() {
     newtabShowTodos: document.getElementById('newtab-show-todos').checked,
     newtabShowFocusSnapshot: document.getElementById('newtab-show-focus-snapshot').checked,
     newtabShowOceanBackground: document.getElementById('newtab-show-ocean-background').checked,
+    newtabOceanBatterySaver: document.getElementById('newtab-ocean-battery-saver').checked,
     newtabOceanWaveSpeed: parseFloat(document.getElementById('newtab-ocean-wave-speed')?.value) || 0.8,
     newtabTempUnit: document.querySelector('.newtab-temp-unit-btn.active')?.dataset.unit || 'C',
     newtabBgImageLight: settings.newtabBgImageLight || '',

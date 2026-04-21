@@ -12,6 +12,7 @@ const FRAG_SRC = `
   uniform vec2 iResolution;
   uniform float iTime;
   uniform int u_mode;
+  uniform int u_powerSave;
 
   #define PI 3.14159265359
   #define DRAG_MULT 0.38
@@ -20,6 +21,9 @@ const FRAG_SRC = `
   #define ITERATIONS_RAYMARCH 8
   #define ITERATIONS_NORMAL 24
   #define RAYMARCH_STEPS 32
+  #define ITERATIONS_RAYMARCH_LOW 5
+  #define ITERATIONS_NORMAL_LOW 12
+  #define RAYMARCH_STEPS_LOW 18
 
   float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -60,8 +64,11 @@ const FRAG_SRC = `
   float raymarchwater(vec3 cam, vec3 start, vec3 end, float depth){
     vec3 pos = start;
     vec3 dir = normalize(end - start);
+    int steps = (u_powerSave == 1) ? RAYMARCH_STEPS_LOW : RAYMARCH_STEPS;
+    int waveIters = (u_powerSave == 1) ? ITERATIONS_RAYMARCH_LOW : ITERATIONS_RAYMARCH;
     for(int i=0;i<RAYMARCH_STEPS;i++){
-      float h = getwaves(pos.xz, ITERATIONS_RAYMARCH)*depth - depth;
+      if(i >= steps) break;
+      float h = getwaves(pos.xz, waveIters)*depth - depth;
       if(h + 0.01 > pos.y) return distance(pos, cam);
       pos += dir * (pos.y - h);
     }
@@ -70,11 +77,12 @@ const FRAG_SRC = `
 
   vec3 normalAt(vec2 pos, float e, float depth){
     vec2 ex = vec2(e, 0.0);
-    float H = getwaves(pos, ITERATIONS_NORMAL)*depth;
+    int waveIters = (u_powerSave == 1) ? ITERATIONS_NORMAL_LOW : ITERATIONS_NORMAL;
+    float H = getwaves(pos, waveIters)*depth;
     vec3 a = vec3(pos.x, H, pos.y);
     return normalize(cross(
-      a - vec3(pos.x - e, getwaves(pos - ex.xy, ITERATIONS_NORMAL)*depth, pos.y),
-      a - vec3(pos.x, getwaves(pos + ex.yx, ITERATIONS_NORMAL)*depth, pos.y + e)
+      a - vec3(pos.x - e, getwaves(pos - ex.xy, waveIters)*depth, pos.y),
+      a - vec3(pos.x, getwaves(pos + ex.yx, waveIters)*depth, pos.y + e)
     ));
   }
 
@@ -140,11 +148,14 @@ const FRAG_SRC = `
     float dist = length(cellUv - starPos);
     float size = 0.06 + hash21(cell + 0.17) * 0.05;
     float core = smoothstep(size, 0.0, dist);
+    float halo = smoothstep(size * 2.8, 0.0, dist) * 0.38;
     float brightness = mix(0.95, 1.28, hash21(cell + 0.23));
-    float flicker = 0.85 + 0.15 * sin(iTime * (0.7 + hash21(cell + 0.29) * 1.3)
-                                   + hash21(cell + 0.31) * 6.28);
+    float flicker = (u_powerSave == 1)
+      ? 1.0
+      : 0.85 + 0.15 * sin(iTime * (0.7 + hash21(cell + 0.29) * 1.3)
+                          + hash21(cell + 0.31) * 6.28);
     float horizonFade = smoothstep(0.02, 0.16, d.y);
-    return core * brightness * flicker * horizonFade;
+    return (core + halo) * brightness * flicker * horizonFade;
   }
 
   vec3 getNightSky(vec3 d){
@@ -172,7 +183,11 @@ const FRAG_SRC = `
   void main(){
     vec3 ray = getRay(gl_FragCoord.xy);
     vec3 C;
+    float starField = 0.0;
     if(ray.y >= 0.0){
+      if(u_mode == 1){
+        starField = stars(ray);
+      }
       C = skyFor(ray);
     } else {
       vec3 origin = vec3(iTime*0.2, CAMERA_HEIGHT, 1.0);
@@ -213,14 +228,17 @@ const FRAG_SRC = `
       // Film-grain post-process matching earendil: convert to grayscale,
       // add gaussian-ish noise, then remap to a dark→light palette.
       float gray = dot(finalColor, vec3(0.299, 0.587, 0.114));
-      vec2 nuv = gl_FragCoord.xy / iResolution;
-      float seed = dot(nuv * iResolution, vec2(12.9898, 78.233));
-      float n = fract(sin(seed) * 43758.5453 + iTime * 1.5);
-      float o = 0.36;
-      n = (1.0 / (o * 2.5066)) * exp(-(n * n) / (2.0 * o * o));
-      gray = clamp(gray + n * (1.0 - gray) * 0.065, 0.0, 1.0);
+      if(u_powerSave != 1){
+        vec2 nuv = gl_FragCoord.xy / iResolution;
+        float seed = dot(nuv * iResolution, vec2(12.9898, 78.233));
+        float n = fract(sin(seed) * 43758.5453 + iTime * 1.5);
+        float o = 0.36;
+        n = (1.0 / (o * 2.5066)) * exp(-(n * n) / (2.0 * o * o));
+        gray = clamp(gray + n * (1.0 - gray) * 0.065, 0.0, 1.0);
+      }
       gray = pow(gray, 1.6);
       finalColor = mix(vec3(0.01), vec3(0.42), gray);
+      finalColor += vec3(1.0) * starField * 0.48;
     }
 
     gl_FragColor = vec4(finalColor, 1.0);
@@ -239,7 +257,7 @@ function compile(gl, type, src) {
   return sh;
 }
 
-export function initOceanShader(canvas, { mode = 0 } = {}) {
+export function initOceanShader(canvas, { mode = 0, powerSave = false } = {}) {
   const gl = canvas.getContext('webgl', { antialias: false, premultipliedAlpha: false });
   if (!gl) return null;
 
@@ -267,7 +285,9 @@ export function initOceanShader(canvas, { mode = 0 } = {}) {
   const uRes = gl.getUniformLocation(prog, 'iResolution');
   const uTime = gl.getUniformLocation(prog, 'iTime');
   const uMode = gl.getUniformLocation(prog, 'u_mode');
+  const uPowerSave = gl.getUniformLocation(prog, 'u_powerSave');
   gl.uniform1i(uMode, mode);
+  gl.uniform1i(uPowerSave, powerSave ? 1 : 0);
 
   const state = {
     running: false,
@@ -276,8 +296,10 @@ export function initOceanShader(canvas, { mode = 0 } = {}) {
     lastTickMs: performance.now(),
     mode,
     speed: 1.0,
-    dpr: Math.min(window.devicePixelRatio || 1, 2),
-    scale: 0.55,
+    powerSave: !!powerSave,
+    dpr: Math.min(window.devicePixelRatio || 1, powerSave ? 1 : 2),
+    scale: powerSave ? 0.4 : 0.55,
+    targetFrameMs: powerSave ? 1000 / 24 : 0,
   };
 
   function resize() {
@@ -300,6 +322,10 @@ export function initOceanShader(canvas, { mode = 0 } = {}) {
   function frame() {
     if (!state.running) return;
     const now = performance.now();
+    if (state.targetFrameMs > 0 && (now - state.lastTickMs) < state.targetFrameMs) {
+      state.rafId = requestAnimationFrame(frame);
+      return;
+    }
     const dt = Math.min(now - state.lastTickMs, 100);
     state.lastTickMs = now;
     state.virtualMs += dt * state.speed;
@@ -335,6 +361,20 @@ export function initOceanShader(canvas, { mode = 0 } = {}) {
     state.speed = clamped;
   }
 
+  function setBatterySaver(enabled) {
+    state.powerSave = !!enabled;
+    state.dpr = Math.min(window.devicePixelRatio || 1, state.powerSave ? 1 : 2);
+    state.scale = state.powerSave ? 0.4 : 0.55;
+    state.targetFrameMs = state.powerSave ? 1000 / 24 : 0;
+    gl.useProgram(prog);
+    gl.uniform1i(uPowerSave, state.powerSave ? 1 : 0);
+    if (!state.running) {
+      renderOnce();
+      return;
+    }
+    state.lastTickMs = performance.now();
+  }
+
   const onResize = () => resize();
   const onVisibility = () => {
     if (document.visibilityState === 'hidden') stop();
@@ -356,5 +396,5 @@ export function initOceanShader(canvas, { mode = 0 } = {}) {
 
   start();
 
-  return { setMode, setSpeed, start, stop, destroy };
+  return { setMode, setSpeed, setBatterySaver, start, stop, destroy };
 }

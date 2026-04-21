@@ -109,6 +109,7 @@ const DEFAULT_SETTINGS = {
   newtabShowTodos: true,
   newtabShowFocusSnapshot: true,
   newtabShowOceanBackground: true,
+  newtabOceanBatterySaver: false,
   newtabOceanWaveSpeed: 0.8,
   newtabTempUnit: 'C',
   newtabBgImageLight: '',

@@ -23,6 +23,7 @@ const DEFAULTS = {
   newtabShowTodos: true,
   newtabShowFocusSnapshot: true,
   newtabShowOceanBackground: true,
+  newtabOceanBatterySaver: false,
   newtabOceanWaveSpeed: 0.8,
   newtabTempUnit: 'C', // 'C' or 'F'
   newtabBgImageLight: '',
@@ -200,6 +201,7 @@ function getOceanModeForTheme() {
 
 let oceanShader = null;
 let oceanShaderInitFailed = false;
+let oceanBatterySaverEnabled = false;
 
 function ensureOceanShader() {
   if (oceanShader || oceanShaderInitFailed) return oceanShader;
@@ -209,7 +211,10 @@ function ensureOceanShader() {
   }
   const canvas = document.getElementById('bg-ocean');
   if (!canvas) return null;
-  oceanShader = initOceanShader(canvas, { mode: getOceanModeForTheme() });
+  oceanShader = initOceanShader(canvas, {
+    mode: getOceanModeForTheme(),
+    powerSave: oceanBatterySaverEnabled
+  });
   if (!oceanShader) {
     oceanShaderInitFailed = true;
     return null;
@@ -219,6 +224,12 @@ function ensureOceanShader() {
   });
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   return oceanShader;
+}
+
+function applyOceanBatterySaver(enabled) {
+  oceanBatterySaverEnabled = enabled === true;
+  if (!oceanShader) return;
+  oceanShader.setBatterySaver(oceanBatterySaverEnabled);
 }
 
 function applyOceanBackgroundSetting(enabled) {
@@ -615,6 +626,7 @@ async function loadSettings() {
 
   // Apply visibility
   applyVisibility(settings);
+  applyOceanBatterySaver(settings.newtabOceanBatterySaver === true);
   applyOceanBackgroundSetting(settings.newtabShowOceanBackground !== false);
   applyOceanWaveSpeed(Number.isFinite(settings.newtabOceanWaveSpeed) ? settings.newtabOceanWaveSpeed : 0.8);
   renderBedtimeReminder(settings);
@@ -1351,6 +1363,7 @@ function setupStorageSync() {
       'newtabShowTodos',
       'newtabShowFocusSnapshot',
       'newtabShowOceanBackground',
+      'newtabOceanBatterySaver',
       'newtabOceanWaveSpeed',
       'bedtimeReminderEnabled',
       'bedtimeReminderTime',
