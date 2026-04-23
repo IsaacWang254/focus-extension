@@ -453,12 +453,6 @@ function showToast(message, type = 'success', duration = 3000) {
  * Initialize all SVG icons on the page
  */
 function initializeIcons() {
-  // Theme toggle icons
-  const themeIconLight = document.getElementById('theme-icon-light');
-  const themeIconDark = document.getElementById('theme-icon-dark');
-  if (themeIconLight) themeIconLight.innerHTML = getIcon('sun', '☀');
-  if (themeIconDark) themeIconDark.innerHTML = getIcon('moon', '◐');
-
   // Unblock method icons
   const methodIcons = {
     'method-timer-icon': getIcon('timer', '⏱'),
@@ -472,6 +466,28 @@ function initializeIcons() {
   for (const [id, icon] of Object.entries(methodIcons)) {
     const el = document.getElementById(id);
     if (el) el.innerHTML = icon;
+  }
+}
+
+function updateThemeToggleIcon(themeValue = document.documentElement.getAttribute('data-theme')) {
+  const themeIconLight = document.getElementById('theme-icon-light');
+  const themeIconDark = document.getElementById('theme-icon-dark');
+  const toggle = document.getElementById('theme-toggle');
+  const isDark = themeValue === 'dashboard-dark' || themeValue === 'dark';
+
+  if (themeIconLight) {
+    themeIconLight.innerHTML = isDark ? '' : getIcon('moon', '◐');
+    themeIconLight.setAttribute('aria-hidden', isDark ? 'true' : 'false');
+  }
+
+  if (themeIconDark) {
+    themeIconDark.innerHTML = isDark ? getIcon('sun', '☀') : '';
+    themeIconDark.setAttribute('aria-hidden', isDark ? 'false' : 'true');
+  }
+
+  if (toggle) {
+    toggle.title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+    toggle.setAttribute('aria-label', toggle.title);
   }
 }
 
@@ -637,6 +653,7 @@ async function loadTheme() {
     base = getEffectiveThemeBase(base, syncWithBrowser);
     const resolved = resolveThemeVariant(base);
     document.documentElement.setAttribute('data-theme', resolved);
+    updateThemeToggleIcon(resolved);
     if (result.brutalistEnabled) {
       await chrome.storage.local.remove('brutalistEnabled');
     }
@@ -737,6 +754,7 @@ function setupThemeToggle() {
     // Resolve the actual data-theme value
     const resolved = resolveThemeVariant(newBase);
     root.setAttribute('data-theme', resolved);
+    updateThemeToggleIcon(resolved);
 
     // Save the base theme
     try {

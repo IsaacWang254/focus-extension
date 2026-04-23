@@ -132,7 +132,9 @@ const FRAG_SRC = `
   vec3 getAtmosphere(vec3 dir) { return extra_cheap_atmosphere(dir, getSunDirection()) * 0.5; }
   float getSun(vec3 dir) { return pow(max(0.0, dot(dir, getSunDirection())), 720.0) * 210.0; }
 
-  vec3 getClassicSky(vec3 d){ return getAtmosphere(d) + getSun(d); }
+  // Light mode keeps the same sun direction and atmospheric lighting, but
+  // hides the visible solar disc from the sky itself.
+  vec3 getClassicSky(vec3 d){ return getAtmosphere(d); }
 
   float stars(vec3 d){
     if(d.y < 0.02) return 0.0;
