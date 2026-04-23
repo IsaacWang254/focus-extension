@@ -149,6 +149,7 @@ const TEMP_UNBLOCK_ALL_KEY = '__all__';
 const BEDTIME_REMINDER_ALARM = 'bedtimeReminder';
 const BEDTIME_REMINDER_NOTIFICATION_ID = 'bedtime-reminder';
 const BEDTIME_REMINDER_LAST_SENT_KEY = 'bedtimeReminderLastSentWindow';
+const BLOCKED_RESOURCE_TYPES = ['main_frame', 'sub_frame'];
 
 // Default profile structure
 const DEFAULT_PROFILE = {
@@ -972,7 +973,7 @@ async function updateBlockingRules() {
         },
         condition: {
           regexFilter: `^${escapedBlockedPageUrl}(\\?.*)?$`,
-          resourceTypes: ['main_frame']
+          resourceTypes: BLOCKED_RESOURCE_TYPES
         }
       });
 
@@ -997,7 +998,7 @@ async function updateBlockingRules() {
             },
             condition: {
               regexFilter: allowedUrlRegex,
-              resourceTypes: ['main_frame']
+              resourceTypes: BLOCKED_RESOURCE_TYPES
             }
           });
         }
@@ -1023,7 +1024,7 @@ async function updateBlockingRules() {
               },
               condition: {
                 regexFilter: `^https?://(www\\.)?${escapedDomain}.*`,
-                resourceTypes: ['main_frame']
+                resourceTypes: BLOCKED_RESOURCE_TYPES
               }
             });
           }
@@ -1051,7 +1052,7 @@ async function updateBlockingRules() {
               condition: {
                 regexFilter: `^https?://.*${escapedKeyword}.*`,
                 isUrlFilterCaseSensitive: keywordObj.caseSensitive || false,
-                resourceTypes: ['main_frame']
+                resourceTypes: BLOCKED_RESOURCE_TYPES
               }
             });
           }
