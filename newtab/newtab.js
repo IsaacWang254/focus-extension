@@ -181,6 +181,7 @@ function setupThemeToggle() {
     // Resolve the actual data-theme value
     const resolved = resolveThemeVariant(newBase);
     root.setAttribute('data-theme', resolved);
+    updateThemeToggleIcon(resolved);
     await chrome.storage.local.set({ theme: newBase, themeSyncWithBrowser: false });
 
     // Re-apply accent color for the new theme
@@ -261,6 +262,7 @@ function setupBrowserThemeSyncListener() {
     const result = await chrome.storage.local.get('themeSyncWithBrowser');
     if (!isThemeSyncEnabled(result.themeSyncWithBrowser)) return;
     await loadTheme();
+    updateThemeToggleIcon();
     await refreshBgColor();
   });
 }
@@ -269,9 +271,30 @@ function setupBrowserThemeSyncListener() {
 // ICONS
 // =============================================================================
 
+function updateThemeToggleIcon(themeValue = document.documentElement.getAttribute('data-theme')) {
+  const themeIconLight = document.getElementById('theme-icon-light');
+  const themeIconDark = document.getElementById('theme-icon-dark');
+  const toggle = document.getElementById('theme-toggle');
+  const isDark = themeValue === 'dashboard-dark' || themeValue === 'dark';
+
+  if (themeIconLight) {
+    themeIconLight.innerHTML = isDark ? '' : Icons.moon;
+    themeIconLight.setAttribute('aria-hidden', isDark ? 'true' : 'false');
+  }
+
+  if (themeIconDark) {
+    themeIconDark.innerHTML = isDark ? Icons.sun : '';
+    themeIconDark.setAttribute('aria-hidden', isDark ? 'false' : 'true');
+  }
+
+  if (toggle) {
+    toggle.title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+    toggle.setAttribute('aria-label', toggle.title);
+  }
+}
+
 function setupIcons() {
-  document.getElementById('theme-icon-light').innerHTML = Icons.sun;
-  document.getElementById('theme-icon-dark').innerHTML = Icons.moon;
+  updateThemeToggleIcon();
   document.getElementById('settings-icon').innerHTML = Icons.settings;
   document.getElementById('settings-close-icon').innerHTML = Icons.x;
   document.getElementById('calendar-icon').innerHTML = Icons.calendar;
@@ -1397,6 +1420,7 @@ function setupStorageSync() {
 
     if (changedKeys.some(key => ['theme', 'themeSyncWithBrowser', 'accentColor'].includes(key))) {
       await loadTheme();
+      updateThemeToggleIcon();
       await refreshBgColor();
     }
   });
