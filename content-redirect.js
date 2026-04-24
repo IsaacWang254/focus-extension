@@ -54,10 +54,13 @@ let categoryScanInFlight = false;
 let scheduledCategoryScanDomain = '';
 let embedScanScheduled = false;
 let embedObserverStarted = false;
+let activeBlockedMediaNotice = null;
+let blockedMediaNoticeTimeoutId = null;
 
 const EMBED_SOURCE_SELECTORS = 'iframe, video, audio, embed, object';
 const EMBED_ATTRIBUTION_SELECTORS = 'a[href], [data-href], [data-url], [data-video-url], meta[itemprop="url"], meta[property="og:video"], meta[property="og:video:url"], meta[property="og:video:secure_url"]';
 const EMBED_BLOCK_MARKER = 'data-focus-extension-embed-blocked';
+const EMBED_GUARD_MARKER = 'data-focus-extension-embed-guarded';
 const EMBED_ALIAS_MAP = {
   'youtube.com': ['youtu.be', 'youtube-nocookie.com', 'googlevideo.com', 'ytimg.com'],
   'youtu.be': ['youtube.com', 'youtube-nocookie.com', 'googlevideo.com', 'ytimg.com'],
@@ -66,6 +69,16 @@ const EMBED_ALIAS_MAP = {
   'twitter.com': ['x.com', 'platform.twitter.com', 'syndication.twitter.com', 'twimg.com'],
   'vimeo.com': ['player.vimeo.com', 'i.vimeocdn.com']
 };
+
+function shouldSkipEmbeddedMediaHandling() {
+  const currentDomain = normalizeDomain(window.location.hostname);
+  if (currentDomain !== 'google.com' && !currentDomain.endsWith('.google.com')) {
+    return false;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.has('q');
+}
 
 function trimText(text, maxLength) {
   const normalized = (text || '').replace(/\s+/g, ' ').trim();
@@ -248,58 +261,89 @@ function createBlockedEmbedNotice(blockedDomain) {
   return notice;
 }
 
+function showBlockedMediaNotice(blockedDomain) {
+  if (blockedMediaNoticeTimeoutId) {
+    window.clearTimeout(blockedMediaNoticeTimeoutId);
+    blockedMediaNoticeTimeoutId = null;
+  }
+
+  if (activeBlockedMediaNotice?.isConnected) {
+    activeBlockedMediaNotice.remove();
+  }
+
+  const notice = createBlockedEmbedNotice(blockedDomain);
+  notice.style.position = 'fixed';
+  notice.style.right = '20px';
+  notice.style.bottom = '20px';
+  notice.style.width = 'min(360px, calc(100vw - 32px))';
+  notice.style.minHeight = '0';
+  notice.style.maxWidth = 'calc(100vw - 32px)';
+  notice.style.padding = '16px 18px';
+  notice.style.borderRadius = '16px';
+  notice.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.35)';
+  notice.style.zIndex = '2147483647';
+  notice.style.pointerEvents = 'auto';
+
+  document.body.appendChild(notice);
+  activeBlockedMediaNotice = notice;
+
+  blockedMediaNoticeTimeoutId = window.setTimeout(() => {
+    if (activeBlockedMediaNotice === notice) {
+      activeBlockedMediaNotice = null;
+    }
+    notice.remove();
+    blockedMediaNoticeTimeoutId = null;
+  }, 3200);
+}
+
+function isBlockedEmbedGuarded(element) {
+  return element?.getAttribute?.(EMBED_GUARD_MARKER) === 'true';
+}
+
+function armMediaPlaybackBlock(mediaElement, blockedDomain) {
+  if (!(mediaElement instanceof HTMLMediaElement) || isBlockedEmbedGuarded(mediaElement)) {
+    return;
+  }
+
+  mediaElement.setAttribute(EMBED_GUARD_MARKER, 'true');
+
+  mediaElement.addEventListener('play', () => {
+    mediaElement.pause();
+    mediaElement.currentTime = 0;
+    showBlockedMediaNotice(blockedDomain);
+  }, { once: true });
+}
+
+async function findBlockedDomainForEmbed(embedElement, settings, tempUnblocks, now) {
+  if (!(embedElement instanceof HTMLElement)) {
+    return null;
+  }
+
+  const candidates = getEmbedContextCandidates(embedElement);
+
+  for (const candidateUrl of candidates) {
+    const directMatch = getBlockedDomainForCandidateUrl(candidateUrl, settings);
+    if (!directMatch) {
+      continue;
+    }
+
+    const isWhitelisted = await chrome.runtime.sendMessage({
+      type: 'IS_URL_WHITELISTED',
+      url: candidateUrl
+    });
+
+    if (isWhitelisted || hasActiveTempUnblock(settings, tempUnblocks, directMatch, now)) {
+      continue;
+    }
+
+    return directMatch;
+  }
+
+  return null;
+}
+
 async function maybeBlockEmbeddedContent(settings, tempUnblocks) {
-  if (!settings || !settings.enabled) {
-    return;
-  }
-
-  const currentDomain = normalizeDomain(window.location.hostname);
-  const now = Date.now();
-  if (hasActiveTempUnblock(settings, tempUnblocks, currentDomain, now)) {
-    return;
-  }
-
-  if (settings.mode === 'blocklist' && getBlockedDomains(settings).length === 0) {
-    return;
-  }
-
-  for (const embedElement of document.querySelectorAll(EMBED_SOURCE_SELECTORS)) {
-    if (!(embedElement instanceof HTMLElement) || embedElement.getAttribute(EMBED_BLOCK_MARKER) === 'true') {
-      continue;
-    }
-
-    const candidates = getEmbedContextCandidates(embedElement);
-    let matchedBlockedDomain = null;
-
-    for (const candidateUrl of candidates) {
-      const directMatch = getBlockedDomainForCandidateUrl(candidateUrl, settings);
-      if (!directMatch) {
-        continue;
-      }
-
-      const isWhitelisted = await chrome.runtime.sendMessage({
-        type: 'IS_URL_WHITELISTED',
-        url: candidateUrl
-      });
-
-      if (!isWhitelisted) {
-        if (hasActiveTempUnblock(settings, tempUnblocks, directMatch, now)) {
-          continue;
-        }
-
-        matchedBlockedDomain = directMatch;
-        break;
-      }
-    }
-
-    if (!matchedBlockedDomain) {
-      continue;
-    }
-
-    const ownerElement = embedElement.closest('video, audio') || embedElement;
-    ownerElement.setAttribute(EMBED_BLOCK_MARKER, 'true');
-    ownerElement.replaceWith(createBlockedEmbedNotice(matchedBlockedDomain));
-  }
+  return;
 }
 
 async function refreshBlockingState() {

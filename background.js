@@ -149,7 +149,7 @@ const TEMP_UNBLOCK_ALL_KEY = '__all__';
 const BEDTIME_REMINDER_ALARM = 'bedtimeReminder';
 const BEDTIME_REMINDER_NOTIFICATION_ID = 'bedtime-reminder';
 const BEDTIME_REMINDER_LAST_SENT_KEY = 'bedtimeReminderLastSentWindow';
-const BLOCKED_RESOURCE_TYPES = ['main_frame', 'sub_frame'];
+const BLOCKED_RESOURCE_TYPES = ['main_frame'];
 
 // Default profile structure
 const DEFAULT_PROFILE = {
