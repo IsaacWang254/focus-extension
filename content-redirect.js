@@ -7,6 +7,14 @@ function normalizeDomain(domain) {
   return (domain || '').replace(/^www\./, '');
 }
 
+function isTopLevelFrame() {
+  try {
+    return window.top === window;
+  } catch {
+    return true;
+  }
+}
+
 function isDomainMatch(currentDomain, domains = []) {
   return domains.some((site) => {
     const normalizedSite = normalizeDomain(site);
@@ -56,11 +64,13 @@ let embedScanScheduled = false;
 let embedObserverStarted = false;
 let activeBlockedMediaNotice = null;
 let blockedMediaNoticeTimeoutId = null;
+let lastBlockedEmbedInteractionAt = 0;
 
 const EMBED_SOURCE_SELECTORS = 'iframe, video, audio, embed, object';
 const EMBED_ATTRIBUTION_SELECTORS = 'a[href], [data-href], [data-url], [data-video-url], meta[itemprop="url"], meta[property="og:video"], meta[property="og:video:url"], meta[property="og:video:secure_url"]';
 const EMBED_BLOCK_MARKER = 'data-focus-extension-embed-blocked';
 const EMBED_GUARD_MARKER = 'data-focus-extension-embed-guarded';
+const EMBED_WRAPPER_MARKER = 'data-focus-extension-embed-wrapper';
 const EMBED_ALIAS_MAP = {
   'youtube.com': ['youtu.be', 'youtube-nocookie.com', 'googlevideo.com', 'ytimg.com'],
   'youtu.be': ['youtube.com', 'youtube-nocookie.com', 'googlevideo.com', 'ytimg.com'],
@@ -296,22 +306,139 @@ function showBlockedMediaNotice(blockedDomain) {
   }, 3200);
 }
 
-function isBlockedEmbedGuarded(element) {
-  return element?.getAttribute?.(EMBED_GUARD_MARKER) === 'true';
+function noteBlockedEmbedInteraction() {
+  lastBlockedEmbedInteractionAt = Date.now();
 }
 
-function armMediaPlaybackBlock(mediaElement, blockedDomain) {
+async function trackBlockedEmbeddedAttempt(currentUrl) {
+  if (!currentUrl) {
+    return;
+  }
+
+  try {
+    await chrome.runtime.sendMessage({
+      type: 'TRACK_BLOCK_ATTEMPT',
+      context: 'embedded_play'
+    });
+  } catch (error) {
+    console.error('Focus Extension: failed to track blocked embedded attempt', error);
+  }
+}
+
+function createBlockedEmbedFrame(blockedUrl) {
+  const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
+  const iframe = document.createElement('iframe');
+  iframe.src = `${blockedPageUrl}?url=${encodeURIComponent(blockedUrl)}`;
+  iframe.setAttribute(EMBED_BLOCK_MARKER, 'true');
+  iframe.style.width = '100%';
+  iframe.style.height = '100%';
+  iframe.style.border = '0';
+  iframe.style.display = 'block';
+  iframe.style.borderRadius = 'inherit';
+  iframe.style.background = 'transparent';
+  return iframe;
+}
+
+function replaceEmbedWithBlockedFrame(ownerElement, blockedUrl) {
+  if (!(ownerElement instanceof HTMLElement) || !blockedUrl) {
+    return;
+  }
+
+  const rect = ownerElement.getBoundingClientRect();
+  const wrapper = document.createElement('div');
+  wrapper.setAttribute(EMBED_BLOCK_MARKER, 'true');
+  wrapper.setAttribute(EMBED_WRAPPER_MARKER, 'true');
+  wrapper.style.position = 'relative';
+  wrapper.style.display = 'block';
+  wrapper.style.width = rect.width > 0 ? `${rect.width}px` : ownerElement.style.width || '100%';
+  wrapper.style.height = rect.height > 0 ? `${rect.height}px` : ownerElement.style.height || '315px';
+  wrapper.style.maxWidth = '100%';
+  wrapper.style.overflow = 'hidden';
+  wrapper.style.borderRadius = window.getComputedStyle(ownerElement).borderRadius || '12px';
+
+  const blockedFrame = createBlockedEmbedFrame(blockedUrl);
+  wrapper.appendChild(blockedFrame);
+  ownerElement.replaceWith(wrapper);
+}
+
+function armFramedEmbedBlock(embedElement, blockedUrl, blockedDomain) {
+  if (!(embedElement instanceof HTMLElement) || isBlockedEmbedGuarded(embedElement)) {
+    return;
+  }
+
+  const rect = embedElement.getBoundingClientRect();
+  const wrapper = document.createElement('div');
+  const overlay = document.createElement('button');
+  const computedStyle = window.getComputedStyle(embedElement);
+
+  wrapper.setAttribute(EMBED_WRAPPER_MARKER, 'true');
+  wrapper.style.position = 'relative';
+  wrapper.style.display = computedStyle.display === 'inline' ? 'inline-block' : computedStyle.display;
+  wrapper.style.width = rect.width > 0 ? `${rect.width}px` : computedStyle.width;
+  wrapper.style.height = rect.height > 0 ? `${rect.height}px` : computedStyle.height;
+  wrapper.style.maxWidth = '100%';
+  wrapper.style.borderRadius = computedStyle.borderRadius || '12px';
+  wrapper.style.overflow = 'hidden';
+
+  overlay.type = 'button';
+  overlay.setAttribute('aria-label', `Play blocked media from ${blockedDomain}`);
+  overlay.setAttribute(EMBED_GUARD_MARKER, 'true');
+  overlay.style.position = 'absolute';
+  overlay.style.inset = '0';
+  overlay.style.width = '100%';
+  overlay.style.height = '100%';
+  overlay.style.border = '0';
+  overlay.style.padding = '0';
+  overlay.style.margin = '0';
+  overlay.style.background = 'transparent';
+  overlay.style.cursor = 'pointer';
+  overlay.style.zIndex = '2';
+
+  embedElement.setAttribute(EMBED_GUARD_MARKER, 'true');
+  overlay.addEventListener('pointerdown', noteBlockedEmbedInteraction, true);
+  overlay.addEventListener('click', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await trackBlockedEmbeddedAttempt(blockedUrl);
+    replaceEmbedWithBlockedFrame(wrapper, blockedUrl);
+    showBlockedMediaNotice(blockedDomain);
+  }, { capture: true, once: true });
+
+  embedElement.replaceWith(wrapper);
+  wrapper.appendChild(embedElement);
+  wrapper.appendChild(overlay);
+}
+
+function armMediaPlaybackBlock(mediaElement, blockedUrl, blockedDomain) {
   if (!(mediaElement instanceof HTMLMediaElement) || isBlockedEmbedGuarded(mediaElement)) {
     return;
   }
 
   mediaElement.setAttribute(EMBED_GUARD_MARKER, 'true');
+  mediaElement.addEventListener('pointerdown', noteBlockedEmbedInteraction, true);
+  mediaElement.addEventListener('keydown', noteBlockedEmbedInteraction, true);
 
-  mediaElement.addEventListener('play', () => {
+  mediaElement.addEventListener('play', async () => {
     mediaElement.pause();
-    mediaElement.currentTime = 0;
+    try {
+      mediaElement.currentTime = 0;
+    } catch {
+      // Some media elements do not allow seeking yet.
+    }
+
+    const wasUserInitiated = Date.now() - lastBlockedEmbedInteractionAt < 2000;
+    if (!wasUserInitiated) {
+      return;
+    }
+
+    await trackBlockedEmbeddedAttempt(blockedUrl);
+    replaceEmbedWithBlockedFrame(mediaElement, blockedUrl);
     showBlockedMediaNotice(blockedDomain);
   }, { once: true });
+}
+
+function isBlockedEmbedGuarded(element) {
+  return element?.getAttribute?.(EMBED_GUARD_MARKER) === 'true';
 }
 
 async function findBlockedDomainForEmbed(embedElement, settings, tempUnblocks, now) {
@@ -342,8 +469,81 @@ async function findBlockedDomainForEmbed(embedElement, settings, tempUnblocks, n
   return null;
 }
 
+async function findDirectBlockedEmbedMatch(embedElement, settings, tempUnblocks, now) {
+  if (!(embedElement instanceof HTMLElement)) {
+    return null;
+  }
+
+  for (const candidateUrl of getElementUrlCandidates(embedElement)) {
+    const blockedDomain = getBlockedDomainForCandidateUrl(candidateUrl, settings);
+    if (!blockedDomain) {
+      continue;
+    }
+
+    const isWhitelisted = await chrome.runtime.sendMessage({
+      type: 'IS_URL_WHITELISTED',
+      url: candidateUrl
+    });
+
+    if (isWhitelisted || hasActiveTempUnblock(settings, tempUnblocks, blockedDomain, now)) {
+      continue;
+    }
+
+    return { blockedDomain, blockedUrl: candidateUrl };
+  }
+
+  return null;
+}
+
 async function maybeBlockEmbeddedContent(settings, tempUnblocks) {
-  return;
+  if (!isTopLevelFrame() || !settings || !settings.enabled || shouldSkipEmbeddedMediaHandling()) {
+    return;
+  }
+
+  const currentDomain = normalizeDomain(window.location.hostname);
+  const now = Date.now();
+  if (hasActiveTempUnblock(settings, tempUnblocks, currentDomain, now)) {
+    return;
+  }
+
+  if (settings.mode === 'blocklist' && getBlockedDomains(settings).length === 0) {
+    return;
+  }
+
+  for (const embedElement of document.querySelectorAll(EMBED_SOURCE_SELECTORS)) {
+    if (!(embedElement instanceof HTMLElement)
+      || embedElement.getAttribute(EMBED_BLOCK_MARKER) === 'true'
+      || isBlockedEmbedGuarded(embedElement)) {
+      continue;
+    }
+
+    const ownerElement = embedElement.closest('video, audio') || embedElement;
+    if (ownerElement instanceof HTMLMediaElement) {
+      const match = await findDirectBlockedEmbedMatch(ownerElement, settings, tempUnblocks, now)
+        || await findBlockedDomainForEmbed(ownerElement, settings, tempUnblocks, now).then((blockedDomain) => {
+          if (!blockedDomain) {
+            return null;
+          }
+
+          const blockedUrl = getElementUrlCandidates(ownerElement)[0] || '';
+          return blockedUrl ? { blockedDomain, blockedUrl } : null;
+        });
+
+      if (!match) {
+        continue;
+      }
+
+      armMediaPlaybackBlock(ownerElement, match.blockedUrl, match.blockedDomain);
+      continue;
+    }
+
+    const match = await findDirectBlockedEmbedMatch(ownerElement, settings, tempUnblocks, now);
+    if (!match) {
+      continue;
+    }
+
+    armFramedEmbedBlock(ownerElement, match.blockedUrl, match.blockedDomain);
+  }
 }
 
 async function refreshBlockingState() {
@@ -487,6 +687,10 @@ async function evaluateCurrentUrl() {
 
     if (!shouldBlock) {
       queueMicrotask(() => maybeRunCategoryScan(settings, currentDomain, currentUrl));
+      return;
+    }
+
+    if (!isTopLevelFrame()) {
       return;
     }
 

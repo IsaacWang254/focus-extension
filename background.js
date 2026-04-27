@@ -1257,7 +1257,19 @@ async function handleMessage(message, sender) {
       return await endTempUnblock(message.domain);
 
     case 'TRACK_BLOCK_ATTEMPT':
-      return await incrementBlockAttempts();
+      if (message.context === 'embedded_play') {
+        return await incrementBlockAttempts();
+      }
+
+      if (message.context === 'blocked_page') {
+        return sender?.frameId === 0
+          ? await incrementBlockAttempts()
+          : await getTotalBlockAttempts();
+      }
+
+      return sender?.frameId === 0
+        ? await incrementBlockAttempts()
+        : await getTotalBlockAttempts();
 
     case 'GET_EARNED_TIME':
       return await getEarnedTimeInfo();

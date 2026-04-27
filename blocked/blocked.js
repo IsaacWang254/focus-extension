@@ -599,7 +599,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Track this block attempt for achievements
     try {
-      await chrome.runtime.sendMessage({ type: 'TRACK_BLOCK_ATTEMPT' });
+      await chrome.runtime.sendMessage({
+        type: 'TRACK_BLOCK_ATTEMPT',
+        context: 'blocked_page'
+      });
     } catch (e) {
       // Silently ignore - non-critical for page functionality
     }
