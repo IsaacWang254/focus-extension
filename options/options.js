@@ -44,6 +44,17 @@ const PAGE_CONFIG = {
   }
 };
 
+const DEFAULT_BLOCKED_PAGE_SETTINGS = {
+  showBlockedDomain: true,
+  showAttemptedContent: true,
+  showMotivationalQuote: true,
+  showTodoistTasks: true,
+  showScheduleStatus: true,
+  showDailyLimitStatus: true,
+  showEarnedTimeStatus: true,
+  showFooterLinks: true
+};
+
 // =============================================================================
 // KEYWORD MATCHING HELPERS
 // =============================================================================
@@ -1596,6 +1607,7 @@ function populateSettings() {
   }).catch(e => console.error('Failed to load appearance settings:', e));
 
   populateNewtabAppearanceSettings();
+  populateBlockedPageAppearanceSettings();
 
   // Focus session presets
   populateFocusPresets();
@@ -2086,6 +2098,7 @@ function setupEventListeners() {
   document.getElementById('bedtime-reminder-time').addEventListener('change', markAsChanged);
   document.getElementById('bedtime-reminder-end-time').addEventListener('change', markAsChanged);
   setupNewtabAppearanceControls();
+  setupBlockedPageAppearanceControls();
 
   // Reset earned time
   document.getElementById('reset-earned-time').addEventListener('click', resetEarnedTimeBank);
@@ -2156,6 +2169,7 @@ async function saveSettings() {
   settings.newtabTempUnit = document.querySelector('.newtab-temp-unit-btn.active')?.dataset.unit || 'C';
   settings.newtabBgImageLight = settings.newtabBgImageLight || '';
   settings.newtabBgImageDark = settings.newtabBgImageDark || '';
+  settings.blockedPage = gatherBlockedPageAppearanceSettings();
 
   // Schedule settings
   const activeDays = [];
@@ -2666,6 +2680,7 @@ function gatherCurrentSettings() {
     newtabTempUnit: document.querySelector('.newtab-temp-unit-btn.active')?.dataset.unit || 'C',
     newtabBgImageLight: settings.newtabBgImageLight || '',
     newtabBgImageDark: settings.newtabBgImageDark || '',
+    blockedPage: gatherBlockedPageAppearanceSettings(),
     schedule: {
       enabled: document.getElementById('schedule-enabled').checked,
       allowedTimes: settings.schedule?.allowedTimes || [],
@@ -2700,6 +2715,55 @@ function gatherCurrentSettings() {
       }
     }
   };
+}
+
+function normalizeBlockedPageAppearanceSettings(blockedPageSettings) {
+  return {
+    ...DEFAULT_BLOCKED_PAGE_SETTINGS,
+    ...(blockedPageSettings || {})
+  };
+}
+
+function gatherBlockedPageAppearanceSettings() {
+  return {
+    showBlockedDomain: document.getElementById('blocked-page-show-domain').checked,
+    showAttemptedContent: document.getElementById('blocked-page-show-content').checked,
+    showMotivationalQuote: document.getElementById('blocked-page-show-quote').checked,
+    showTodoistTasks: document.getElementById('blocked-page-show-todos').checked,
+    showScheduleStatus: document.getElementById('blocked-page-show-schedule').checked,
+    showDailyLimitStatus: document.getElementById('blocked-page-show-daily-limit').checked,
+    showEarnedTimeStatus: document.getElementById('blocked-page-show-earned-time').checked,
+    showFooterLinks: document.getElementById('blocked-page-show-footer').checked
+  };
+}
+
+function populateBlockedPageAppearanceSettings() {
+  const blockedPageSettings = normalizeBlockedPageAppearanceSettings(settings.blockedPage);
+
+  document.getElementById('blocked-page-show-domain').checked = blockedPageSettings.showBlockedDomain;
+  document.getElementById('blocked-page-show-content').checked = blockedPageSettings.showAttemptedContent;
+  document.getElementById('blocked-page-show-quote').checked = blockedPageSettings.showMotivationalQuote;
+  document.getElementById('blocked-page-show-todos').checked = blockedPageSettings.showTodoistTasks;
+  document.getElementById('blocked-page-show-schedule').checked = blockedPageSettings.showScheduleStatus;
+  document.getElementById('blocked-page-show-daily-limit').checked = blockedPageSettings.showDailyLimitStatus;
+  document.getElementById('blocked-page-show-earned-time').checked = blockedPageSettings.showEarnedTimeStatus;
+  document.getElementById('blocked-page-show-footer').checked = blockedPageSettings.showFooterLinks;
+}
+
+function setupBlockedPageAppearanceControls() {
+  [
+    'blocked-page-show-domain',
+    'blocked-page-show-content',
+    'blocked-page-show-quote',
+    'blocked-page-show-todos',
+    'blocked-page-show-schedule',
+    'blocked-page-show-daily-limit',
+    'blocked-page-show-earned-time',
+    'blocked-page-show-footer'
+  ].forEach(id => {
+    const control = document.getElementById(id);
+    control?.addEventListener('change', markAsChanged);
+  });
 }
 
 // =============================================================================

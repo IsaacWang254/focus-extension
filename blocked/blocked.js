@@ -35,6 +35,17 @@ const RELATED_BLOCKED_DOMAINS = {
   'x.com': ['twitter.com']
 };
 
+const DEFAULT_BLOCKED_PAGE_SETTINGS = {
+  showBlockedDomain: true,
+  showAttemptedContent: true,
+  showMotivationalQuote: true,
+  showTodoistTasks: true,
+  showScheduleStatus: true,
+  showDailyLimitStatus: true,
+  showEarnedTimeStatus: true,
+  showFooterLinks: true
+};
+
 const COMMON_REASON_WORDS = new Set([
   'a', 'about', 'after', 'am', 'an', 'and', 'because', 'before', 'but', 'for',
   'from', 'have', 'i', 'if', 'in', 'into', 'is', 'it', 'just', 'me', 'my',
@@ -112,6 +123,69 @@ function getReasonValidation(text, minLength) {
     isValid: true,
     message: 'Reason looks good.'
   };
+}
+
+function getBlockedPageSettings() {
+  return {
+    ...DEFAULT_BLOCKED_PAGE_SETTINGS,
+    ...(settings?.blockedPage || {})
+  };
+}
+
+function isTodoPanelRequired() {
+  return Boolean(
+    settings?.unblockMethods?.completeTodo?.enabled ||
+    settings?.earnedTime?.enabled
+  );
+}
+
+function shouldShowTodoPanel() {
+  const blockedPageSettings = getBlockedPageSettings();
+  return blockedPageSettings.showTodoistTasks || isTodoPanelRequired();
+}
+
+function applyBlockedPageVisibility() {
+  const blockedPageSettings = getBlockedPageSettings();
+
+  const blockedUrlRow = document.querySelector('.blocked-url');
+  if (blockedUrlRow) {
+    blockedUrlRow.style.display = blockedPageSettings.showBlockedDomain ? 'block' : 'none';
+  }
+
+  const blockedContentRow = document.getElementById('blocked-content-row');
+  if (blockedContentRow && !blockedPageSettings.showAttemptedContent) {
+    blockedContentRow.style.display = 'none';
+  }
+
+  const quoteSection = document.getElementById('quote-section');
+  if (quoteSection && !blockedPageSettings.showMotivationalQuote) {
+    quoteSection.style.display = 'none';
+  }
+
+  if (!shouldShowTodoPanel()) {
+    document.getElementById('auth-required').style.display = 'none';
+    document.getElementById('todos-section').style.display = 'none';
+  }
+
+  const scheduleInfo = document.getElementById('schedule-info');
+  if (scheduleInfo && !blockedPageSettings.showScheduleStatus) {
+    scheduleInfo.style.display = 'none';
+  }
+
+  const dailyLimitInfo = document.getElementById('daily-limit-info');
+  if (dailyLimitInfo && !blockedPageSettings.showDailyLimitStatus) {
+    dailyLimitInfo.style.display = 'none';
+  }
+
+  const earnedTimeInfo = document.getElementById('earned-time-info');
+  if (earnedTimeInfo && !blockedPageSettings.showEarnedTimeStatus) {
+    earnedTimeInfo.style.display = 'none';
+  }
+
+  const footer = document.getElementById('blocked-footer');
+  if (footer) {
+    footer.style.display = blockedPageSettings.showFooterLinks ? 'block' : 'none';
+  }
 }
 
 function preventBulkTextEntry(input, { maxLengthDelta = 1 } = {}) {
@@ -258,6 +332,12 @@ function setBlockedContentTitle(title) {
   const row = document.getElementById('blocked-content-row');
   const titleEl = document.getElementById('blocked-content-title');
   if (!row || !titleEl) {
+    return;
+  }
+
+  if (!getBlockedPageSettings().showAttemptedContent) {
+    row.style.display = 'none';
+    titleEl.textContent = '';
     return;
   }
 
@@ -613,6 +693,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       throw new Error(settings?.error || 'Failed to load settings');
     }
 
+    applyBlockedPageVisibility();
+
     if (await redirectIfUrlIsWhitelisted()) {
       return;
     }
@@ -634,13 +716,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadCompleteTodoProgress();
 
     // Check authentication and load todos
-    const isAuthenticated = await todoist.isAuthenticated();
+    if (shouldShowTodoPanel()) {
+      const isAuthenticated = await todoist.isAuthenticated();
 
-    if (isAuthenticated) {
-      showTodosSection();
-      loadTodos();
+      if (isAuthenticated) {
+        showTodosSection();
+        loadTodos();
+      } else {
+        showAuthSection();
+      }
     } else {
-      showAuthSection();
+      document.getElementById('auth-required').style.display = 'none';
+      document.getElementById('todos-section').style.display = 'none';
     }
 
     updateCompleteTodoUI();
@@ -661,6 +748,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 // =============================================================================
 
 async function loadQuote() {
+  if (!getBlockedPageSettings().showMotivationalQuote) {
+    document.getElementById('quote-section').style.display = 'none';
+    return;
+  }
+
   try {
     // Get the quote of the day for consistency
     const quote = await chrome.runtime.sendMessage({ type: 'GET_QUOTE_OF_DAY' });
@@ -842,11 +934,23 @@ function setupBrowserThemeSyncListener() {
 // =============================================================================
 
 function showAuthSection() {
+  if (!shouldShowTodoPanel()) {
+    document.getElementById('auth-required').style.display = 'none';
+    document.getElementById('todos-section').style.display = 'none';
+    return;
+  }
+
   document.getElementById('auth-required').style.display = 'block';
   document.getElementById('todos-section').style.display = 'none';
 }
 
 function showTodosSection() {
+  if (!shouldShowTodoPanel()) {
+    document.getElementById('auth-required').style.display = 'none';
+    document.getElementById('todos-section').style.display = 'none';
+    return;
+  }
+
   document.getElementById('auth-required').style.display = 'none';
   document.getElementById('todos-section').style.display = 'block';
 }
@@ -1281,6 +1385,11 @@ function updateScheduleInfoCard() {
     return;
   }
 
+  if (!getBlockedPageSettings().showScheduleStatus) {
+    container.style.display = 'none';
+    return;
+  }
+
   const iconEl = document.getElementById('schedule-info-icon');
   const statusEl = document.getElementById('schedule-info-status');
   const detailEl = document.getElementById('schedule-info-detail');
@@ -1446,6 +1555,11 @@ async function updateDailyLimitInfoCard() {
     return;
   }
 
+  if (!getBlockedPageSettings().showDailyLimitStatus) {
+    container.style.display = 'none';
+    return;
+  }
+
   // Get daily usage info from background
   const usageInfo = await chrome.runtime.sendMessage({ type: 'GET_DAILY_USAGE' });
 
@@ -1484,6 +1598,11 @@ async function updateEarnedTimeInfoCard() {
   const container = document.getElementById('earned-time-info');
 
   if (!container) {
+    return;
+  }
+
+  if (!getBlockedPageSettings().showEarnedTimeStatus) {
+    container.style.display = 'none';
     return;
   }
 

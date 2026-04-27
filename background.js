@@ -114,6 +114,16 @@ const DEFAULT_SETTINGS = {
   newtabTempUnit: 'C',
   newtabBgImageLight: '',
   newtabBgImageDark: '',
+  blockedPage: {
+    showBlockedDomain: true,
+    showAttemptedContent: true,
+    showMotivationalQuote: true,
+    showTodoistTasks: true,
+    showScheduleStatus: true,
+    showDailyLimitStatus: true,
+    showEarnedTimeStatus: true,
+    showFooterLinks: true
+  },
   schedule: {
     enabled: false,
     // Times when sites are UNBLOCKED (allowed)
@@ -150,6 +160,13 @@ const BEDTIME_REMINDER_ALARM = 'bedtimeReminder';
 const BEDTIME_REMINDER_NOTIFICATION_ID = 'bedtime-reminder';
 const BEDTIME_REMINDER_LAST_SENT_KEY = 'bedtimeReminderLastSentWindow';
 const BLOCKED_RESOURCE_TYPES = ['main_frame'];
+
+function normalizeBlockedPageSettings(blockedPageSettings = {}) {
+  return {
+    ...DEFAULT_SETTINGS.blockedPage,
+    ...(blockedPageSettings || {})
+  };
+}
 
 // Default profile structure
 const DEFAULT_PROFILE = {
@@ -353,6 +370,8 @@ async function migrateSettings() {
       };
     }
 
+    migratedSettings.blockedPage = normalizeBlockedPageSettings(existingSettings.blockedPage);
+
     if (DEFAULT_SETTINGS.focusPresets && existingSettings.focusPresets) {
       migratedSettings.focusPresets = {};
       for (const key of Object.keys(DEFAULT_SETTINGS.focusPresets)) {
@@ -446,6 +465,7 @@ async function importAllData(importData) {
     if (importData.settings) {
       // Merge with defaults to ensure all required fields exist
       dataToImport.settings = { ...DEFAULT_SETTINGS, ...importData.settings };
+      dataToImport.settings.blockedPage = normalizeBlockedPageSettings(importData.settings.blockedPage);
     }
 
     if (importData.profiles) {
@@ -538,6 +558,7 @@ async function getSettings() {
   if (globalSettings.unblockMethods) {
     globalSettings.unblockMethods.completeTodo = normalizeCompleteTodoSettings(globalSettings.unblockMethods.completeTodo);
   }
+  globalSettings.blockedPage = normalizeBlockedPageSettings(globalSettings.blockedPage);
 
   // Get active profile
   const data = await chrome.storage.local.get(['profiles', 'activeProfileId']);
@@ -1207,6 +1228,7 @@ async function handleMessage(message, sender) {
       if (mergedSettings.unblockMethods) {
         mergedSettings.unblockMethods.completeTodo = normalizeCompleteTodoSettings(mergedSettings.unblockMethods.completeTodo);
       }
+      mergedSettings.blockedPage = normalizeBlockedPageSettings(mergedSettings.blockedPage);
       await chrome.storage.local.set({ settings: mergedSettings });
       await scheduleBedtimeReminderAlarm({
         bedtimeReminderEnabled: mergedSettings.bedtimeReminderEnabled,
@@ -6218,6 +6240,10 @@ function getBlockedContentFallbackLabel(url) {
 async function getBlockedContentMetadata(url) {
   if (typeof url !== 'string' || !url.startsWith('http') || isExtensionOwnedUrl(url)) {
     return { title: '', source: 'none' };
+  }
+
+  if (isYouTubeUrl(url) && !getYouTubeVideoId(url)) {
+    return { title: '', source: 'youtube-non-video' };
   }
 
   const normalizedTarget = normalizeHistoryLookupUrl(getCanonicalYouTubeWatchUrl(url) || url);

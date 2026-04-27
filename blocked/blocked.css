@@ -116,15 +116,20 @@ body::before {
 }
 
 .blocked-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
   font-size: 0.8125rem;
   color: var(--muted-foreground);
   margin: var(--space-3) 0 0;
 }
 
 .blocked-content span {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   max-width: min(100%, 440px);
-  vertical-align: top;
   font-weight: 600;
   color: var(--foreground);
   padding: 5px 10px;
