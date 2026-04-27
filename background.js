@@ -6260,10 +6260,7 @@ async function getBlockedContentMetadata(url) {
         && normalizeHistoryLookupUrl(getCanonicalYouTubeWatchUrl(item.url || '') || (item.url || '')) === normalizedTarget
         && isUsefulBlockedContentTitle(item.title || '');
     });
-    const firstUsableHistoryTitle = historyItems.find((item) => {
-      return !isExtensionOwnedUrl(item.url || '') && isUsefulBlockedContentTitle(item.title || '');
-    })?.title || '';
-    const bestTitle = trimBlockedContentTitle(exactMatch?.title || firstUsableHistoryTitle);
+    const bestTitle = trimBlockedContentTitle(exactMatch?.title || '');
     if (isUsefulBlockedContentTitle(bestTitle)) {
       return { title: bestTitle, source: 'history' };
     }
