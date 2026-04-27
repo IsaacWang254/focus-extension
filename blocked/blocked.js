@@ -237,6 +237,60 @@ function formatUrlForDisplay(url) {
   return url.length > 120 ? `${url.slice(0, 117)}...` : url;
 }
 
+function sanitizeBlockedTargetUrl(url) {
+  if (typeof url !== 'string') {
+    return '';
+  }
+
+  const trimmed = url.trim();
+  if (!trimmed.startsWith('http')) {
+    return '';
+  }
+
+  if (trimmed.startsWith('chrome-extension://') || trimmed.startsWith('moz-extension://')) {
+    return '';
+  }
+
+  return trimmed;
+}
+
+function setBlockedContentTitle(title) {
+  const row = document.getElementById('blocked-content-row');
+  const titleEl = document.getElementById('blocked-content-title');
+  if (!row || !titleEl) {
+    return;
+  }
+
+  const normalizedTitle = typeof title === 'string' ? title.trim() : '';
+  if (!normalizedTitle) {
+    row.style.display = 'none';
+    titleEl.textContent = '';
+    return;
+  }
+
+  titleEl.textContent = normalizedTitle;
+  row.style.display = 'block';
+}
+
+async function loadBlockedContentMetadata() {
+  if (!originalUrl) {
+    setBlockedContentTitle('');
+    return;
+  }
+
+  try {
+    const metadata = await chrome.runtime.sendMessage({
+      type: 'GET_BLOCKED_CONTENT_METADATA',
+      url: originalUrl
+    });
+
+    setBlockedContentTitle(metadata?.title || '');
+  } catch (error) {
+    console.error('Failed to load blocked content metadata:', error);
+    setBlockedContentTitle('');
+  }
+}
+
 function validateWhitelistUrl(rawValue) {
   const trimmed = typeof rawValue === 'string' ? rawValue.trim() : '';
   if (!trimmed) {
@@ -512,7 +566,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Parse the blocked URL from query params
     const params = new URLSearchParams(window.location.search);
-    originalUrl = params.get('url') || '';
+    originalUrl = sanitizeBlockedTargetUrl(params.get('url') || '');
     const fallbackDomain = params.get('domain') || '';
     const referrerUrl = document.referrer || '';
 
@@ -539,6 +593,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Display blocked domain
     document.getElementById('blocked-domain').textContent = blockedDomain;
+    loadBlockedContentMetadata().catch((error) => {
+      console.error('Failed to load blocked content metadata:', error);
+    });
 
     // Track this block attempt for achievements
     try {

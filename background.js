@@ -1304,6 +1304,9 @@ async function handleMessage(message, sender) {
     case 'GET_FOCUS_PRESETS':
       return await getFocusPresets();
 
+    case 'GET_BLOCKED_CONTENT_METADATA':
+      return await getBlockedContentMetadata(message.url);
+
     case 'GET_FOCUS_SESSION':
       return await getFocusSession();
 
@@ -6030,6 +6033,218 @@ function formatHour(hour) {
   const period = hour >= 12 ? 'PM' : 'AM';
   const displayHour = hour % 12 || 12;
   return `${displayHour}:00 ${period}`;
+}
+
+function normalizeHistoryLookupUrl(url) {
+  try {
+    const parsed = new URL(url);
+    parsed.hash = '';
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+function trimBlockedContentTitle(title, maxLength = 140) {
+  const normalized = typeof title === 'string' ? title.replace(/\s+/g, ' ').trim() : '';
+  if (!normalized) {
+    return '';
+  }
+
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, maxLength - 3)}...`
+    : normalized;
+}
+
+function isExtensionOwnedUrl(url) {
+  return typeof url === 'string'
+    && (url.startsWith('chrome-extension://') || url.startsWith('moz-extension://'));
+}
+
+function isUsefulBlockedContentTitle(title) {
+  const normalized = trimBlockedContentTitle(title).toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return normalized !== 'focus mode - stay productive'
+    && normalized !== 'focus mode'
+    && normalized !== 'embedded content blocked';
+}
+
+function isYouTubeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.replace(/^www\./, '');
+    return hostname === 'youtube.com' || hostname === 'm.youtube.com' || hostname === 'youtu.be';
+  } catch {
+    return false;
+  }
+}
+
+function getYouTubeVideoId(url) {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.replace(/^www\./, '');
+    const path = parsed.pathname || '/';
+
+    if (hostname === 'youtu.be') {
+      return path.slice(1).split('/')[0] || '';
+    }
+
+    if (hostname === 'youtube.com' || hostname === 'm.youtube.com') {
+      if (path === '/watch') {
+        return parsed.searchParams.get('v') || '';
+      }
+
+      const pathMatch = path.match(/^\/(embed|shorts|live)\/([^/?#]+)/);
+      if (pathMatch) {
+        return pathMatch[2] || '';
+      }
+    }
+
+    return '';
+  } catch {
+    return '';
+  }
+}
+
+function getCanonicalYouTubeWatchUrl(url) {
+  const videoId = getYouTubeVideoId(url);
+  return videoId ? `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}` : '';
+}
+
+async function getYouTubeHistoryTitleByVideoId(videoId) {
+  if (!videoId) {
+    return '';
+  }
+
+  try {
+    const historyItems = await chrome.history.search({
+      text: videoId,
+      startTime: 0,
+      maxResults: 25
+    });
+
+    const matchingItem = historyItems.find((item) => {
+      return !isExtensionOwnedUrl(item.url || '')
+        && getYouTubeVideoId(item.url || '') === videoId
+        && isUsefulBlockedContentTitle(item.title || '');
+    });
+    return trimBlockedContentTitle(matchingItem?.title || '');
+  } catch (error) {
+    console.error('Failed to resolve YouTube history title by video id:', error);
+    return '';
+  }
+}
+
+async function getYouTubeOEmbedTitle(url) {
+  if (!isYouTubeUrl(url)) {
+    return '';
+  }
+
+  try {
+    const canonicalUrl = getCanonicalYouTubeWatchUrl(url) || url;
+    const endpoint = `https://www.youtube.com/oembed?url=${encodeURIComponent(canonicalUrl)}&format=json`;
+    const response = await fetch(endpoint, { method: 'GET' });
+    if (!response.ok) {
+      return '';
+    }
+
+    const data = await response.json();
+    return trimBlockedContentTitle(data?.title || '');
+  } catch (error) {
+    console.error('Failed to load YouTube oEmbed title:', error);
+    return '';
+  }
+}
+
+function getBlockedContentFallbackLabel(url) {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.replace(/^www\./, '');
+    const path = parsed.pathname || '/';
+
+    if (hostname === 'youtube.com' || hostname === 'm.youtube.com' || hostname === 'youtu.be') {
+      return 'YouTube video';
+    }
+
+    if (hostname === 'x.com' || hostname === 'twitter.com') {
+      return path.includes('/status/') ? 'X post' : 'X page';
+    }
+
+    if (hostname === 'reddit.com') {
+      return path.includes('/comments/') ? 'Reddit post' : 'Reddit page';
+    }
+
+    if (hostname === 'instagram.com') {
+      return /^\/(p|reel|reels)\//.test(path) ? 'Instagram post' : 'Instagram page';
+    }
+
+    if (hostname === 'facebook.com') {
+      return 'Facebook post';
+    }
+
+    if (hostname === 'tiktok.com') {
+      return 'TikTok video';
+    }
+
+    if (hostname === 'linkedin.com') {
+      return path.includes('/feed/update/') ? 'LinkedIn post' : 'LinkedIn page';
+    }
+
+    if (hostname === 'threads.net') {
+      return 'Threads post';
+    }
+
+    return '';
+  } catch {
+    return '';
+  }
+}
+
+async function getBlockedContentMetadata(url) {
+  if (typeof url !== 'string' || !url.startsWith('http') || isExtensionOwnedUrl(url)) {
+    return { title: '', source: 'none' };
+  }
+
+  const normalizedTarget = normalizeHistoryLookupUrl(getCanonicalYouTubeWatchUrl(url) || url);
+
+  try {
+    const historyItems = await chrome.history.search({
+      text: getYouTubeVideoId(url) || url,
+      startTime: 0,
+      maxResults: 25
+    });
+
+    const exactMatch = historyItems.find((item) => {
+      return !isExtensionOwnedUrl(item.url || '')
+        && normalizeHistoryLookupUrl(getCanonicalYouTubeWatchUrl(item.url || '') || (item.url || '')) === normalizedTarget
+        && isUsefulBlockedContentTitle(item.title || '');
+    });
+    const firstUsableHistoryTitle = historyItems.find((item) => {
+      return !isExtensionOwnedUrl(item.url || '') && isUsefulBlockedContentTitle(item.title || '');
+    })?.title || '';
+    const bestTitle = trimBlockedContentTitle(exactMatch?.title || firstUsableHistoryTitle);
+    if (isUsefulBlockedContentTitle(bestTitle)) {
+      return { title: bestTitle, source: 'history' };
+    }
+  } catch (error) {
+    console.error('Failed to resolve blocked content metadata:', error);
+  }
+
+  const youtubeVideoId = getYouTubeVideoId(url);
+  const youtubeHistoryTitle = await getYouTubeHistoryTitleByVideoId(youtubeVideoId);
+  if (youtubeHistoryTitle) {
+    return { title: youtubeHistoryTitle, source: 'youtube-history-video-id' };
+  }
+
+  const youtubeTitle = await getYouTubeOEmbedTitle(url);
+  if (youtubeTitle) {
+    return { title: youtubeTitle, source: 'youtube-oembed' };
+  }
+
+  return { title: '', source: 'none' };
 }
 
 /**

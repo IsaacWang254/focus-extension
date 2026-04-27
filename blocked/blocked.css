@@ -115,6 +115,27 @@ body::before {
   font-size: 0.75rem;
 }
 
+.blocked-content {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  margin: var(--space-3) 0 0;
+}
+
+.blocked-content span {
+  display: inline-block;
+  max-width: min(100%, 440px);
+  vertical-align: top;
+  font-weight: 600;
+  color: var(--foreground);
+  padding: 5px 10px;
+  background-color: color-mix(in srgb, var(--secondary) 76%, var(--card) 24%);
+  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+  border-radius: 14px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 /* ============================================
    Quote Section
    ============================================ */
