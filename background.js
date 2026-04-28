@@ -2266,6 +2266,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 async function updateBadgeTimer() {
   const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
   const settings = await getSettings();
+  const focusSession = await getFocusSession();
 
   const setBadgeAppearance = async (text, backgroundColor, textColor = null) => {
     await chrome.action.setBadgeText({ text });
@@ -2302,6 +2303,34 @@ async function updateBadgeTimer() {
 
     // Schedule next update
     chrome.alarms.create('updateBadge', { delayInMinutes: 1 / 6 }); // Every 10s
+    return;
+  }
+
+  if (focusSession.active && focusSession.endTime) {
+    const remaining = Math.max(0, focusSession.endTime - Date.now());
+    const remainingSeconds = Math.ceil(remaining / 1000);
+    const mins = Math.floor(remainingSeconds / 60);
+    const secs = remainingSeconds % 60;
+
+    let badgeText;
+    if (mins >= 60) {
+      const hours = Math.floor(mins / 60);
+      badgeText = `${hours}h`;
+    } else if (mins > 0) {
+      badgeText = `${mins}m`;
+    } else {
+      badgeText = `${secs}s`;
+    }
+
+    const isBreakPhase = focusSession.phase === 'break' || focusSession.phase === 'longBreak';
+    const badgeColor = isBreakPhase
+      ? (remainingSeconds <= 60 ? '#facc15' : '#22c55e')
+      : (remainingSeconds <= 60 ? '#ef4444' : '#f59e0b');
+    const badgeTextColor = isBreakPhase && remainingSeconds <= 60 ? '#1C1917' : '#FFFFFF';
+
+    await setBadgeAppearance(badgeText, badgeColor, badgeTextColor);
+
+    chrome.alarms.create('updateBadge', { delayInMinutes: remainingSeconds <= 60 ? 1 / 60 : 1 / 6 });
     return;
   }
 
@@ -7849,7 +7878,7 @@ setTimeout(() => {
 
 // Update badge when storage changes
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'local' && (changes.tempUnblocks || changes.settings)) {
+  if (namespace === 'local' && (changes.tempUnblocks || changes.settings || changes.focusSession)) {
     updateBadgeTimer();
   }
 });
