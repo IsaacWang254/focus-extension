@@ -147,6 +147,7 @@ const DEFAULT_SETTINGS = {
   // Privacy settings
   historyAnalysisEnabled: true, // Allow browser history analysis for productivity insights
   // Focus session presets (customizable pomodoro timers)
+  focusNotificationChannel: 'browser', // 'browser' toast or 'desktop' notification
   focusPresets: {
     pomodoro: { workMinutes: 25, breakMinutes: 5, longBreakMinutes: 15, sessionsBeforeLongBreak: 4 },
     short: { workMinutes: 15, breakMinutes: 3, longBreakMinutes: 10, sessionsBeforeLongBreak: 4 },
@@ -166,6 +167,10 @@ function normalizeBlockedPageSettings(blockedPageSettings = {}) {
     ...DEFAULT_SETTINGS.blockedPage,
     ...(blockedPageSettings || {})
   };
+}
+
+function normalizeFocusNotificationChannel(channel) {
+  return channel === 'desktop' ? 'desktop' : DEFAULT_SETTINGS.focusNotificationChannel;
 }
 
 // Default profile structure
@@ -371,6 +376,7 @@ async function migrateSettings() {
     }
 
     migratedSettings.blockedPage = normalizeBlockedPageSettings(existingSettings.blockedPage);
+    migratedSettings.focusNotificationChannel = normalizeFocusNotificationChannel(existingSettings.focusNotificationChannel);
 
     if (DEFAULT_SETTINGS.focusPresets && existingSettings.focusPresets) {
       migratedSettings.focusPresets = {};
@@ -551,14 +557,23 @@ chrome.storage.onChanged.addListener(async (changes, namespace) => {
 async function getSettings() {
   const result = await chrome.storage.local.get('settings');
   const globalSettings = result.settings || { ...DEFAULT_SETTINGS };
+  let shouldPersistGlobalSettings = false;
   if (globalSettings.enabled !== true) {
     globalSettings.enabled = true;
-    await chrome.storage.local.set({ settings: globalSettings });
+    shouldPersistGlobalSettings = true;
   }
   if (globalSettings.unblockMethods) {
     globalSettings.unblockMethods.completeTodo = normalizeCompleteTodoSettings(globalSettings.unblockMethods.completeTodo);
   }
   globalSettings.blockedPage = normalizeBlockedPageSettings(globalSettings.blockedPage);
+  const normalizedFocusNotificationChannel = normalizeFocusNotificationChannel(globalSettings.focusNotificationChannel);
+  if (globalSettings.focusNotificationChannel !== normalizedFocusNotificationChannel) {
+    globalSettings.focusNotificationChannel = normalizedFocusNotificationChannel;
+    shouldPersistGlobalSettings = true;
+  }
+  if (shouldPersistGlobalSettings) {
+    await chrome.storage.local.set({ settings: globalSettings });
+  }
 
   // Get active profile
   const data = await chrome.storage.local.get(['profiles', 'activeProfileId']);
@@ -835,6 +850,44 @@ async function redirectTabsThatShouldNowBeBlocked(reason = 'expired') {
     }
 
     await redirectTabIfNeeded(tab.id, tab.url, reason);
+  }
+}
+
+function getOriginalUrlFromBlockedPage(tabUrl) {
+  const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
+  if (!tabUrl || !tabUrl.startsWith(blockedPageUrl)) {
+    return '';
+  }
+
+  try {
+    const parsedBlockedUrl = new URL(tabUrl);
+    const originalUrl = parsedBlockedUrl.searchParams.get('url') || '';
+    const parsedOriginalUrl = new URL(originalUrl);
+
+    if (parsedOriginalUrl.protocol !== 'http:' && parsedOriginalUrl.protocol !== 'https:') {
+      return '';
+    }
+
+    return parsedOriginalUrl.href;
+  } catch {
+    return '';
+  }
+}
+
+async function restoreBlockedTabsForFocusBreak() {
+  const tabs = await chrome.tabs.query({});
+
+  for (const tab of tabs) {
+    if (!tab.id || !tab.url) {
+      continue;
+    }
+
+    const originalUrl = getOriginalUrlFromBlockedPage(tab.url);
+    if (!originalUrl) {
+      continue;
+    }
+
+    await chrome.tabs.update(tab.id, { url: originalUrl });
   }
 }
 
@@ -1229,6 +1282,7 @@ async function handleMessage(message, sender) {
         mergedSettings.unblockMethods.completeTodo = normalizeCompleteTodoSettings(mergedSettings.unblockMethods.completeTodo);
       }
       mergedSettings.blockedPage = normalizeBlockedPageSettings(mergedSettings.blockedPage);
+      mergedSettings.focusNotificationChannel = normalizeFocusNotificationChannel(mergedSettings.focusNotificationChannel);
       await chrome.storage.local.set({ settings: mergedSettings });
       await scheduleBedtimeReminderAlarm({
         bedtimeReminderEnabled: mergedSettings.bedtimeReminderEnabled,
@@ -1340,6 +1394,9 @@ async function handleMessage(message, sender) {
 
     case 'GET_BLOCKED_CONTENT_METADATA':
       return await getBlockedContentMetadata(message.url);
+
+    case 'IS_ON_FOCUS_BREAK':
+      return await isOnFocusBreak();
 
     case 'GET_FOCUS_SESSION':
       return await getFocusSession();
@@ -2981,12 +3038,7 @@ async function scheduleBedtimeReminderAlarm(settingsOverride = null) {
 // FOCUS SESSIONS
 // =============================================================================
 
-/**
- * Send a focus session notification
- * @param {string} title - Notification title
- * @param {string} message - Notification body
- */
-function sendFocusNotification(title, message) {
+function sendDesktopFocusNotification(title, message) {
   chrome.notifications.create(`focus-${Date.now()}`, {
     type: 'basic',
     iconUrl: 'icons/icon128.png',
@@ -2995,6 +3047,132 @@ function sendFocusNotification(title, message) {
     priority: 2,
     requireInteraction: true
   });
+}
+
+function canShowBrowserFocusNotificationInTab(tab) {
+  return Number.isInteger(tab?.id) && /^https?:\/\//.test(tab.url || '');
+}
+
+function injectFocusBrowserNotification({ title, message }) {
+  const trimText = (text, maxLength) => {
+    const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+    return normalized.length > maxLength
+      ? `${normalized.slice(0, maxLength - 3)}...`
+      : normalized;
+  };
+
+  const existing = document.getElementById('focus-extension-focus-notification');
+  existing?.remove();
+
+  const notification = document.createElement('div');
+  notification.id = 'focus-extension-focus-notification';
+  notification.setAttribute('role', 'status');
+  notification.setAttribute('aria-live', 'polite');
+  notification.style.position = 'fixed';
+  notification.style.top = '20px';
+  notification.style.right = '20px';
+  notification.style.zIndex = '2147483647';
+  notification.style.boxSizing = 'border-box';
+  notification.style.display = 'flex';
+  notification.style.flexDirection = 'column';
+  notification.style.gap = '6px';
+  notification.style.maxWidth = '340px';
+  notification.style.padding = '16px 18px';
+  notification.style.border = '1px solid #3f3f3f';
+  notification.style.borderRadius = '14px';
+  notification.style.background = '#262626';
+  notification.style.color = '#f1f1f1';
+  notification.style.boxShadow = '0 18px 42px rgba(0, 0, 0, 0.24)';
+  notification.style.fontFamily = 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  notification.style.pointerEvents = 'none';
+  notification.style.transform = 'translateY(-8px)';
+  notification.style.opacity = '0';
+  notification.style.transition = 'opacity 180ms ease, transform 180ms ease';
+
+  const label = document.createElement('span');
+  label.textContent = 'Focus timer';
+  label.style.fontSize = '11px';
+  label.style.fontWeight = '700';
+  label.style.letterSpacing = '0.08em';
+  label.style.textTransform = 'uppercase';
+  label.style.color = '#a3a3a3';
+
+  const titleEl = document.createElement('strong');
+  titleEl.textContent = trimText(title || 'Timer update', 90);
+  titleEl.style.fontSize = '16px';
+  titleEl.style.lineHeight = '1.25';
+  titleEl.style.fontWeight = '750';
+
+  const messageEl = document.createElement('span');
+  messageEl.textContent = trimText(message || '', 180);
+  messageEl.style.fontSize = '13px';
+  messageEl.style.lineHeight = '1.45';
+  messageEl.style.color = '#a3a3a3';
+
+  notification.append(label, titleEl, messageEl);
+  (document.body || document.documentElement).appendChild(notification);
+
+  requestAnimationFrame(() => {
+    notification.style.opacity = '1';
+    notification.style.transform = 'translateY(0)';
+  });
+
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    notification.style.transform = 'translateY(-8px)';
+    setTimeout(() => notification.remove(), 220);
+  }, 6500);
+}
+
+async function sendBrowserFocusNotification(title, message) {
+  const focusedTabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  const tabs = focusedTabs.length > 0 ? focusedTabs : await chrome.tabs.query({ active: true });
+  const targetTabs = tabs.filter(canShowBrowserFocusNotificationInTab);
+
+  for (const tab of targetTabs) {
+    try {
+      await chrome.tabs.sendMessage(tab.id, {
+        type: 'SHOW_FOCUS_NOTIFICATION',
+        title,
+        message
+      });
+      return true;
+    } catch (_error) {
+      // The active tab may not have the content script loaded yet, or may block extension messaging.
+    }
+
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: injectFocusBrowserNotification,
+        args: [{ title, message }]
+      });
+      return true;
+    } catch (_error) {
+      // Some pages do not allow script injection; try the next active tab if available.
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Send a focus session notification
+ * @param {string} title - Notification title
+ * @param {string} message - Notification body
+ */
+async function sendFocusNotification(title, message) {
+  try {
+    const settings = await getSettings();
+    if (normalizeFocusNotificationChannel(settings.focusNotificationChannel) === 'desktop') {
+      sendDesktopFocusNotification(title, message);
+      return;
+    }
+
+    await sendBrowserFocusNotification(title, message);
+  } catch (error) {
+    console.error('Failed to send focus notification:', error);
+  }
 }
 
 // Default focus session presets (fallback if settings haven't loaded)
@@ -3011,6 +3189,20 @@ const DEFAULT_FOCUS_PRESETS = {
 async function getFocusPresets() {
   const settings = await getSettings();
   return settings.focusPresets || DEFAULT_FOCUS_PRESETS;
+}
+
+function getSessionWorkMinutes(session, preset) {
+  const sessionWorkMinutes = Number(session?.workMinutes);
+  if (Number.isFinite(sessionWorkMinutes) && sessionWorkMinutes > 0) {
+    return sessionWorkMinutes;
+  }
+
+  const customMinutes = Number(session?.customMinutes);
+  if (Number.isFinite(customMinutes) && customMinutes > 0) {
+    return customMinutes;
+  }
+
+  return preset.workMinutes;
 }
 
 // Lock to prevent concurrent phase-end handling (avoids duplicate XP, counter increments, etc.)
@@ -3070,16 +3262,17 @@ async function getFocusSession() {
 async function handleSessionPhaseEnd(session) {
   const presets = await getFocusPresets();
   const preset = presets[session.type] || presets.pomodoro;
+  const sessionWorkMinutes = getSessionWorkMinutes(session, preset);
 
   if (session.phase === 'work') {
     // Work phase completed - award XP
-    const xpAmount = preset.workMinutes >= 50 ? XP_REWARDS.FOCUS_SESSION_50 : XP_REWARDS.FOCUS_SESSION_25;
-    await addXP(xpAmount, `focus_session_${preset.workMinutes}`);
+    const xpAmount = sessionWorkMinutes >= 50 ? XP_REWARDS.FOCUS_SESSION_50 : XP_REWARDS.FOCUS_SESSION_25;
+    await addXP(xpAmount, `focus_session_${sessionWorkMinutes}`);
 
     // Increment session count
     session.sessionsCompleted++;
     session.totalSessionsToday++;
-    session.totalMinutesToday += preset.workMinutes;
+    session.totalMinutesToday += sessionWorkMinutes;
 
     // Increment total focus sessions counter (for achievements)
     await incrementTotalFocusSessions();
@@ -3114,8 +3307,9 @@ async function handleSessionPhaseEnd(session) {
     // Set alarm for next phase end
     chrome.alarms.create('focusSessionEnd', { when: session.endTime });
 
-    // Unblock sites for the break
+    // Unblock sites for the break, including tabs already parked on the blocked page.
     await updateBlockingRules();
+    await restoreBlockedTabsForFocusBreak();
 
     // Now safe to check achievements (storage has the updated, non-expired session)
     await checkNightOwlAchievement();
@@ -3140,18 +3334,20 @@ async function handleSessionPhaseEnd(session) {
   } else {
     // Short break completed - start new work phase
     session.phase = 'work';
-    session.endTime = Date.now() + (preset.workMinutes * 60 * 1000);
+    session.endTime = Date.now() + (sessionWorkMinutes * 60 * 1000);
     session.startedAt = Date.now();
+    session.workMinutes = sessionWorkMinutes;
 
     await chrome.storage.local.set({ focusSession: session });
     chrome.alarms.create('focusSessionEnd', { when: session.endTime });
 
     // Re-enable blocking for the work phase
     await updateBlockingRules();
+    await redirectTabsThatShouldNowBeBlocked('focus-resumed');
 
     sendFocusNotification(
       'Break over — time to focus!',
-      `Starting a ${preset.workMinutes} minute focus session. Sites are blocked again. (${session.sessionsCompleted + 1}/${preset.sessionsBeforeLongBreak})`
+      `Starting a ${sessionWorkMinutes} minute focus session. Sites are blocked again. (${session.sessionsCompleted + 1}/${preset.sessionsBeforeLongBreak})`
     );
   }
 
@@ -3178,6 +3374,7 @@ async function startFocusSession(type, customMinutes = null) {
     totalMinutesToday: (await getFocusSession()).totalMinutesToday || 0,
     startedAt: Date.now(),
     date: getTodayDateString(),
+    workMinutes,
     customMinutes: type === 'custom' ? customMinutes : null
   };
 

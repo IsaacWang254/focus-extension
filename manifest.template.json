@@ -10,6 +10,7 @@
     "storage",
     "identity",
     "tabs",
+    "scripting",
     "alarms",
     "history",
     "notifications"
@@ -34,9 +35,10 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.x.com/*", "*://x.com/*"],
+      "matches": ["<all_urls>"],
       "js": ["content-redirect.js"],
-      "run_at": "document_start"
+      "run_at": "document_start",
+      "all_frames": true
     }
   ],
   "action": {

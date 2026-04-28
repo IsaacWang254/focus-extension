@@ -612,6 +612,19 @@
         <h2>Focus Sessions</h2>
         <p class="section-desc">Customize your pomodoro timer durations</p>
 
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Timer Notifications</span>
+            <span class="setting-desc">Choose how focus and break timer updates appear. Bypasses Do Not Disturb: browser banners do not use system notifications.</span>
+          </div>
+          <select id="focus-notification-channel" class="select select-compact">
+            <option value="browser">In-browser banner</option>
+            <option value="desktop">Native desktop notification</option>
+          </select>
+        </div>
+
+        <hr class="divider">
+
         <div class="focus-presets-grid">
           <!-- Pomodoro -->
           <div class="preset-card">

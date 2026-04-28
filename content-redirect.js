@@ -65,6 +65,8 @@ let embedObserverStarted = false;
 let activeBlockedMediaNotice = null;
 let blockedMediaNoticeTimeoutId = null;
 let lastBlockedEmbedInteractionAt = 0;
+let activeFocusNotification = null;
+let focusNotificationTimeoutId = null;
 
 const EMBED_SOURCE_SELECTORS = 'iframe, video, audio, embed, object';
 const EMBED_ATTRIBUTION_SELECTORS = 'a[href], [data-href], [data-url], [data-video-url], meta[itemprop="url"], meta[property="og:video"], meta[property="og:video:url"], meta[property="og:video:secure_url"]';
@@ -79,6 +81,83 @@ const EMBED_ALIAS_MAP = {
   'twitter.com': ['x.com', 'platform.twitter.com', 'syndication.twitter.com', 'twimg.com'],
   'vimeo.com': ['player.vimeo.com', 'i.vimeocdn.com']
 };
+
+function showFocusBrowserNotification({ title, message }) {
+  if (!isTopLevelFrame()) {
+    return;
+  }
+
+  if (focusNotificationTimeoutId) {
+    clearTimeout(focusNotificationTimeoutId);
+    focusNotificationTimeoutId = null;
+  }
+
+  activeFocusNotification?.remove();
+
+  const notification = document.createElement('div');
+  notification.setAttribute('role', 'status');
+  notification.setAttribute('aria-live', 'polite');
+  notification.style.position = 'fixed';
+  notification.style.top = '20px';
+  notification.style.right = '20px';
+  notification.style.zIndex = '2147483647';
+  notification.style.boxSizing = 'border-box';
+  notification.style.display = 'flex';
+  notification.style.flexDirection = 'column';
+  notification.style.gap = '6px';
+  notification.style.maxWidth = '340px';
+  notification.style.padding = '16px 18px';
+  notification.style.border = '1px solid #3f3f3f';
+  notification.style.borderRadius = '14px';
+  notification.style.background = '#262626';
+  notification.style.color = '#f1f1f1';
+  notification.style.boxShadow = '0 18px 42px rgba(0, 0, 0, 0.24)';
+  notification.style.fontFamily = 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  notification.style.pointerEvents = 'none';
+  notification.style.transform = 'translateY(-8px)';
+  notification.style.opacity = '0';
+  notification.style.transition = 'opacity 180ms ease, transform 180ms ease';
+
+  const label = document.createElement('span');
+  label.textContent = 'Focus timer';
+  label.style.fontSize = '11px';
+  label.style.fontWeight = '700';
+  label.style.letterSpacing = '0.08em';
+  label.style.textTransform = 'uppercase';
+  label.style.color = '#a3a3a3';
+
+  const titleEl = document.createElement('strong');
+  titleEl.textContent = trimText(title || 'Timer update', 90);
+  titleEl.style.fontSize = '16px';
+  titleEl.style.lineHeight = '1.25';
+  titleEl.style.fontWeight = '750';
+
+  const messageEl = document.createElement('span');
+  messageEl.textContent = trimText(message || '', 180);
+  messageEl.style.fontSize = '13px';
+  messageEl.style.lineHeight = '1.45';
+  messageEl.style.color = '#a3a3a3';
+
+  notification.append(label, titleEl, messageEl);
+  (document.body || document.documentElement).appendChild(notification);
+  activeFocusNotification = notification;
+
+  requestAnimationFrame(() => {
+    notification.style.opacity = '1';
+    notification.style.transform = 'translateY(0)';
+  });
+
+  focusNotificationTimeoutId = setTimeout(() => {
+    notification.style.opacity = '0';
+    notification.style.transform = 'translateY(-8px)';
+    setTimeout(() => {
+      notification.remove();
+      if (activeFocusNotification === notification) {
+        activeFocusNotification = null;
+      }
+    }, 220);
+  }, 6500);
+}
 
 function shouldSkipEmbeddedMediaHandling() {
   const currentDomain = normalizeDomain(window.location.hostname);
@@ -663,16 +742,22 @@ async function evaluateCurrentUrl() {
     lastEvaluatedUrl = currentUrl;
 
     const currentDomain = normalizeDomain(window.location.hostname);
-    const [{ tempUnblocks = {} }, settings, isWhitelisted] = await Promise.all([
+    const [{ tempUnblocks = {} }, settings, isWhitelisted, isOnFocusBreak] = await Promise.all([
       chrome.storage.local.get('tempUnblocks'),
       chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }),
-      chrome.runtime.sendMessage({ type: 'IS_URL_WHITELISTED', url: currentUrl })
+      chrome.runtime.sendMessage({ type: 'IS_URL_WHITELISTED', url: currentUrl }),
+      chrome.runtime.sendMessage({ type: 'IS_ON_FOCUS_BREAK' })
     ]);
 
     if (!settings || settings.error || !settings.enabled || isWhitelisted) {
       if (settings && !settings.error && settings.enabled && isWhitelisted) {
         queueMicrotask(() => maybeRunCategoryScan(settings, currentDomain, currentUrl));
       }
+      return;
+    }
+
+    if (isOnFocusBreak) {
+      queueMicrotask(() => maybeRunCategoryScan(settings, currentDomain, currentUrl));
       return;
     }
 
@@ -729,6 +814,18 @@ history.replaceState = function(...args) {
 
 window.addEventListener('popstate', scheduleEvaluation);
 window.addEventListener('hashchange', scheduleEvaluation);
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type !== 'SHOW_FOCUS_NOTIFICATION') {
+    return false;
+  }
+
+  showFocusBrowserNotification({
+    title: message.title,
+    message: message.message
+  });
+  return false;
+});
 
 startEmbedObserver();
 scheduleEvaluation();

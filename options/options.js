@@ -1610,6 +1610,7 @@ function populateSettings() {
   populateBlockedPageAppearanceSettings();
 
   // Focus session presets
+  document.getElementById('focus-notification-channel').value = normalizeFocusNotificationChannel(settings.focusNotificationChannel);
   populateFocusPresets();
 
   // Bedtime reminder
@@ -1963,6 +1964,10 @@ function normalizeTimerConfig(timer, fallbackValue = 5) {
   });
 }
 
+function normalizeFocusNotificationChannel(channel) {
+  return channel === 'desktop' ? 'desktop' : 'browser';
+}
+
 function setupTimerDurationInput(inputId, fallbackSeconds = 5 * 60) {
   const input = document.getElementById(inputId);
   if (!input || input.dataset.bound === 'true') return;
@@ -2223,6 +2228,7 @@ async function saveSettings() {
   }
 
   // Focus session presets
+  settings.focusNotificationChannel = normalizeFocusNotificationChannel(document.getElementById('focus-notification-channel').value);
   settings.focusPresets = gatherFocusPresets();
 
   // Save to storage via background
@@ -2376,7 +2382,9 @@ function setupFocusPresetListeners() {
         updateSaveBarVisibility();
       });
       el.addEventListener('input', () => {
+        settings.focusPresets = gatherFocusPresets();
         updatePresetCardIcons();
+        updateSaveBarVisibility();
       });
     }
   }
@@ -2713,7 +2721,9 @@ function gatherCurrentSettings() {
         enabled: document.getElementById('password-enabled').checked,
         value: document.getElementById('password-value').value
       }
-    }
+    },
+    focusNotificationChannel: normalizeFocusNotificationChannel(document.getElementById('focus-notification-channel').value),
+    focusPresets: gatherFocusPresets()
   };
 }
 
