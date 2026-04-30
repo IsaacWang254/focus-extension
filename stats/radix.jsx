@@ -202,6 +202,7 @@ function Sidebar({ activeSection, hiddenHistory, onNavigate }) {
             className={`sidebar-link ${activeSection === id ? 'active' : ''}`}
             key={id}
             type="button"
+            aria-current={activeSection === id ? 'true' : undefined}
             onClick={() => onNavigate(id)}
           >
             <span className="sidebar-link-icon"><Icon name={icon} /></span>
@@ -487,7 +488,9 @@ function CategorySelect({ categories, domain, value, onSetCategory }) {
       <Select.Root value={value || undefined} onValueChange={(category) => onSetCategory(domain, category)}>
         <Select.Trigger className="top-site-category-select stats-radix-select" aria-label={`Category for ${domain}`}>
           <Select.Value placeholder="Choose one..." />
-          <Select.Icon className="select-chevron" aria-hidden="true">v</Select.Icon>
+          <Select.Icon className="select-chevron" aria-hidden="true">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m2 4 3 3 3-3" /></svg>
+          </Select.Icon>
         </Select.Trigger>
         <Select.Portal>
           <Select.Content className="radix-select-content" position="popper" sideOffset={4}>
@@ -705,6 +708,7 @@ function StatsApp() {
       }
 
       setHistoryState('loading');
+      setHistoryError('');
       const [categories, history, productivity, weekly, nextSuggestions] = await Promise.all([
         sendRuntimeMessage({ type: 'GET_SITE_CATEGORIES' }),
         sendRuntimeMessage({ type: 'ANALYZE_HISTORY', days: 7 }),

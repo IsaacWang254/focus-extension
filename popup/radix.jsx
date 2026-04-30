@@ -299,7 +299,9 @@ function ProfileSelect({ activeProfileId, profiles, onSelect }) {
     <Select.Root value={activeProfileId || ''} onValueChange={onSelect}>
       <Select.Trigger className="profile-select radix-select-trigger" aria-label="Active profile">
         <Select.Value placeholder={activeProfile?.name || 'Choose profile'} />
-        <Select.Icon className="select-chevron" aria-hidden="true">v</Select.Icon>
+        <Select.Icon className="select-chevron" aria-hidden="true">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m2 4 3 3 3-3" /></svg>
+        </Select.Icon>
       </Select.Trigger>
       <Select.Portal>
         <Select.Content className="radix-select-content" position="popper" sideOffset={4}>
@@ -463,6 +465,7 @@ function PopupApp() {
         loadFocusSession()
       ]);
 
+      if (!mounted) return;
       sessionInterval = setInterval(loadSessions, 2000);
       focusInterval = setInterval(loadFocusSession, 1000);
       tickInterval = setInterval(() => setNow(Date.now()), 1000);
