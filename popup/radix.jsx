@@ -1,8 +1,10 @@
-import * as Select from '@radix-ui/react-select';
 import * as ToggleGroup from '@radix-ui/react-toggle-group';
 import * as Toolbar from '@radix-ui/react-toolbar';
 import { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { createRuntimeMessenger, hasExtensionRuntime } from '../lib/runtime.js';
+import { loadTheme, setupBrowserThemeSyncListener } from '../lib/theme.js';
+import { SimpleSelect } from '../lib/ui.jsx';
 
 const FOCUS_LABELS = {
   pomodoro: 'Pomodoro',
@@ -31,15 +33,6 @@ let previewFocusSession = null;
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
-}
-
-function hasExtensionRuntime() {
-  return typeof chrome !== 'undefined' && Boolean(chrome.runtime?.sendMessage);
-}
-
-async function sendRuntimeMessage(message) {
-  if (hasExtensionRuntime()) return chrome.runtime.sendMessage(message);
-  return getPreviewResponse(message);
 }
 
 function getPreviewResponse(message) {
@@ -99,132 +92,7 @@ function getPreviewResponse(message) {
   }
 }
 
-const ACCENT_COLOR_CSS_VARIABLES = [
-  '--indigo',
-  '--indigo-foreground',
-  '--indigo-hover',
-  '--indigo-subtle',
-  '--indigo-50',
-  '--indigo-100',
-  '--indigo-200',
-  '--indigo-800',
-  '--indigo-900'
-];
-
-function clearAccentColorOverrides() {
-  const rootStyle = document.documentElement.style;
-  ACCENT_COLOR_CSS_VARIABLES.forEach((variable) => rootStyle.removeProperty(variable));
-}
-
-async function loadTheme() {
-  try {
-    if (typeof chrome === 'undefined' || !chrome.storage?.local) {
-      document.documentElement.setAttribute('data-theme', 'dashboard-light');
-      return;
-    }
-
-    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled', 'themeSyncWithBrowser']);
-    const base = getEffectiveThemeBase(result.theme || 'light', result.themeSyncWithBrowser !== false);
-    if (!result.theme) await chrome.storage.local.set({ theme: 'light' });
-    document.documentElement.setAttribute('data-theme', resolveThemeVariant(base));
-    if (result.brutalistEnabled) await chrome.storage.local.remove('brutalistEnabled');
-    await applyAccentColorFromStorage();
-  } catch (e) {
-    console.error('Failed to load theme:', e);
-  }
-}
-
-function setupBrowserThemeSyncListener() {
-  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-  const onChange = async () => {
-    if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
-    const result = await chrome.storage.local.get('themeSyncWithBrowser');
-    if (result.themeSyncWithBrowser !== false) await loadTheme();
-  };
-  mediaQuery.addEventListener('change', onChange);
-  return () => mediaQuery.removeEventListener('change', onChange);
-}
-
-function resolveThemeVariant(base) {
-  return base === 'dark' ? 'dashboard-dark' : 'dashboard-light';
-}
-
-function getBrowserThemeBase() {
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-function getEffectiveThemeBase(base, syncWithBrowser) {
-  return syncWithBrowser ? getBrowserThemeBase() : base;
-}
-
-async function applyAccentColorFromStorage() {
-  try {
-    if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
-    const result = await chrome.storage.local.get('accentColor');
-    const hex = result.accentColor || '#6366f1';
-    const theme = document.documentElement.getAttribute('data-theme') || 'light';
-    if (theme.startsWith('dashboard')) {
-      clearAccentColorOverrides();
-      return;
-    }
-
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    const rgb = { r, g, b };
-    const mix = (source, amount, dir) => {
-      const target = dir === 'lighten' ? 255 : 0;
-      return {
-        r: source.r + (target - source.r) * amount,
-        g: source.g + (target - source.g) * amount,
-        b: source.b + (target - source.b) * amount
-      };
-    };
-    const toHex = (red, green, blue) => `#${[red, green, blue].map((channel) => (
-      Math.max(0, Math.min(255, Math.round(channel))).toString(16).padStart(2, '0')
-    )).join('')}`;
-    const s = document.documentElement.style;
-
-    if (theme === 'dark') {
-      const lighter = mix(rgb, 0.25, 'lighten');
-      const mainHex = toHex(lighter.r, lighter.g, lighter.b);
-      const fg = (0.299 * lighter.r + 0.587 * lighter.g + 0.114 * lighter.b) / 255 > 0.5 ? '#09090b' : '#ffffff';
-      const s50 = mix(rgb, 0.90, 'darken');
-      const s100 = mix(rgb, 0.85, 'darken');
-      const s200 = mix(rgb, 0.75, 'darken');
-      const s800 = mix(rgb, 0.25, 'lighten');
-      const s900 = mix(rgb, 0.40, 'lighten');
-      s.setProperty('--indigo', mainHex);
-      s.setProperty('--indigo-foreground', fg);
-      s.setProperty('--indigo-hover', hex);
-      s.setProperty('--indigo-subtle', `rgba(${r}, ${g}, ${b}, 0.15)`);
-      s.setProperty('--indigo-50', toHex(s50.r, s50.g, s50.b));
-      s.setProperty('--indigo-100', toHex(s100.r, s100.g, s100.b));
-      s.setProperty('--indigo-200', toHex(s200.r, s200.g, s200.b));
-      s.setProperty('--indigo-800', toHex(s800.r, s800.g, s800.b));
-      s.setProperty('--indigo-900', toHex(s900.r, s900.g, s900.b));
-    } else {
-      const darker = mix(rgb, 0.15, 'darken');
-      const fg = (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5 ? '#09090b' : '#ffffff';
-      const s50 = mix(rgb, 0.92, 'lighten');
-      const s100 = mix(rgb, 0.85, 'lighten');
-      const s200 = mix(rgb, 0.72, 'lighten');
-      const s800 = mix(rgb, 0.55, 'darken');
-      const s900 = mix(rgb, 0.65, 'darken');
-      s.setProperty('--indigo', hex);
-      s.setProperty('--indigo-foreground', fg);
-      s.setProperty('--indigo-hover', toHex(darker.r, darker.g, darker.b));
-      s.setProperty('--indigo-subtle', `rgba(${r}, ${g}, ${b}, 0.08)`);
-      s.setProperty('--indigo-50', toHex(s50.r, s50.g, s50.b));
-      s.setProperty('--indigo-100', toHex(s100.r, s100.g, s100.b));
-      s.setProperty('--indigo-200', toHex(s200.r, s200.g, s200.b));
-      s.setProperty('--indigo-800', toHex(s800.r, s800.g, s800.b));
-      s.setProperty('--indigo-900', toHex(s900.r, s900.g, s900.b));
-    }
-  } catch {
-    // Default CSS tokens remain.
-  }
-}
+const sendRuntimeMessage = createRuntimeMessenger(getPreviewResponse);
 
 async function isIncognitoAccessAllowed() {
   if (!hasExtensionRuntime() || !chrome.extension || typeof chrome.extension.isAllowedIncognitoAccess !== 'function') {
@@ -294,30 +162,20 @@ function getSiteAction(settings, currentDomain) {
 
 function ProfileSelect({ activeProfileId, profiles, onSelect }) {
   const activeProfile = profiles.find((profile) => profile.id === activeProfileId);
+  const items = useMemo(
+    () => profiles.map((profile) => ({ value: profile.id, label: profile.name })),
+    [profiles]
+  );
 
   return (
-    <Select.Root value={activeProfileId || ''} onValueChange={onSelect}>
-      <Select.Trigger className="profile-select radix-select-trigger" aria-label="Active profile">
-        <Select.Value placeholder={activeProfile?.name || 'Choose profile'} />
-        <Select.Icon className="select-chevron" aria-hidden="true">
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m2 4 3 3 3-3" /></svg>
-        </Select.Icon>
-      </Select.Trigger>
-      <Select.Portal>
-        <Select.Content className="radix-select-content" position="popper" sideOffset={4}>
-          <Select.Viewport className="radix-select-viewport">
-            {profiles.map((profile) => (
-              <Select.Item className="radix-select-item" key={profile.id} value={profile.id}>
-                <Select.ItemText>{profile.name}</Select.ItemText>
-                <Select.ItemIndicator className="radix-select-indicator">
-                  <span className="radix-select-dot" aria-hidden="true" />
-                </Select.ItemIndicator>
-              </Select.Item>
-            ))}
-          </Select.Viewport>
-        </Select.Content>
-      </Select.Portal>
-    </Select.Root>
+    <SimpleSelect
+      ariaLabel="Active profile"
+      items={items}
+      onValueChange={onSelect}
+      placeholder={activeProfile?.name || 'Choose profile'}
+      triggerClassName="profile-select radix-select-trigger"
+      value={activeProfileId}
+    />
   );
 }
 

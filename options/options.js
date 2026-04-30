@@ -3,6 +3,11 @@
  */
 
 import * as todoist from '../lib/todoist.js';
+import {
+  isThemeSyncEnabled,
+  loadTheme as loadThemeShared,
+  resolveThemeVariant
+} from '../lib/theme.js';
 
 // =============================================================================
 // STATE
@@ -899,46 +904,11 @@ function displaySpotlightResults(results, query) {
 // =============================================================================
 
 async function loadTheme() {
-  try {
-    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled', 'themeSyncWithBrowser']);
-    let base = result.theme;
-    const syncWithBrowser = isThemeSyncEnabled(result.themeSyncWithBrowser);
-
-    // If no theme is saved, default to light
-    if (!base) {
-      base = 'light';
-      await chrome.storage.local.set({ theme: 'light' });
-    }
-
-    base = getEffectiveThemeBase(base, syncWithBrowser);
-    const resolved = resolveThemeVariant(base);
-    document.documentElement.setAttribute('data-theme', resolved);
-
-    if (result.brutalistEnabled) {
-      await chrome.storage.local.remove('brutalistEnabled');
-    }
-
-    syncThemeModeControls(base, syncWithBrowser);
+  const state = await loadThemeShared();
+  if (state) {
+    syncThemeModeControls(state.base, state.syncWithBrowser);
     syncAccentColorSectionVisibility();
-  } catch (e) {
-    console.error('Failed to load theme:', e);
   }
-}
-
-function resolveThemeVariant(base) {
-  return base === 'dark' ? 'dashboard-dark' : 'dashboard-light';
-}
-
-function getBrowserThemeBase() {
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-function getEffectiveThemeBase(base, syncWithBrowser) {
-  return syncWithBrowser ? getBrowserThemeBase() : base;
-}
-
-function isThemeSyncEnabled(value) {
-  return value !== false;
 }
 
 function syncThemeModeControls(base, syncWithBrowser) {

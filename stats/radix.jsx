@@ -1,8 +1,11 @@
 import * as Progress from '@radix-ui/react-progress';
-import * as Select from '@radix-ui/react-select';
+import * as Popover from '@radix-ui/react-popover';
 import * as Toolbar from '@radix-ui/react-toolbar';
 import { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { createRuntimeMessenger, hasExtensionRuntime } from '../lib/runtime.js';
+import { loadTheme } from '../lib/theme.js';
+import { ChevronIcon } from '../lib/ui.jsx';
 
 const NAV_ITEMS = [
   ['overview', 'Overview', 'target'],
@@ -66,15 +69,6 @@ const PREVIEW_CATEGORIES = {
   news: { name: 'News' }
 };
 
-function hasExtensionRuntime() {
-  return typeof chrome !== 'undefined' && Boolean(chrome.runtime?.sendMessage);
-}
-
-async function sendRuntimeMessage(message) {
-  if (hasExtensionRuntime()) return chrome.runtime.sendMessage(message);
-  return getPreviewResponse(message);
-}
-
 function getPreviewResponse(message) {
   switch (message.type) {
     case 'GET_ALL_TIME_STATS':
@@ -129,6 +123,8 @@ function getPreviewResponse(message) {
   }
 }
 
+const sendRuntimeMessage = createRuntimeMessenger(getPreviewResponse);
+
 async function hasHistoryPermission() {
   if (!hasExtensionRuntime()) return true;
   return chrome.permissions.contains({ permissions: ['history'] });
@@ -137,21 +133,6 @@ async function hasHistoryPermission() {
 async function requestHistoryPermission() {
   if (!hasExtensionRuntime()) return true;
   return chrome.permissions.request({ permissions: ['history'] });
-}
-
-async function loadTheme() {
-  try {
-    if (typeof chrome === 'undefined' || !chrome.storage?.local) {
-      document.documentElement.setAttribute('data-theme', 'dashboard-light');
-      return;
-    }
-
-    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled']);
-    document.documentElement.setAttribute('data-theme', result.theme === 'dark' ? 'dashboard-dark' : 'dashboard-light');
-    if (result.brutalistEnabled) await chrome.storage.local.remove('brutalistEnabled');
-  } catch (error) {
-    console.error('Failed to load theme:', error);
-  }
 }
 
 function Icon({ name }) {
@@ -453,7 +434,6 @@ function TopSites({ sites, siteCategories, onSetCategory }) {
       <div className="top-sites-list">
         {sites?.length ? sites.slice(0, 10).map((site, index) => {
           const categoryName = siteCategories[site.category]?.name || site.category || 'Uncategorized';
-          const showCategoryEditor = !site.category || site.categorySource === 'content-scan';
           return (
             <div className={`top-site-item ${!site.category ? 'is-uncategorized' : ''}`} key={site.domain}>
               <span className={`top-site-rank ${index < 3 ? `rank-${index + 1}` : ''}`}>{index + 1}</span>
@@ -463,14 +443,12 @@ function TopSites({ sites, siteCategories, onSetCategory }) {
                   <div className="top-site-category">{categoryName}</div>
                   {site.categorySource === 'content-scan' && <span className="top-site-category-hint">Suggested</span>}
                 </div>
-                {showCategoryEditor && (
-                  <CategorySelect
-                    categories={siteCategories}
-                    domain={site.domain}
-                    value={site.category || ''}
-                    onSetCategory={onSetCategory}
-                  />
-                )}
+                <CategorySelect
+                  categories={siteCategories}
+                  domain={site.domain}
+                  value={site.category || ''}
+                  onSetCategory={onSetCategory}
+                />
               </div>
               <span className="top-site-visits">{site.visits} visits</span>
             </div>
@@ -482,31 +460,54 @@ function TopSites({ sites, siteCategories, onSetCategory }) {
 }
 
 function CategorySelect({ categories, domain, value, onSetCategory }) {
+  const [open, setOpen] = useState(false);
+  const items = useMemo(
+    () => Object.entries(categories).map(([key, category]) => ({ value: key, label: category.name })),
+    [categories]
+  );
+  const selectedItem = items.find((item) => item.value === value);
+
+  function chooseCategory(category) {
+    onSetCategory(domain, category);
+    setOpen(false);
+  }
+
   return (
     <div className="top-site-categorize-panel stats-radix-category-panel">
       <span className="top-site-categorize-label">Category</span>
-      <Select.Root value={value || undefined} onValueChange={(category) => onSetCategory(domain, category)}>
-        <Select.Trigger className="top-site-category-select stats-radix-select" aria-label={`Category for ${domain}`}>
-          <Select.Value placeholder="Choose one..." />
-          <Select.Icon className="select-chevron" aria-hidden="true">
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m2 4 3 3 3-3" /></svg>
-          </Select.Icon>
-        </Select.Trigger>
-        <Select.Portal>
-          <Select.Content className="radix-select-content" position="popper" sideOffset={4}>
-            <Select.Viewport className="radix-select-viewport">
-              {Object.entries(categories).map(([key, category]) => (
-                <Select.Item className="radix-select-item" key={key} value={key}>
-                  <Select.ItemText>{category.name}</Select.ItemText>
-                  <Select.ItemIndicator className="radix-select-indicator">
-                    <span className="radix-select-dot" aria-hidden="true" />
-                  </Select.ItemIndicator>
-                </Select.Item>
+      <Popover.Root open={open} onOpenChange={setOpen} modal={false}>
+        <Popover.Trigger className="top-site-category-select stats-radix-select" aria-label={`Category for ${domain}`}>
+          <span>{selectedItem?.label || 'Choose one...'}</span>
+          <ChevronIcon />
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            align="start"
+            className="radix-select-content radix-popover-category-content"
+            sideOffset={4}
+          >
+            <div className="radix-select-viewport" role="listbox" aria-label={`Category for ${domain}`}>
+              {items.map((item) => (
+                <button
+                  aria-selected={item.value === value}
+                  className="radix-select-item radix-popover-category-item"
+                  key={item.value}
+                  onClick={() => chooseCategory(item.value)}
+                  role="option"
+                  type="button"
+                >
+                  <span>{item.label}</span>
+                  {item.value === value && (
+                    <span className="radix-select-indicator" aria-hidden="true">
+                      <span className="radix-select-dot" />
+                    </span>
+                  )}
+                </button>
               ))}
-            </Select.Viewport>
-          </Select.Content>
-        </Select.Portal>
-      </Select.Root>
+            </div>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
     </div>
   );
 }

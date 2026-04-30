@@ -4,6 +4,13 @@
  */
 
 import * as todoist from '../lib/todoist.js';
+import {
+  applyAccentColorFromStorage,
+  getEffectiveThemeBase,
+  isThemeSyncEnabled,
+  loadTheme as loadThemeShared,
+  resolveThemeVariant
+} from '../lib/theme.js';
 
 // =============================================================================
 // STATE
@@ -773,121 +780,11 @@ async function loadQuote() {
 // THEME
 // =============================================================================
 
-const ACCENT_COLOR_CSS_VARIABLES = [
-  '--indigo',
-  '--indigo-foreground',
-  '--indigo-hover',
-  '--indigo-subtle',
-  '--indigo-50',
-  '--indigo-100',
-  '--indigo-200',
-  '--indigo-800',
-  '--indigo-900'
-];
-
-function clearAccentColorOverrides() {
-  const rootStyle = document.documentElement.style;
-  ACCENT_COLOR_CSS_VARIABLES.forEach(variable => rootStyle.removeProperty(variable));
-}
-
 async function loadTheme() {
-  try {
-    const result = await chrome.storage.local.get(['theme', 'brutalistEnabled', 'themeSyncWithBrowser']);
-    let base = result.theme;
-    const syncWithBrowser = result.themeSyncWithBrowser !== false;
-
-    // If no theme is saved, default to light
-    if (!base) {
-      base = 'light';
-      await chrome.storage.local.set({ theme: 'light' });
-    }
-
-    base = getEffectiveThemeBase(base, syncWithBrowser);
-    const resolved = resolveThemeVariant(base);
-    document.documentElement.setAttribute('data-theme', resolved);
-    updateThemeToggleIcon(resolved);
-    if (result.brutalistEnabled) {
-      await chrome.storage.local.remove('brutalistEnabled');
-    }
-    await applyAccentColorFromStorage();
-  } catch (e) {
-    console.error('Failed to load theme:', e);
-  }
+  const state = await loadThemeShared();
+  if (state) updateThemeToggleIcon(state.resolved);
 }
 
-function resolveThemeVariant(base) {
-  return base === 'dark' ? 'dashboard-dark' : 'dashboard-light';
-}
-
-function getBrowserThemeBase() {
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-function getEffectiveThemeBase(base, syncWithBrowser) {
-  return syncWithBrowser ? getBrowserThemeBase() : base;
-}
-
-function isThemeSyncEnabled(value) {
-  return value !== false;
-}
-
-/**
- * Load accent color from storage and apply as CSS custom properties.
- */
-async function applyAccentColorFromStorage() {
-  try {
-    const result = await chrome.storage.local.get('accentColor');
-    const hex = result.accentColor || '#6366f1';
-    const theme = document.documentElement.getAttribute('data-theme') || 'light';
-    if (theme.startsWith('dashboard')) {
-      clearAccentColorOverrides();
-      return;
-    }
-
-    const isDark = theme === 'dark';
-    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-    const mix = (rgb, amt, dir) => {
-      const t = dir === 'lighten' ? 255 : 0;
-      return { r: rgb.r + (t - rgb.r) * amt, g: rgb.g + (t - rgb.g) * amt, b: rgb.b + (t - rgb.b) * amt };
-    };
-    const toHex = (r, g, b) => '#' + [r, g, b].map(c => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, '0')).join('');
-    const s = document.documentElement.style;
-    const rgb = { r, g, b };
-
-    if (isDark) {
-      const lighter = mix(rgb, 0.25, 'lighten');
-      const mainHex = toHex(lighter.r, lighter.g, lighter.b);
-      const fgDark = (0.299 * lighter.r + 0.587 * lighter.g + 0.114 * lighter.b) / 255 > 0.5 ? '#09090b' : '#ffffff';
-      s.setProperty('--indigo', mainHex);
-      s.setProperty('--indigo-foreground', fgDark);
-      s.setProperty('--indigo-hover', hex);
-      s.setProperty('--indigo-subtle', `rgba(${r}, ${g}, ${b}, 0.15)`);
-      const s50 = mix(rgb, 0.90, 'darken'), s100 = mix(rgb, 0.85, 'darken'), s200 = mix(rgb, 0.75, 'darken');
-      const s800 = mix(rgb, 0.25, 'lighten'), s900 = mix(rgb, 0.40, 'lighten');
-      s.setProperty('--indigo-50', toHex(s50.r, s50.g, s50.b));
-      s.setProperty('--indigo-100', toHex(s100.r, s100.g, s100.b));
-      s.setProperty('--indigo-200', toHex(s200.r, s200.g, s200.b));
-      s.setProperty('--indigo-800', toHex(s800.r, s800.g, s800.b));
-      s.setProperty('--indigo-900', toHex(s900.r, s900.g, s900.b));
-    } else {
-      const darker = mix(rgb, 0.15, 'darken');
-      const fg = (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5 ? '#09090b' : '#ffffff';
-      s.setProperty('--indigo', hex);
-      s.setProperty('--indigo-foreground', fg);
-      s.setProperty('--indigo-hover', toHex(darker.r, darker.g, darker.b));
-      s.setProperty('--indigo-subtle', `rgba(${r}, ${g}, ${b}, 0.08)`);
-      const s50 = mix(rgb, 0.92, 'lighten'), s100 = mix(rgb, 0.85, 'lighten'), s200 = mix(rgb, 0.72, 'lighten');
-      const s800 = mix(rgb, 0.55, 'darken'), s900 = mix(rgb, 0.65, 'darken');
-      s.setProperty('--indigo-50', toHex(s50.r, s50.g, s50.b));
-      s.setProperty('--indigo-100', toHex(s100.r, s100.g, s100.b));
-      s.setProperty('--indigo-200', toHex(s200.r, s200.g, s200.b));
-      s.setProperty('--indigo-800', toHex(s800.r, s800.g, s800.b));
-      s.setProperty('--indigo-900', toHex(s900.r, s900.g, s900.b));
-    }
-  } catch (e) {
-    // Silently fail — default CSS values remain
-  }
-}
 
 function setupThemeToggle() {
   const toggle = document.getElementById('theme-toggle');
