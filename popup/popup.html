@@ -7,70 +7,7 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="popup">
-    <header class="header">
-      <h1>Focus</h1>
-    </header>
-
-    <div class="status" id="status">
-      <span id="status-text">Blocking enabled</span>
-      <span id="mode-badge" class="badge">Blocklist</span>
-    </div>
-
-    <div class="profile-row" id="profile-switcher">
-      <select id="profile-select" class="profile-select">
-        <!-- Profiles loaded dynamically -->
-      </select>
-    </div>
-
-    <div class="alerts" id="alerts">
-      <!-- Schedule / daily limit alerts shown when relevant -->
-    </div>
-
-    <div class="current-site" id="current-site-section">
-      <div class="site-row">
-        <span class="site-label">Current site</span>
-        <span class="site-domain" id="current-domain">-</span>
-      </div>
-      <div class="site-actions">
-        <button id="block-site-btn" class="btn btn-small btn-danger" style="display: none;">Block</button>
-        <button id="unblock-site-btn" class="btn btn-small btn-primary" style="display: none;">Unblock</button>
-      </div>
-    </div>
-
-    <div class="sessions-row" id="active-sessions" style="display: none;">
-      <span class="sessions-label" id="sessions-summary"></span>
-      <button id="end-session-btn" class="btn btn-tiny">End</button>
-    </div>
-
-    <div class="focus-section" id="focus-section">
-      <div class="focus-label">Focus session</div>
-      <div class="focus-active" id="focus-active" style="display: none;">
-        <div class="focus-timer-row">
-          <span class="focus-phase-badge" id="focus-phase">Focus</span>
-          <span class="focus-time" id="focus-time">25:00</span>
-        </div>
-        <div class="focus-actions">
-          <button class="btn btn-secondary" id="skip-phase-btn">Skip</button>
-          <button class="btn btn-danger" id="stop-session-btn">Stop</button>
-        </div>
-      </div>
-      <div class="focus-start" id="focus-start">
-        <div class="focus-presets" id="focus-presets">
-          <!-- Preset buttons loaded dynamically -->
-        </div>
-        <div class="focus-start-row">
-          <button class="btn btn-primary" id="start-focus-btn">Start</button>
-        </div>
-      </div>
-    </div>
-
-    <footer class="footer">
-      <button type="button" id="stats-link" class="footer-link">Stats</button>
-      <span class="footer-sep">·</span>
-      <button type="button" id="settings-link" class="footer-link">Settings</button>
-    </footer>
-  </div>
+  <div id="popup-root"></div>
 
   <script src="popup.js" type="module"></script>
 </body>

@@ -75,13 +75,20 @@ html {
 .sidebar-link {
   display: flex;
   align-items: center;
+  width: 100%;
+  gap: var(--space-2);
   padding: 10px 12px;
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
   color: var(--foreground);
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 500;
-  border-left: 0;
   border-radius: 12px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
   transition: background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
@@ -98,6 +105,42 @@ html {
   color: var(--foreground);
   font-weight: 600;
   box-shadow: inset 0 0 0 1px var(--settings-surface-border);
+}
+
+.sidebar-link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: var(--muted-foreground);
+}
+
+.sidebar-link.active .sidebar-link-icon,
+.sidebar-link:hover .sidebar-link-icon {
+  color: var(--foreground);
+}
+
+.sidebar-link-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-link svg,
+.stat-icon svg,
+.history-card-title svg,
+.breakdown-icon svg,
+.suggestion-btn svg,
+.insight-icon svg,
+.empty-state-text svg,
+.history-permission-icon svg,
+.history-error-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 /* Sidebar scroll styling */
@@ -209,7 +252,7 @@ html {
   height: 40px;
   background-color: var(--secondary);
   border-radius: var(--radius-md);
-  color: var(--indigo);
+  color: var(--foreground);
 }
 
 .stat-icon svg {
@@ -262,8 +305,8 @@ html {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--indigo);
-  background-color: var(--indigo-subtle);
+  color: var(--foreground);
+  background-color: var(--muted);
   border-radius: var(--radius-full);
 }
 
@@ -399,7 +442,7 @@ html {
   font-weight: 800;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--indigo);
+  color: var(--foreground);
   background: var(--card);
   border-radius: var(--radius-xl);
   border: 2px solid var(--border);
@@ -470,7 +513,7 @@ html {
 }
 
 .productivity-ring-fill {
-  stroke: var(--indigo);
+  stroke: var(--foreground);
   stroke-width: 3.5;
   stroke-linecap: round;
   transition: stroke-dasharray var(--transition-slow);
@@ -605,7 +648,7 @@ html {
 .history-card-title svg {
   width: 18px;
   height: 18px;
-  color: #4f46e5;
+  color: var(--foreground);
 }
 
 /* ============================================
@@ -633,6 +676,8 @@ html {
   height: 36px;
   border-radius: var(--radius-lg);
   flex-shrink: 0;
+  color: var(--foreground);
+  background: var(--muted);
   transition: transform var(--transition-fast);
 }
 
@@ -664,8 +709,8 @@ html {
 .category-bar-fill {
   height: 100%;
   border-radius: var(--radius-full);
-  transition: width var(--transition-slow);
-  background: var(--fill-color);
+  transition: transform var(--transition-slow);
+  background: var(--foreground);
 }
 
 .category-bar-value {
@@ -691,7 +736,7 @@ html {
 
 .hourly-bar {
   flex: 1;
-  background: var(--indigo);
+  background: var(--foreground);
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   min-height: 4px;
   transition: height var(--transition-fast), opacity var(--transition-fast);
@@ -700,7 +745,7 @@ html {
 
 .hourly-bar:hover {
   opacity: 0.85;
-  background: var(--indigo-hover);
+  background: var(--foreground);
 }
 
 .hourly-labels {
@@ -742,7 +787,7 @@ html {
 
 .weekly-day-bar {
   width: 100%;
-  background: var(--indigo);
+  background: var(--foreground);
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   transition: height var(--transition-fast);
 }
@@ -757,7 +802,7 @@ html {
 .weekly-day-value {
   font-size: 0.6875rem;
   font-weight: 700;
-  color: #4338ca;
+  color: var(--foreground);
 }
 
 /* ============================================
@@ -869,7 +914,7 @@ html {
 }
 
 .top-site-categorize-btn:hover {
-  color: var(--indigo);
+  color: var(--foreground);
 }
 
 .top-site-categorize-panel {
@@ -883,6 +928,10 @@ html {
   display: flex;
 }
 
+.stats-radix-category-panel {
+  display: flex;
+}
+
 .top-site-categorize-label {
   font-size: 0.6875rem;
   font-weight: 600;
@@ -892,20 +941,86 @@ html {
 }
 
 .top-site-category-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   max-width: 180px;
+  min-width: 150px;
   padding: 6px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--card);
   color: var(--foreground);
   font-size: 0.75rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.top-site-category-select:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.select-chevron {
+  color: var(--muted-foreground);
+  font-size: 0.6875rem;
+  line-height: 1;
+}
+
+.radix-select-content {
+  z-index: 50;
+  width: var(--radix-select-trigger-width);
+  overflow: hidden;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.radix-select-viewport {
+  padding: 4px;
+}
+
+.radix-select-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 6px 8px;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  outline: none;
+}
+
+.radix-select-item[data-highlighted] {
+  background: var(--muted);
+}
+
+.radix-select-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+}
+
+.radix-select-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--foreground);
 }
 
 .top-site-visits {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #4338ca;
-  background: rgba(99, 102, 241, 0.15);
+  color: var(--foreground);
+  background: var(--muted);
   padding: 5px 12px;
   border-radius: var(--radius-full);
 }
@@ -916,7 +1031,7 @@ html {
 
 .suggestions-card {
   background: var(--card);
-  border: 1px solid rgba(139, 92, 246, 0.15);
+  border: 1px solid var(--border);
 }
 
 .suggestions-desc {
@@ -1119,7 +1234,7 @@ html {
   width: 24px;
   height: 24px;
   border: 2px solid var(--secondary);
-  border-top-color: var(--indigo);
+  border-top-color: var(--foreground);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -1163,7 +1278,7 @@ html {
 }
 
 .history-permission-icon {
-  color: var(--indigo);
+  color: var(--foreground);
   margin-bottom: var(--space-3);
 }
 
@@ -1193,8 +1308,8 @@ html {
   padding: 12px 24px;
   font-size: 0.875rem;
   font-weight: 600;
-  color: white;
-  background: var(--indigo);
+  color: var(--background);
+  background: var(--foreground);
   border: none;
   border-radius: var(--radius-lg);
   cursor: pointer;
@@ -1202,7 +1317,7 @@ html {
 }
 
 .history-permission-btn:hover {
-  background: var(--indigo-hover);
+  background: var(--primary);
   transform: translateY(-1px);
 }
 
@@ -1282,8 +1397,8 @@ html {
   height: 24px;
   padding: 0 8px;
   border-radius: var(--radius-full);
-  background: var(--indigo-subtle);
-  color: var(--indigo);
+  background: var(--muted);
+  color: var(--foreground);
   font-size: 0.75rem;
   font-weight: 700;
 }
@@ -1368,5 +1483,5 @@ html {
 
 [data-theme="dashboard-light"] .history-permission-btn,
 [data-theme="dashboard-dark"] .history-permission-btn {
-  color: var(--indigo-foreground);
+  color: var(--background);
 }

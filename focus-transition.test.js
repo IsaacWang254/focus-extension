@@ -27,4 +27,16 @@ assert.match(
   'break-to-focus transition should immediately redirect tabs that are now blocked'
 );
 
+assert.match(
+  backgroundSource,
+  /await updateBlockingRules\(\);\s*\n\s*await redirectTabsThatShouldNowBeBlocked\('focus-complete'\);/,
+  'ending the final break should immediately restore the default blocking mode across open tabs'
+);
+
+assert.match(
+  backgroundSource,
+  /await updateBlockingRules\(\);\s*\n\s*await redirectTabsThatShouldNowBeBlocked\('focus-stopped'\);/,
+  'stopping a focus session should immediately restore the default blocking mode across open tabs'
+);
+
 console.log('focus transition tests passed');

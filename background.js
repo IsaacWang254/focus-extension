@@ -3355,6 +3355,7 @@ async function handleSessionPhaseEnd(session) {
 
     // Re-enable blocking now that the cycle is over
     await updateBlockingRules();
+    await redirectTabsThatShouldNowBeBlocked('focus-complete');
 
     sendFocusNotification(
       'Break over — cycle complete!',
@@ -3449,6 +3450,7 @@ async function stopFocusSession() {
 
   // Re-enable blocking in case we were on a break
   await updateBlockingRules();
+  await redirectTabsThatShouldNowBeBlocked('focus-stopped');
 
   console.log(`Focus session stopped. Partial minutes: ${partialMinutes}`);
 
