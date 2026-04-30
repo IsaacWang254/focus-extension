@@ -12,10 +12,7 @@
     <header class="header" id="blocked-header">
       <div class="header-top">
         <h1 class="title">Focus Mode</h1>
-        <button id="theme-toggle" class="theme-toggle" title="Toggle dark mode">
-          <span class="theme-icon-light" id="theme-icon-light"></span>
-          <span class="theme-icon-dark" id="theme-icon-dark"></span>
-        </button>
+        <div id="blocked-header-controls-root"></div>
       </div>
       <p class="blocked-url">You tried to visit: <span id="blocked-domain">-</span></p>
       <p id="blocked-content-row" class="blocked-content" style="display: none;">
@@ -374,9 +371,7 @@
     
     <!-- Footer -->
     <footer class="footer" id="blocked-footer">
-      <a href="#" id="settings-link">Settings</a>
-      <span class="separator">|</span>
-      <a href="#" id="go-back">Go Back</a>
+      <div id="blocked-footer-actions-root"></div>
     </footer>
   </div>
   
@@ -384,6 +379,7 @@
   <div id="toast-container" class="toast-container"></div>
   
   <script src="../lib/icons.js"></script>
+  <script src="radix-shell.bundle.js" type="module"></script>
   <script src="blocked.js" type="module"></script>
 </body>
 </html>

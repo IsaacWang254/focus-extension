@@ -16,38 +16,22 @@ body {
   min-height: 100vh;
   padding: clamp(var(--space-5), 4vw, var(--space-10));
   background-color: var(--background);
-  background-image:
-    radial-gradient(circle at top, rgba(250, 250, 250, 0.7) 0, rgba(250, 250, 250, 0) 38%),
-    linear-gradient(180deg, #f7f7f6 0%, var(--background) 100%);
+  background-image: none;
   color: var(--foreground);
 }
 
 [data-theme="dashboard-light"] body {
   background-color: #f3f3f2;
-  background-image:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.86) 0, rgba(255, 255, 255, 0) 38%),
-    linear-gradient(180deg, #f8f8f7 0%, #f3f3f2 100%);
+  background-image: none;
 }
 
 [data-theme="dashboard-dark"] body {
   background-color: #0f0f10;
-  background-image:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.06) 0, rgba(255, 255, 255, 0) 34%),
-    linear-gradient(180deg, #171719 0%, #0f0f10 100%);
+  background-image: none;
 }
 
-/* Subtle background pattern for visual interest */
 body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(135deg, color-mix(in srgb, var(--border) 40%, transparent) 0, transparent 60%),
-    radial-gradient(color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px);
-  background-size: 100% 100%, 26px 26px;
-  opacity: 0.35;
-  pointer-events: none;
-  z-index: -1;
+  display: none;
 }
 
 .container {
@@ -77,10 +61,8 @@ body::before {
   padding: var(--space-5);
   border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
   border-radius: 28px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--card) 88%, var(--secondary) 12%) 0%, var(--card) 100%);
+  background: var(--card);
   box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(10px);
 }
 
 .header-top {
@@ -149,8 +131,7 @@ body::before {
   position: relative;
   padding: var(--space-5);
   margin-bottom: var(--space-4);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, var(--secondary) 8%) 0%, var(--card) 100%);
+  background: var(--card);
   border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
   border-radius: 24px;
   text-align: center;
@@ -264,8 +245,7 @@ body::before {
 .section {
   margin-bottom: var(--space-4);
   padding: var(--space-5);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--card) 92%, var(--secondary) 8%) 0%, var(--card) 100%);
+  background: var(--card);
   border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
   border-radius: 28px;
   box-shadow: var(--shadow-sm);
@@ -908,8 +888,7 @@ body::before {
 
 .method {
   padding: var(--space-4);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--secondary) 72%, var(--card) 28%) 0%, var(--secondary) 100%);
+  background: var(--secondary);
   border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
   border-radius: 22px;
   transition: transform var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
@@ -1616,6 +1595,12 @@ body::before {
   font-size: 0.8125rem;
 }
 
+.blocked-footer-toolbar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .footer a {
   color: var(--muted-foreground);
   text-decoration: none;
@@ -1627,8 +1612,10 @@ body::before {
 }
 
 .separator {
+  width: 1px;
+  height: 14px;
   margin: 0 var(--space-3);
-  color: var(--border);
+  background: var(--border);
 }
 
 /* ============================================

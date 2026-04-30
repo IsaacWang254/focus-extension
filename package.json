@@ -7,7 +7,10 @@
     "build:local": "node scripts/build-local.js",
     "build:popup": "esbuild popup/radix.jsx --bundle --format=esm --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --minify --outfile=popup/radix.bundle.js",
     "build:stats": "esbuild stats/radix.jsx --bundle --format=esm --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --minify --outfile=stats/radix.bundle.js",
-    "build:ui": "npm run build:popup && npm run build:stats",
+    "build:options": "esbuild options/radix-shell.jsx --bundle --format=esm --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --minify --outfile=options/radix-shell.bundle.js",
+    "build:newtab": "esbuild newtab/radix-shell.jsx --bundle --format=esm --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --minify --outfile=newtab/radix-shell.bundle.js",
+    "build:blocked": "esbuild blocked/radix-shell.jsx --bundle --format=esm --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --minify --outfile=blocked/radix-shell.bundle.js",
+    "build:ui": "npm run build:popup && npm run build:stats && npm run build:options && npm run build:newtab && npm run build:blocked",
     "copy-fonts": "node scripts/copy-fonts.js"
   },
   "devDependencies": {

@@ -11,19 +11,7 @@
   <canvas class="bg-ocean" id="bg-ocean" aria-hidden="true"></canvas>
 
   <!-- Top bar: settings + theme toggle -->
-  <div class="top-bar">
-    <div class="top-bar-actions">
-      <button class="theme-toggle settings-launch" id="settings-btn" title="Open settings" aria-label="Open settings">
-        <span class="settings-icon" id="settings-icon"></span>
-      </button>
-
-      <!-- Theme toggle -->
-      <button id="theme-toggle" class="theme-toggle" title="Toggle dark mode">
-        <span class="theme-icon-light" id="theme-icon-light"></span>
-        <span class="theme-icon-dark" id="theme-icon-dark"></span>
-      </button>
-    </div>
-  </div>
+  <div class="top-bar" id="newtab-toolbar-root"></div>
 
   <!-- Main content -->
   <main class="main">
@@ -195,6 +183,7 @@
   </div>
 
   <script src="../lib/icons.js"></script>
+  <script src="radix-shell.bundle.js" type="module"></script>
   <script src="newtab.js" type="module"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@
  */
 
 import * as todoist from '../lib/todoist.js';
+import { createRuntimeMessenger, hasExtensionRuntime } from '../lib/runtime.js';
 import {
   applyAccentColorFromStorage,
   getEffectiveThemeBase,
@@ -40,6 +41,73 @@ const DEFAULTS = {
   bedtimeReminderEndTime: '07:00',
 };
 
+let reminderIntervalId = null;
+let lastFocusedElement = null;
+let completedToday = [];
+let allTasks = [];
+let tasksExpanded = false;
+
+const previewStorage = {};
+
+function getPreviewResponse(message) {
+  switch (message.type) {
+    case 'GET_SETTINGS':
+      return { ...DEFAULTS };
+    case 'GET_CALENDAR_STATUS':
+      return { connected: false };
+    case 'GET_NEWTAB_EVENTS':
+    case 'GET_TODAY_EVENTS':
+      return [];
+    case 'GET_BLOCKING_SUMMARY':
+      return { totalBlockAttempts: 0 };
+    case 'ADD_EARNED_TIME':
+      return { added: 0 };
+    default:
+      return null;
+  }
+}
+
+const sendRuntimeMessage = createRuntimeMessenger(getPreviewResponse);
+
+function hasExtensionStorage() {
+  return typeof chrome !== 'undefined' && Boolean(chrome.storage?.local);
+}
+
+async function getLocal(keys) {
+  if (hasExtensionStorage()) return chrome.storage.local.get(keys);
+
+  if (Array.isArray(keys)) {
+    return keys.reduce((result, key) => {
+      if (Object.prototype.hasOwnProperty.call(previewStorage, key)) result[key] = previewStorage[key];
+      return result;
+    }, {});
+  }
+
+  if (typeof keys === 'string') {
+    return Object.prototype.hasOwnProperty.call(previewStorage, keys) ? { [keys]: previewStorage[keys] } : {};
+  }
+
+  if (keys && typeof keys === 'object') {
+    return Object.entries(keys).reduce((result, [key, fallback]) => {
+      result[key] = Object.prototype.hasOwnProperty.call(previewStorage, key) ? previewStorage[key] : fallback;
+      return result;
+    }, {});
+  }
+
+  return { ...previewStorage };
+}
+
+async function setLocal(values) {
+  if (hasExtensionStorage()) return chrome.storage.local.set(values);
+  Object.assign(previewStorage, values);
+  return undefined;
+}
+
+function getExtensionUrl(path) {
+  if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) return chrome.runtime.getURL(path);
+  return new URL(`../${path}`, import.meta.url).href;
+}
+
 
 function getCurrentTheme() {
   return document.documentElement.getAttribute('data-theme') || 'light';
@@ -56,7 +124,7 @@ function setupThemeToggle() {
     const root = document.documentElement;
 
     // Read storage to get base theme
-    const result = await chrome.storage.local.get(['theme', 'themeSyncWithBrowser']);
+    const result = await getLocal(['theme', 'themeSyncWithBrowser']);
     const storedBase = result.theme || 'light';
     const syncWithBrowser = isThemeSyncEnabled(result.themeSyncWithBrowser);
     const currentBase = getEffectiveThemeBase(storedBase, syncWithBrowser);
@@ -68,7 +136,7 @@ function setupThemeToggle() {
     const resolved = resolveThemeVariant(newBase);
     root.setAttribute('data-theme', resolved);
     updateThemeToggleIcon(resolved);
-    await chrome.storage.local.set({ theme: newBase, themeSyncWithBrowser: false });
+    await setLocal({ theme: newBase, themeSyncWithBrowser: false });
 
     // Re-apply accent color for the new theme
     await applyAccentColorFromStorage();
@@ -145,7 +213,7 @@ function applyOceanWaveSpeed(speed) {
 function setupBrowserThemeSyncListener() {
   const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
   mediaQuery.addEventListener('change', async () => {
-    const result = await chrome.storage.local.get('themeSyncWithBrowser');
+    const result = await getLocal('themeSyncWithBrowser');
     if (!isThemeSyncEnabled(result.themeSyncWithBrowser)) return;
     await loadTheme();
     updateThemeToggleIcon();
@@ -341,8 +409,8 @@ async function refreshBedtimeReminder() {
 
 async function getBedtimeReminderSettings() {
   const [{ settings = {} }, localSettings] = await Promise.all([
-    chrome.storage.local.get('settings'),
-    chrome.storage.local.get(['bedtimeReminderEnabled', 'bedtimeReminderTime', 'bedtimeReminderEndTime'])
+    getLocal('settings'),
+    getLocal(['bedtimeReminderEnabled', 'bedtimeReminderTime', 'bedtimeReminderEndTime'])
   ]);
 
   return {
@@ -427,7 +495,7 @@ function getWeatherInfo(code, isDay) {
 
 async function getCoordinates() {
   // Try cached coordinates first
-  const cached = await chrome.storage.local.get(['weatherLat', 'weatherLon']);
+  const cached = await getLocal(['weatherLat', 'weatherLon']);
   if (cached.weatherLat != null && cached.weatherLon != null) {
     return { lat: cached.weatherLat, lon: cached.weatherLon };
   }
@@ -444,7 +512,7 @@ async function getCoordinates() {
         const lat = position.coords.latitude;
         const lon = position.coords.longitude;
         // Cache coordinates
-        await chrome.storage.local.set({ weatherLat: lat, weatherLon: lon });
+        await setLocal({ weatherLat: lat, weatherLon: lon });
         resolve({ lat, lon });
       },
       (err) => {
@@ -469,8 +537,15 @@ async function loadWeather() {
   const errorTextEl = document.getElementById('weather-error-text');
 
   try {
+    if (!hasExtensionStorage()) {
+      loadingEl.classList.add('hidden');
+      errorEl.classList.remove('hidden');
+      errorTextEl.textContent = 'Enable location to see weather';
+      return;
+    }
+
     // Check cache first
-    const cache = await chrome.storage.local.get(['weatherCache', 'weatherCacheTime']);
+    const cache = await getLocal(['weatherCache', 'weatherCacheTime']);
     const now = Date.now();
 
     let data;
@@ -481,7 +556,7 @@ async function loadWeather() {
       data = await fetchWeather(coords.lat, coords.lon);
 
       // Cache the result
-      await chrome.storage.local.set({
+      await setLocal({
         weatherCache: data,
         weatherCacheTime: now,
       });
@@ -495,7 +570,7 @@ async function loadWeather() {
     const info = getWeatherInfo(weatherCode, isDay);
 
     // Get temp unit preference
-    const unitResult = await chrome.storage.local.get('newtabTempUnit');
+    const unitResult = await getLocal('newtabTempUnit');
     const unit = unitResult.newtabTempUnit || 'C';
     const convert = unit === 'F' ? (c) => Math.round(c * 9 / 5 + 32) : (c) => Math.round(c);
 
@@ -530,7 +605,7 @@ async function loadSettings() {
   const settings = {
     ...DEFAULTS,
     ...(await getBedtimeReminderSettings()),
-    ...(await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }))
+    ...(await sendRuntimeMessage({ type: 'GET_SETTINGS' }))
   };
 
   // Apply visibility
@@ -580,7 +655,7 @@ function setupSettings() {
     return;
   }
 
-  const settingsUrl = chrome.runtime.getURL('options/options.html?embedded=popup');
+  const settingsUrl = getExtensionUrl('options/options.html?embedded=popup');
   let settingsFrameLoaded = false;
 
   const closeSettings = () => {
@@ -641,7 +716,7 @@ function applyBackgroundAppearance(image = '') {
 
 async function refreshBgColor() {
   const imageKey = getBgImageStorageKey();
-  const result = await chrome.storage.local.get(imageKey);
+  const result = await getLocal(imageKey);
   const image = result[imageKey] || '';
   applyBackgroundAppearance(image);
 }
@@ -664,7 +739,7 @@ function setupBgImagePicker() {
     try {
       const imageData = await readFileAsDataUrl(file);
       const imageKey = getBgImageStorageKey();
-      await chrome.storage.local.set({ [imageKey]: imageData });
+      await setLocal({ [imageKey]: imageData });
       applyBackgroundAppearance(imageData);
     } catch (error) {
       console.error('Failed to upload background image:', error);
@@ -675,7 +750,7 @@ function setupBgImagePicker() {
 
   removeButton.addEventListener('click', async () => {
     const imageKey = getBgImageStorageKey();
-    await chrome.storage.local.set({ [imageKey]: '' });
+    await setLocal({ [imageKey]: '' });
     applyBackgroundAppearance('');
   });
 }
@@ -705,7 +780,7 @@ async function loadCalendar() {
 
   try {
     // Check if calendar is connected
-    const status = await chrome.runtime.sendMessage({ type: 'GET_CALENDAR_STATUS' });
+    const status = await sendRuntimeMessage({ type: 'GET_CALENDAR_STATUS' });
 
     if (!status || !status.connected) {
       connectEl.classList.remove('hidden');
@@ -729,7 +804,7 @@ async function loadCalendar() {
     // The fetch may have discovered a revoked token and marked the
     // calendar disconnected — re-check so we show the reconnect prompt
     // instead of a misleading "No events today".
-    const freshStatus = await chrome.runtime.sendMessage({ type: 'GET_CALENDAR_STATUS' });
+    const freshStatus = await sendRuntimeMessage({ type: 'GET_CALENDAR_STATUS' });
     if (!freshStatus || !freshStatus.connected) {
       reconnectEl.classList.remove('hidden');
       emptyEl.classList.add('hidden');
@@ -764,7 +839,7 @@ async function loadCalendar() {
 
 async function getCalendarDisplayPayload() {
   try {
-    return await chrome.runtime.sendMessage({ type: 'GET_NEWTAB_EVENTS' });
+    return await sendRuntimeMessage({ type: 'GET_NEWTAB_EVENTS' });
   } catch (error) {
     const message = String(error?.message || error || '');
     const shouldFallback =
@@ -776,7 +851,7 @@ async function getCalendarDisplayPayload() {
       throw error;
     }
 
-    const events = await chrome.runtime.sendMessage({ type: 'GET_TODAY_EVENTS' });
+    const events = await sendRuntimeMessage({ type: 'GET_TODAY_EVENTS' });
     const now = new Date();
     return {
       title: 'Today\'s Schedule',
@@ -870,10 +945,12 @@ function setupCalendarConnect() {
   const reconnectBtn = document.getElementById('calendar-reconnect-btn');
 
   const handleConnect = async (btn, label) => {
+    if (!hasExtensionRuntime()) return;
+
     btn.disabled = true;
     btn.textContent = 'Connecting...';
     try {
-      await chrome.runtime.sendMessage({ type: 'CONNECT_GOOGLE_CALENDAR' });
+      await sendRuntimeMessage({ type: 'CONNECT_GOOGLE_CALENDAR' });
       await loadCalendar();
     } catch (err) {
       console.error('Failed to connect calendar:', err);
@@ -895,6 +972,8 @@ async function fetchCompletedToday() {
   const emptyEl = document.getElementById('completed-empty');
 
   try {
+    if (!hasExtensionRuntime()) return;
+
     const authenticated = await todoist.isAuthenticated();
     if (!authenticated) return;
 
@@ -971,6 +1050,13 @@ async function loadTodos() {
   const showMoreBtn = document.getElementById('todos-show-more');
 
   try {
+    if (!hasExtensionRuntime()) {
+      connectEl.classList.remove('hidden');
+      loadingEl.classList.add('hidden');
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+
     // Check if authenticated
     const authenticated = await todoist.isAuthenticated();
 
@@ -1124,7 +1210,7 @@ async function completeTask(taskId, li, checkbox) {
   try {
     await todoist.completeTask(taskId);
 
-    const rewardResult = await chrome.runtime.sendMessage({ type: 'ADD_EARNED_TIME', taskCount: 1 });
+    const rewardResult = await sendRuntimeMessage({ type: 'ADD_EARNED_TIME', taskCount: 1 });
     if (rewardResult && rewardResult.added > 0) {
       console.log('Task reward applied:', rewardResult);
     }
@@ -1157,6 +1243,8 @@ async function completeTask(taskId, li, checkbox) {
 function setupTodosConnect() {
   const btn = document.getElementById('todos-connect-btn');
   btn.addEventListener('click', async () => {
+    if (!hasExtensionRuntime()) return;
+
     btn.disabled = true;
     btn.textContent = 'Connecting...';
     try {
@@ -1183,7 +1271,7 @@ function setupShowMore() {
 async function loadFocusSnapshot(preloadedDisplaySettings = null) {
   const displaySettings = preloadedDisplaySettings || {
     ...DEFAULTS,
-    ...(await chrome.storage.local.get([
+    ...(await getLocal([
       'newtabShowFocusSnapshot'
     ]))
   };
@@ -1193,7 +1281,7 @@ async function loadFocusSnapshot(preloadedDisplaySettings = null) {
   }
 
   try {
-    const blockingSummary = await chrome.runtime.sendMessage({ type: 'GET_BLOCKING_SUMMARY' });
+    const blockingSummary = await sendRuntimeMessage({ type: 'GET_BLOCKING_SUMMARY' });
     const totalBlockAttempts = blockingSummary?.totalBlockAttempts || 0;
     const estimatedSavedMinutes = totalBlockAttempts * 15;
     document.getElementById('focus-snapshot-blocked').textContent = totalBlockAttempts;
@@ -1261,6 +1349,8 @@ function renderSavedTime(minutes) {
 }
 
 function setupStorageSync() {
+  if (typeof chrome === 'undefined' || !chrome.storage?.onChanged) return;
+
   chrome.storage.onChanged.addListener(async (changes, areaName) => {
     if (areaName !== 'local') return;
 
