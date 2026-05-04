@@ -69,8 +69,13 @@ function getPreviewResponse(message) {
       };
       return previewFocusSession;
     }
-    case 'SKIP_FOCUS_PHASE':
     case 'STOP_FOCUS_SESSION':
+      previewFocusSession = null;
+      return { success: true };
+    case 'SKIP_FOCUS_PHASE':
+      if (previewFocusSession?.phase === 'work') {
+        return { success: false, error: 'Focus periods cannot be skipped' };
+      }
       previewFocusSession = null;
       return { success: true };
     case 'ADD_BLOCKED_SITE':
@@ -413,7 +418,7 @@ function PopupApp() {
     if (session?.active) setFocusSession(session);
   }
 
-  async function skipFocusPhase() {
+  async function skipFocusBreak() {
     await sendRuntimeMessage({ type: 'SKIP_FOCUS_PHASE' });
     await loadFocusSession();
   }
@@ -530,7 +535,9 @@ function PopupApp() {
               <span className="focus-time">{formatFocusTime(focusSession, now)}</span>
             </div>
             <div className="focus-actions">
-              <button className="btn btn-secondary" type="button" onClick={skipFocusPhase}>Skip</button>
+              {focusSession.phase !== 'work' && (
+                <button className="btn btn-secondary" type="button" onClick={skipFocusBreak}>Skip</button>
+              )}
               <button className="btn btn-danger" type="button" onClick={stopFocusSession}>Stop</button>
             </div>
           </div>
@@ -558,4 +565,3 @@ function PopupApp() {
 export function renderPopupApp(container) {
   createRoot(container).render(<PopupApp />);
 }
-

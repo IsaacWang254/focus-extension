@@ -3458,7 +3458,7 @@ async function stopFocusSession() {
 }
 
 /**
- * Skip the current phase (break or work)
+ * Skip the current break phase.
  */
 async function skipFocusSessionPhase() {
   // Read directly from storage to avoid getFocusSession()'s auto-phase-end handling,
@@ -3468,6 +3468,10 @@ async function skipFocusSessionPhase() {
 
   if (!session || !session.active) {
     return { success: false, error: 'No active session' };
+  }
+
+  if (session.phase === 'work') {
+    return { success: false, error: 'Focus periods cannot be skipped' };
   }
 
   chrome.alarms.clear('focusSessionEnd');
