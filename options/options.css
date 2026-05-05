@@ -1750,6 +1750,17 @@ textarea.input:focus {
   word-break: break-all;
 }
 
+.whitelist-url-link {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--muted-foreground) 40%, transparent);
+  text-underline-offset: 2px;
+}
+
+.whitelist-url-link:hover {
+  color: var(--foreground);
+  text-decoration-color: currentColor;
+}
+
 .whitelist-url-reason {
   display: flex;
   flex-direction: column;

@@ -3382,25 +3382,32 @@ function renderWhitelistUrls(urlEntries) {
   list.innerHTML = urlEntries.map((entry) => {
     const url = typeof entry === 'string' ? entry : entry.url;
     const reason = typeof entry === 'string' ? '' : (entry.reason || '').trim();
+    let safeHref = '';
 
     // Extract domain for display
     let domain = '';
     try {
       const urlObj = new URL(url);
       domain = urlObj.hostname.replace(/^www\./, '');
+      if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
+        safeHref = urlObj.href;
+      }
     } catch {
       domain = url;
     }
 
     // Truncate URL for display if too long
     const displayUrl = url.length > 60 ? url.substring(0, 57) + '...' : url;
+    const urlMarkup = safeHref
+      ? `<a class="whitelist-url-text whitelist-url-link" href="${escapeHtml(safeHref)}" title="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(displayUrl)}</a>`
+      : `<span class="whitelist-url-text" title="${escapeHtml(url)}">${escapeHtml(displayUrl)}</span>`;
 
     return `
       <li class="whitelist-url-item">
         <div class="whitelist-url-main">
           <div class="whitelist-url-meta">
             <span class="whitelist-url-domain">${escapeHtml(domain)}</span>
-            <span class="whitelist-url-text" title="${escapeHtml(url)}">${escapeHtml(displayUrl)}</span>
+            ${urlMarkup}
           </div>
           ${reason ? `
             <p class="whitelist-url-reason">
