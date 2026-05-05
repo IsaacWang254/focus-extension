@@ -60,6 +60,21 @@ const COMMON_REASON_WORDS = new Set([
   'the', 'this', 'to', 'today', 'urgent', 'we', 'with', 'work'
 ]);
 
+function getReasonRequirements(minLength) {
+  const safeMinLength = Math.max(1, Number(minLength) || 1);
+
+  // Keep requirements strict for longer reasons, but dynamic for shorter minimums.
+  const requiredWords = Math.max(1, Math.min(8, Math.ceil(safeMinLength / 7)));
+  const requiredUniqueWords = Math.max(1, Math.min(5, Math.ceil(requiredWords * 0.6)));
+  const requiredCommonWords = requiredWords >= 5 ? 2 : 1;
+
+  return {
+    requiredWords,
+    requiredUniqueWords,
+    requiredCommonWords
+  };
+}
+
 function getReasonValidation(text, minLength) {
   const trimmed = text.trim();
 
@@ -77,16 +92,18 @@ function getReasonValidation(text, minLength) {
     };
   }
 
+  const { requiredWords, requiredUniqueWords, requiredCommonWords } = getReasonRequirements(minLength);
+
   const words = trimmed.match(/[A-Za-z]+(?:['-][A-Za-z]+)*/g) || [];
-  if (words.length < 8) {
+  if (words.length < requiredWords) {
     return {
       isValid: false,
-      message: 'Write at least 8 words.'
+      message: `Write at least ${requiredWords} ${requiredWords === 1 ? 'word' : 'words'}.`
     };
   }
 
   const uniqueWords = new Set(words.map(word => word.toLowerCase()));
-  if (uniqueWords.size < 5) {
+  if (uniqueWords.size < requiredUniqueWords) {
     return {
       isValid: false,
       message: 'Use a few different words, not the same one repeated.'
@@ -119,7 +136,7 @@ function getReasonValidation(text, minLength) {
   }
 
   const commonWordMatches = words.filter(word => COMMON_REASON_WORDS.has(word.toLowerCase())).length;
-  if (commonWordMatches < 2) {
+  if (commonWordMatches < requiredCommonWords) {
     return {
       isValid: false,
       message: 'Write a short sentence in plain language.'
