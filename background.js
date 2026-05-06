@@ -162,6 +162,18 @@ const BEDTIME_REMINDER_NOTIFICATION_ID = 'bedtime-reminder';
 const BEDTIME_REMINDER_LAST_SENT_KEY = 'bedtimeReminderLastSentWindow';
 const BLOCKED_RESOURCE_TYPES = ['main_frame'];
 
+const SITE_INTERVENTION_ALARM = 'siteInterventionCheck';
+const SITE_INTERVENTION_TRACKING_KEY = 'siteInterventionTracking';
+const SITE_INTERVENTION_NOTIFICATION_PREFIX = 'site-intervention';
+const SITE_INTERVENTION_TIME_THRESHOLD_MINUTES = 12;
+const SITE_INTERVENTION_VISIT_THRESHOLD = 6;
+const SITE_INTERVENTION_PROMPT_COOLDOWN_MS = 2 * 60 * 60 * 1000;
+const SITE_INTERVENTION_MAX_PROMPTS_PER_DOMAIN_PER_DAY = 2;
+const SITE_INTERVENTION_MAX_SECONDS_PER_TICK = 150;
+
+const DISTRACTING_SITE_CATEGORIES = new Set(['socialMedia', 'entertainment', 'gaming', 'forums', 'news', 'shopping']);
+const PRODUCTIVE_SITE_CATEGORIES = new Set(['productivity', 'education', 'email']);
+
 function normalizeBlockedPageSettings(blockedPageSettings = {}) {
   return {
     ...DEFAULT_SETTINGS.blockedPage,
@@ -305,6 +317,8 @@ let pendingUpdate = false;
 // Daily usage tracking state
 let usageTrackingInterval = null;
 let lastActiveTabCheck = null;
+let siteInterventionCheckInFlight = false;
+let siteInterventionCheckPending = false;
 
 /**
  * Initialize the extension on install or update
@@ -2219,6 +2233,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await enforceSchedule();
     // Schedule the next window end alarm (for when we enter a new window)
     await scheduleWindowEndAlarm();
+  } else if (alarm.name === SITE_INTERVENTION_ALARM) {
+    await queueSiteInterventionCheck();
   } else if (alarm.name === 'midnightReset') {
     // Reset daily usage at midnight
     console.log('Midnight reset triggered');
@@ -2231,6 +2247,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
     await chrome.storage.local.set({ dailyUsage: { date: getTodayDateString(), minutes: 0 } });
     await chrome.storage.local.set({ dailyUnblockCount: { date: getTodayDateString(), count: 0, totalMinutes: 0 } });
+    await chrome.storage.local.set({ [SITE_INTERVENTION_TRACKING_KEY]: createSiteInterventionTrackingState(getTodayDateString()) });
+    lastActiveTabCheck = null;
 
     // Schedule next midnight reset
     scheduleMidnightReset();
@@ -2600,6 +2618,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     }
 
     await redirectTabIfNeeded(activeInfo.tabId, tab.url, 'activated');
+    await queueSiteInterventionCheck();
   } catch (e) {
     console.error('Tab activation handler error:', e);
   }
@@ -2612,6 +2631,7 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
 
   try {
     await redirectTabIfNeeded(details.tabId, details.url, 'history-state-updated');
+    await queueSiteInterventionCheck();
   } catch (e) {
     console.error('History state navigation handler error:', e);
   }
@@ -2624,6 +2644,7 @@ chrome.webNavigation.onReferenceFragmentUpdated.addListener(async (details) => {
 
   try {
     await redirectTabIfNeeded(details.tabId, details.url, 'fragment-updated');
+    await queueSiteInterventionCheck();
   } catch (e) {
     console.error('Fragment navigation handler error:', e);
   }
@@ -2897,6 +2918,350 @@ async function enforceDailyLimit() {
     }
   }
 }
+
+// =============================================================================
+// PROACTIVE SITE INTERVENTIONS
+// =============================================================================
+
+function createSiteInterventionTrackingState(date = getTodayDateString()) {
+  return {
+    date,
+    domains: {},
+    lastDomain: null,
+    lastTimestamp: null
+  };
+}
+
+async function getSiteInterventionTrackingState() {
+  const result = await chrome.storage.local.get(SITE_INTERVENTION_TRACKING_KEY);
+  const today = getTodayDateString();
+  const tracking = result[SITE_INTERVENTION_TRACKING_KEY];
+
+  if (!tracking || tracking.date !== today || typeof tracking !== 'object') {
+    return createSiteInterventionTrackingState(today);
+  }
+
+  if (!tracking.domains || typeof tracking.domains !== 'object') {
+    tracking.domains = {};
+  }
+
+  if (typeof tracking.lastDomain !== 'string') {
+    tracking.lastDomain = null;
+  }
+
+  if (!Number.isFinite(tracking.lastTimestamp)) {
+    tracking.lastTimestamp = null;
+  }
+
+  return tracking;
+}
+
+function ensureSiteInterventionDomainState(tracking, domain) {
+  const normalizedDomain = normalizeTrackedDomain(domain);
+
+  if (!tracking.domains[normalizedDomain]) {
+    tracking.domains[normalizedDomain] = {
+      seconds: 0,
+      visits: 0,
+      promptCount: 0,
+      lastPromptAt: 0,
+      lastPromptType: null
+    };
+  }
+
+  return tracking.domains[normalizedDomain];
+}
+
+function buildSiteInterventionNotificationId(action, domain, now = Date.now()) {
+  return `${SITE_INTERVENTION_NOTIFICATION_PREFIX}::${action}::${encodeURIComponent(domain)}::${now}`;
+}
+
+function parseSiteInterventionNotificationId(notificationId) {
+  if (typeof notificationId !== 'string') {
+    return null;
+  }
+
+  const parts = notificationId.split('::');
+  if (parts.length < 4 || parts[0] !== SITE_INTERVENTION_NOTIFICATION_PREFIX) {
+    return null;
+  }
+
+  const action = parts[1];
+  if (action !== 'block' && action !== 'focus') {
+    return null;
+  }
+
+  try {
+    const domain = decodeURIComponent(parts[2] || '');
+    if (!domain) {
+      return null;
+    }
+
+    return { action, domain };
+  } catch {
+    return null;
+  }
+}
+
+function getSiteInterventionActionForCategory(categoryKey) {
+  if (DISTRACTING_SITE_CATEGORIES.has(categoryKey)) {
+    return 'block';
+  }
+
+  if (PRODUCTIVE_SITE_CATEGORIES.has(categoryKey)) {
+    return 'focus';
+  }
+
+  return null;
+}
+
+function formatSiteInterventionUsage(entry) {
+  const minutes = Math.max(0, Math.round((entry.seconds || 0) / 60));
+  const visits = Math.max(0, entry.visits || 0);
+
+  return {
+    minutes,
+    visits,
+    label: `${minutes} min and ${visits} visit${visits === 1 ? '' : 's'}`
+  };
+}
+
+async function sendSiteInterventionPrompt({ action, domain, categoryKey, entry }) {
+  const categoryName = SITE_CATEGORIES[categoryKey]?.name || 'that category';
+  const usage = formatSiteInterventionUsage(entry);
+
+  const isBlockAction = action === 'block';
+  const title = isBlockAction
+    ? `Still browsing ${domain}?`
+    : `Lock in on ${domain}?`;
+  const message = isBlockAction
+    ? `You've already spent ${usage.label} in ${categoryName} today. Want to block it now?`
+    : `You've spent ${usage.label} in ${categoryName} today. Start a focus session?`;
+  const buttons = isBlockAction
+    ? [{ title: 'Block this site' }, { title: 'Not now' }]
+    : [{ title: 'Start focus session' }, { title: 'Not now' }];
+
+  const notificationId = buildSiteInterventionNotificationId(action, domain);
+
+  await chrome.notifications.create(notificationId, {
+    type: 'basic',
+    iconUrl: 'icons/icon128.png',
+    title,
+    message,
+    priority: 2,
+    requireInteraction: true,
+    buttons
+  });
+}
+
+async function maybePromptForSiteIntervention({ domain, tab, settings, tracking, now }) {
+  const domainState = ensureSiteInterventionDomainState(tracking, domain);
+  const minutesSpent = (domainState.seconds || 0) / 60;
+  const visitCount = domainState.visits || 0;
+
+  if (minutesSpent < SITE_INTERVENTION_TIME_THRESHOLD_MINUTES && visitCount < SITE_INTERVENTION_VISIT_THRESHOLD) {
+    return false;
+  }
+
+  if ((domainState.promptCount || 0) >= SITE_INTERVENTION_MAX_PROMPTS_PER_DOMAIN_PER_DAY) {
+    return false;
+  }
+
+  if (domainState.lastPromptAt && (now - domainState.lastPromptAt) < SITE_INTERVENTION_PROMPT_COOLDOWN_MS) {
+    return false;
+  }
+
+  const [overrides, suggestions] = await Promise.all([
+    getSiteCategoryOverrides(),
+    getSiteCategorySuggestions()
+  ]);
+
+  const categoryContext = resolveSiteCategoryContext({
+    domain,
+    url: tab?.url || '',
+    title: tab?.title || '',
+    overrides,
+    suggestions
+  });
+
+  const categoryKey = categoryContext.category;
+  const action = getSiteInterventionActionForCategory(categoryKey);
+
+  if (!action) {
+    return false;
+  }
+
+  if (action === 'block') {
+    if (settings.mode !== 'blocklist') {
+      return false;
+    }
+
+    if (wouldBlockDomain(domain, settings)) {
+      return false;
+    }
+  }
+
+  if (action === 'focus') {
+    const focusSession = await getFocusSession();
+    if (focusSession.active) {
+      return false;
+    }
+  }
+
+  await sendSiteInterventionPrompt({ action, domain, categoryKey, entry: domainState });
+
+  domainState.promptCount = (domainState.promptCount || 0) + 1;
+  domainState.lastPromptAt = now;
+  domainState.lastPromptType = action;
+
+  return true;
+}
+
+async function applySiteInterventionAction({ action, domain }) {
+  if (action === 'block') {
+    await addBlockedSite(domain);
+    await updateBlockingRules();
+    await redirectMatchingDomainTabsIfNeeded([domain], 'intervention-block');
+
+    await chrome.notifications.create(`site-intervention-feedback-${Date.now()}`, {
+      type: 'basic',
+      iconUrl: 'icons/icon128.png',
+      title: 'Site blocked',
+      message: `${domain} was added to your blocklist.`,
+      priority: 1
+    });
+
+    return;
+  }
+
+  if (action === 'focus') {
+    const session = await getFocusSession();
+    if (!session.active) {
+      await startFocusSession('pomodoro');
+    }
+  }
+}
+
+async function runSiteInterventionCheck() {
+  try {
+    const now = Date.now();
+    const settings = await getSettings();
+
+    if (!settings.enabled || settings.historyAnalysisEnabled === false) {
+      lastActiveTabCheck = null;
+      return;
+    }
+
+    const tracking = await getSiteInterventionTrackingState();
+    let trackingChanged = false;
+
+    const previousDomain = tracking.lastDomain || lastActiveTabCheck?.domain || null;
+    const previousTimestamp = Number.isFinite(tracking.lastTimestamp)
+      ? tracking.lastTimestamp
+      : (Number.isFinite(lastActiveTabCheck?.timestamp) ? lastActiveTabCheck.timestamp : null);
+
+    if (previousDomain && Number.isFinite(previousTimestamp)) {
+      const elapsedSeconds = Math.floor((now - previousTimestamp) / 1000);
+      if (elapsedSeconds > 0) {
+        const countedSeconds = Math.min(elapsedSeconds, SITE_INTERVENTION_MAX_SECONDS_PER_TICK);
+        const previousDomainState = ensureSiteInterventionDomainState(tracking, previousDomain);
+        previousDomainState.seconds = (previousDomainState.seconds || 0) + countedSeconds;
+        trackingChanged = true;
+      }
+    }
+
+    const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    const activeDomain = getHistoryTrackableDomain(activeTab?.url || '');
+
+    if (!activeDomain || !isMeaningfulTrackedDomain(activeDomain)) {
+      tracking.lastDomain = null;
+      tracking.lastTimestamp = now;
+      trackingChanged = true;
+      lastActiveTabCheck = null;
+
+      if (trackingChanged) {
+        await chrome.storage.local.set({ [SITE_INTERVENTION_TRACKING_KEY]: tracking });
+      }
+      return;
+    }
+
+    const activeDomainState = ensureSiteInterventionDomainState(tracking, activeDomain);
+    if (!previousDomain || previousDomain !== activeDomain) {
+      activeDomainState.visits = (activeDomainState.visits || 0) + 1;
+      trackingChanged = true;
+    }
+
+    tracking.lastDomain = activeDomain;
+    tracking.lastTimestamp = now;
+    trackingChanged = true;
+
+    lastActiveTabCheck = {
+      domain: activeDomain,
+      timestamp: now,
+      tabId: Number.isInteger(activeTab?.id) ? activeTab.id : null
+    };
+
+    const prompted = await maybePromptForSiteIntervention({
+      domain: activeDomain,
+      tab: activeTab,
+      settings,
+      tracking,
+      now
+    });
+
+    if (prompted) {
+      trackingChanged = true;
+    }
+
+    if (trackingChanged) {
+      await chrome.storage.local.set({ [SITE_INTERVENTION_TRACKING_KEY]: tracking });
+    }
+  } catch (e) {
+    console.error('Error running site intervention check:', e);
+  }
+}
+
+async function queueSiteInterventionCheck() {
+  if (siteInterventionCheckInFlight) {
+    siteInterventionCheckPending = true;
+    return;
+  }
+
+  siteInterventionCheckInFlight = true;
+
+  try {
+    await runSiteInterventionCheck();
+  } finally {
+    siteInterventionCheckInFlight = false;
+
+    if (siteInterventionCheckPending) {
+      siteInterventionCheckPending = false;
+      await queueSiteInterventionCheck();
+    }
+  }
+}
+
+function startSiteInterventionMonitor() {
+  chrome.alarms.create(SITE_INTERVENTION_ALARM, { periodInMinutes: 1 });
+  queueSiteInterventionCheck();
+}
+
+chrome.notifications.onButtonClicked.addListener(async (notificationId, buttonIndex) => {
+  try {
+    const prompt = parseSiteInterventionNotificationId(notificationId);
+    if (!prompt) {
+      return;
+    }
+
+    if (buttonIndex === 0) {
+      await applySiteInterventionAction(prompt);
+    }
+
+    await chrome.notifications.clear(notificationId);
+  } catch (e) {
+    console.error('Failed to handle intervention notification action:', e);
+  }
+});
 
 /**
  * Schedule midnight reset alarm
@@ -7878,6 +8243,7 @@ setTimeout(() => {
   updateBlockingRules();
   startBadgeTimer();
   startUsageTracking();
+  startSiteInterventionMonitor();
   scheduleMidnightReset();
   scheduleBedtimeReminderAlarm();
 }, 100);
