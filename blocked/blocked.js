@@ -2300,7 +2300,7 @@ function enableUnblock() {
 
   unblockEnabled = true;
   button.disabled = false;
-  hint.textContent = 'Select your time limit and click to continue';
+  hint.textContent = 'Select your time limit and press Enter or click to continue';
 }
 
 // Get selected time limit in minutes (0 = unlimited)
@@ -2319,11 +2319,59 @@ function getSelectedTimeLimit() {
   return 30; // Default 30 minutes
 }
 
+function shouldSubmitUnblockOnEnter(event) {
+  if (
+    event.key !== 'Enter'
+    || event.shiftKey
+    || event.altKey
+    || event.ctrlKey
+    || event.metaKey
+    || event.repeat
+    || event.isComposing
+  ) {
+    return false;
+  }
+
+  const unblockButton = document.getElementById('unblock-button');
+  if (!unblockButton || unblockButton.disabled || unblockButton.dataset.navigating === 'true') {
+    return false;
+  }
+
+  const target = event.target;
+  if (!(target instanceof Element)) {
+    return true;
+  }
+
+  // Keep Enter available for the exact-link whitelist flow.
+  if (target.closest('#whitelist-link-action')) {
+    return false;
+  }
+
+  // Avoid hijacking Enter for unrelated controls.
+  const control = target.closest('button, a, [role="button"]');
+  if (control && control.id !== 'unblock-button') {
+    return false;
+  }
+
+  return true;
+}
+
+function handleEnterToUnblock(event) {
+  if (!shouldSubmitUnblockOnEnter(event)) {
+    return;
+  }
+
+  event.preventDefault();
+  document.getElementById('unblock-button')?.click();
+}
+
 // =============================================================================
 // EVENT LISTENERS
 // =============================================================================
 
 function setupEventListeners() {
+  document.addEventListener('keydown', handleEnterToUnblock);
+
   // Auth button
   document.getElementById('auth-button').addEventListener('click', async () => {
     try {
@@ -2487,18 +2535,6 @@ function setupEventListeners() {
       updateMethodStatus('method-reason', 'reason-status', false);
     }
   });
-  reasonInput.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter' || event.shiftKey) return;
-
-    const unblockButton = document.getElementById('unblock-button');
-    if (!completedMethods.typeReason || unblockButton.disabled || unblockButton.dataset.navigating === 'true') {
-      return;
-    }
-
-    event.preventDefault();
-    unblockButton.click();
-  });
-
   const whitelistReasonInput = document.getElementById('whitelist-reason-input');
   const whitelistReasonCharCount = document.getElementById('whitelist-reason-char-count');
   const whitelistReasonValidationMessage = document.getElementById('whitelist-reason-validation-message');
