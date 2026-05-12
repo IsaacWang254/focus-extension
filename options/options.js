@@ -2759,10 +2759,10 @@ async function loadReasonHistory() {
       return;
     }
 
-    const { reasons = [], stats = {}, categoryStats = {} } = result;
+    const { reasons = [], stats = {}, categoryStats = {}, totalCount = reasons.length } = result;
 
     // Update stats
-    document.getElementById('total-reasons').textContent = reasons.length;
+    document.getElementById('total-reasons').textContent = totalCount;
 
     if (stats?.topCategory) {
       document.getElementById('top-category').textContent = capitalizeFirst(stats.topCategory);

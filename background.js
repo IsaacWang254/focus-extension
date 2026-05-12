@@ -1806,8 +1806,11 @@ function classifyReason(reason) {
  * @param {string} reason - The reason provided
  */
 async function saveUnblockReason(domain, reason) {
-  const result = await chrome.storage.local.get('unblockReasons');
+  const result = await chrome.storage.local.get(['unblockReasons', 'unblockReasonTotalCount']);
   const reasons = result.unblockReasons || [];
+  const storedTotalCount = (typeof result.unblockReasonTotalCount === 'number' && Number.isFinite(result.unblockReasonTotalCount))
+    ? result.unblockReasonTotalCount
+    : reasons.length;
   const normalizedDomain = normalizeTrackedDomain(domain);
 
   const entry = {
@@ -1823,8 +1826,12 @@ async function saveUnblockReason(domain, reason) {
 
   // Keep only last 100 reasons to avoid storage bloat
   const trimmedReasons = reasons.slice(-100);
+  const nextTotalCount = Math.max(storedTotalCount, reasons.length - 1) + 1;
 
-  await chrome.storage.local.set({ unblockReasons: trimmedReasons });
+  await chrome.storage.local.set({
+    unblockReasons: trimmedReasons,
+    unblockReasonTotalCount: nextTotalCount
+  });
 
   return { success: true, entry };
 }
@@ -1833,11 +1840,15 @@ async function saveUnblockReason(domain, reason) {
  * Get all unblock reasons with stats
  */
 async function getUnblockReasons() {
-  const result = await chrome.storage.local.get('unblockReasons');
+  const result = await chrome.storage.local.get(['unblockReasons', 'unblockReasonTotalCount']);
   const reasons = (result.unblockReasons || []).map((entry) => ({
     ...entry,
     domain: normalizeTrackedDomain(entry.domain)
   }));
+  const storedTotalCount = (typeof result.unblockReasonTotalCount === 'number' && Number.isFinite(result.unblockReasonTotalCount))
+    ? result.unblockReasonTotalCount
+    : reasons.length;
+  const totalCount = Math.max(storedTotalCount, reasons.length);
 
   // Calculate category stats
   const categoryStats = {};
@@ -1883,7 +1894,7 @@ async function getUnblockReasons() {
     recentReasons,
     categoryStats,
     domainStats,
-    totalCount: reasons.length,
+    totalCount,
     // Add stats object for options.js compatibility
     stats: {
       topCategory,
@@ -1896,7 +1907,10 @@ async function getUnblockReasons() {
  * Clear all unblock reasons
  */
 async function clearUnblockReasons() {
-  await chrome.storage.local.set({ unblockReasons: [] });
+  await chrome.storage.local.set({
+    unblockReasons: [],
+    unblockReasonTotalCount: 0
+  });
   return { success: true };
 }
 
