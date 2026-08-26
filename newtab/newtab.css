@@ -17,79 +17,120 @@ body {
   background-color: transparent;
 }
 
-.bg-ocean {
+.bg-shader {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
   z-index: 0;
   pointer-events: none;
-  display: block;
+  /* Hidden until newtab.js picks one, so the two canvases never both paint. */
+  display: none;
+}
+
+/* The dither canvas renders far below CSS resolution on purpose; nearest-
+   neighbour upscaling is what keeps the stipple crisp instead of smearing it
+   into flat grey. */
+.bg-dither {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bg-ocean {
-    display: none;
+  .bg-shader {
+    display: none !important;
   }
 }
 
 /* ============================================
-   Readability over ocean shader
+   Readability over animated backgrounds
    ============================================ */
 
-.ocean-active .clock,
-.ocean-active .weather-temp,
-.ocean-active .weather-desc,
-.ocean-active .weather-highlow,
-.ocean-active .weather-icon,
-.ocean-active .quote-text,
-.ocean-active .quote-author {
+/* The ocean is a smooth gradient, so text sits on it with only a shadow. The
+   dither is high-frequency stipple at full contrast, which shreds thin text —
+   it needs an actual scrim. Anchored left and fading out to the right, so it
+   covers the content column while leaving the effect visible where it is
+   nothing but background. */
+.bg-dither-active::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    var(--background) 0%,
+    color-mix(in srgb, var(--background) 82%, transparent) 26%,
+    color-mix(in srgb, var(--background) 42%, transparent) 48%,
+    transparent 68%
+  );
+}
+
+/* The scrim restores a near-normal surface, so the heavy over-background text
+   shadows would only muddy it. */
+.bg-dither-active .clock,
+.bg-dither-active .weather-temp,
+.bg-dither-active .weather-desc,
+.bg-dither-active .weather-highlow,
+.bg-dither-active .weather-icon,
+.bg-dither-active .quote-text,
+.bg-dither-active .quote-author {
+  text-shadow: none;
+}
+
+.bg-active .clock,
+.bg-active .weather-temp,
+.bg-active .weather-desc,
+.bg-active .weather-highlow,
+.bg-active .weather-icon,
+.bg-active .quote-text,
+.bg-active .quote-author {
   text-shadow:
     0 0 18px rgba(0, 0, 0, 0.45),
     0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
-[data-theme="dashboard-dark"] .ocean-active .clock,
-[data-theme="dashboard-dark"] .ocean-active .weather-temp,
-[data-theme="dashboard-dark"] .ocean-active .weather-desc,
-[data-theme="dashboard-dark"] .ocean-active .weather-highlow,
-[data-theme="dashboard-dark"] .ocean-active .weather-icon,
-[data-theme="dashboard-dark"] .ocean-active .quote-text,
-[data-theme="dashboard-dark"] .ocean-active .quote-author,
-[data-theme="dark"] .ocean-active .clock,
-[data-theme="dark"] .ocean-active .weather-temp,
-[data-theme="dark"] .ocean-active .weather-desc,
-[data-theme="dark"] .ocean-active .weather-highlow,
-[data-theme="dark"] .ocean-active .weather-icon,
-[data-theme="dark"] .ocean-active .quote-text,
-[data-theme="dark"] .ocean-active .quote-author {
+[data-theme="dashboard-dark"] .bg-active .clock,
+[data-theme="dashboard-dark"] .bg-active .weather-temp,
+[data-theme="dashboard-dark"] .bg-active .weather-desc,
+[data-theme="dashboard-dark"] .bg-active .weather-highlow,
+[data-theme="dashboard-dark"] .bg-active .weather-icon,
+[data-theme="dashboard-dark"] .bg-active .quote-text,
+[data-theme="dashboard-dark"] .bg-active .quote-author,
+[data-theme="dark"] .bg-active .clock,
+[data-theme="dark"] .bg-active .weather-temp,
+[data-theme="dark"] .bg-active .weather-desc,
+[data-theme="dark"] .bg-active .weather-highlow,
+[data-theme="dark"] .bg-active .weather-icon,
+[data-theme="dark"] .bg-active .quote-text,
+[data-theme="dark"] .bg-active .quote-author {
   text-shadow:
     0 0 18px rgba(0, 0, 0, 0.7),
     0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-.ocean-active .clock,
-.ocean-active .weather-temp,
-.ocean-active .panel-title {
+.bg-active .clock,
+.bg-active .weather-temp,
+.bg-active .panel-title {
   color: #ffffff;
 }
 
-.ocean-active .clock-separator {
+.bg-active .clock-separator {
   opacity: 0.9;
 }
 
-.ocean-active .weather-desc,
-.ocean-active .weather-highlow,
-.ocean-active .quote-text,
-.ocean-active .quote-author {
+.bg-active .weather-desc,
+.bg-active .weather-highlow,
+.bg-active .quote-text,
+.bg-active .quote-author {
   color: rgba(255, 255, 255, 0.88);
 }
 
-.ocean-active .weather-icon {
+.bg-active .weather-icon {
   color: #ffffff;
 }
 
-.ocean-active .panel {
+.bg-active .panel {
   background-color: color-mix(in srgb, var(--card) 72%, transparent 28%);
   backdrop-filter: blur(18px) saturate(1.1);
   -webkit-backdrop-filter: blur(18px) saturate(1.1);
@@ -97,11 +138,11 @@ body {
   box-shadow: 0 14px 42px rgba(0, 0, 0, 0.28);
 }
 
-.ocean-active .panel-header {
+.bg-active .panel-header {
   border-bottom-color: color-mix(in srgb, var(--border) 60%, transparent 40%);
 }
 
-.ocean-active .theme-toggle {
+.bg-active .theme-toggle {
   background-color: color-mix(in srgb, var(--card) 72%, transparent 28%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -109,36 +150,36 @@ body {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
 }
 
-[data-theme="light"] .ocean-active .clock,
-[data-theme="light"] .ocean-active .weather-temp,
-[data-theme="light"] .ocean-active .weather-icon,
-[data-theme="light"] .ocean-active .panel-title,
-[data-theme="dashboard-light"] .ocean-active .clock,
-[data-theme="dashboard-light"] .ocean-active .weather-temp,
-[data-theme="dashboard-light"] .ocean-active .weather-icon,
-[data-theme="dashboard-light"] .ocean-active .panel-title {
+[data-theme="light"] .bg-active .clock,
+[data-theme="light"] .bg-active .weather-temp,
+[data-theme="light"] .bg-active .weather-icon,
+[data-theme="light"] .bg-active .panel-title,
+[data-theme="dashboard-light"] .bg-active .clock,
+[data-theme="dashboard-light"] .bg-active .weather-temp,
+[data-theme="dashboard-light"] .bg-active .weather-icon,
+[data-theme="dashboard-light"] .bg-active .panel-title {
   color: var(--foreground);
   text-shadow:
     0 1px 1px rgba(255, 255, 255, 0.28),
     0 2px 10px rgba(15, 23, 42, 0.08);
 }
 
-[data-theme="light"] .ocean-active .weather-desc,
-[data-theme="light"] .ocean-active .weather-highlow,
-[data-theme="light"] .ocean-active .quote-text,
-[data-theme="light"] .ocean-active .quote-author,
-[data-theme="dashboard-light"] .ocean-active .weather-desc,
-[data-theme="dashboard-light"] .ocean-active .weather-highlow,
-[data-theme="dashboard-light"] .ocean-active .quote-text,
-[data-theme="dashboard-light"] .ocean-active .quote-author {
+[data-theme="light"] .bg-active .weather-desc,
+[data-theme="light"] .bg-active .weather-highlow,
+[data-theme="light"] .bg-active .quote-text,
+[data-theme="light"] .bg-active .quote-author,
+[data-theme="dashboard-light"] .bg-active .weather-desc,
+[data-theme="dashboard-light"] .bg-active .weather-highlow,
+[data-theme="dashboard-light"] .bg-active .quote-text,
+[data-theme="dashboard-light"] .bg-active .quote-author {
   color: color-mix(in srgb, var(--foreground) 78%, var(--muted-foreground) 22%);
   text-shadow:
     0 1px 1px rgba(255, 255, 255, 0.22),
     0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
-[data-theme="light"] .ocean-active .focus-snapshot-inline,
-[data-theme="dashboard-light"] .ocean-active .focus-snapshot-inline {
+[data-theme="light"] .bg-active .focus-snapshot-inline,
+[data-theme="dashboard-light"] .bg-active .focus-snapshot-inline {
   padding: 10px 16px;
   border: 1px solid color-mix(in srgb, var(--border) 70%, rgba(255, 255, 255, 0.5) 30%);
   border-radius: 18px;
@@ -148,23 +189,23 @@ body {
   -webkit-backdrop-filter: blur(14px) saturate(1.05);
 }
 
-[data-theme="light"] .ocean-active .focus-snapshot-inline-label,
-[data-theme="light"] .ocean-active .focus-snapshot-saved-unit,
-[data-theme="dashboard-light"] .ocean-active .focus-snapshot-inline-label,
-[data-theme="dashboard-light"] .ocean-active .focus-snapshot-saved-unit {
+[data-theme="light"] .bg-active .focus-snapshot-inline-label,
+[data-theme="light"] .bg-active .focus-snapshot-saved-unit,
+[data-theme="dashboard-light"] .bg-active .focus-snapshot-inline-label,
+[data-theme="dashboard-light"] .bg-active .focus-snapshot-saved-unit {
   color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground) 28%);
   opacity: 0.92;
 }
 
-[data-theme="light"] .ocean-active .focus-snapshot-inline-value,
-[data-theme="light"] .ocean-active .focus-snapshot-saved-number,
-[data-theme="dashboard-light"] .ocean-active .focus-snapshot-inline-value,
-[data-theme="dashboard-light"] .ocean-active .focus-snapshot-saved-number {
+[data-theme="light"] .bg-active .focus-snapshot-inline-value,
+[data-theme="light"] .bg-active .focus-snapshot-saved-number,
+[data-theme="dashboard-light"] .bg-active .focus-snapshot-inline-value,
+[data-theme="dashboard-light"] .bg-active .focus-snapshot-saved-number {
   color: var(--foreground);
 }
 
-[data-theme="light"] .ocean-active .focus-snapshot-metric + .focus-snapshot-metric,
-[data-theme="dashboard-light"] .ocean-active .focus-snapshot-metric + .focus-snapshot-metric {
+[data-theme="light"] .bg-active .focus-snapshot-metric + .focus-snapshot-metric,
+[data-theme="dashboard-light"] .bg-active .focus-snapshot-metric + .focus-snapshot-metric {
   border-left-color: color-mix(in srgb, var(--border) 80%, transparent 20%);
 }
 
@@ -466,6 +507,9 @@ body {
 
 .main {
   position: relative;
+  /* Above the dither legibility scrim (z-index 1), which is itself above the
+     shader canvas (z-index 0). */
+  z-index: 2;
   width: 100%;
   max-width: none;
   min-height: 100vh;
@@ -480,13 +524,14 @@ body {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-start;
   min-height: calc(100vh - 96px);
   gap: clamp(8px, 1.2vh, 14px);
   width: min(100%, 980px);
-  margin: 0 auto;
+  margin: 0;
   padding: clamp(12px, 2.2vh, 24px) 0 clamp(40px, 6vh, 64px);
+  text-align: left;
 }
 
 /* ============================================
@@ -494,7 +539,7 @@ body {
    ============================================ */
 
 .hero {
-  text-align: center;
+  text-align: left;
   margin: -6px 0 0;
   flex-shrink: 0;
 }
@@ -505,6 +550,10 @@ body {
   justify-content: center;
   gap: 0.16em;
   font-size: clamp(4.2rem, 7.8vw, 6.3rem);
+  justify-content: flex-start;
+  /* The box is flush left with everything else, but at this size the glyph's
+     left side bearing reads as an indent. Pull it back optically. */
+  margin-left: -0.035em;
   font-weight: 500;
   line-height: 0.96;
   color: var(--foreground);
@@ -635,12 +684,12 @@ body {
 .weather-section {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 12px;
   margin: -8px 0 0;
   min-height: 30px;
   flex-shrink: 0;
-  text-align: center;
+  text-align: left;
 }
 
 .weather-loading {
@@ -659,7 +708,7 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  justify-content: center;
+  justify-content: flex-start;
   flex-wrap: wrap;
 }
 
@@ -708,7 +757,7 @@ body {
 
 .quote-section {
   position: static;
-  text-align: center;
+  text-align: left;
   max-width: 640px;
   margin: 0;
   padding: 0;
@@ -801,7 +850,7 @@ body {
 .focus-snapshot-inline {
   display: flex;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: flex-start;
   gap: clamp(24px, 3vw, 40px);
   min-height: 0;
   padding: 0;
@@ -810,7 +859,7 @@ body {
   background: transparent;
   box-shadow: none;
   color: var(--muted-foreground);
-  text-align: center;
+  text-align: left;
   backdrop-filter: none;
 }
 

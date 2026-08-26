@@ -11,6 +11,7 @@ import {
   loadTheme as loadThemeShared,
   resolveThemeVariant
 } from '../lib/theme.js';
+import { runWhenVisible } from '../lib/when-visible.js';
 
 // =============================================================================
 // STATE
@@ -739,16 +740,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load task completion progress for todo-based unlocks
     await loadCompleteTodoProgress();
 
-    // Check authentication and load todos
+    // Check authentication and load todos. A blocked page often renders in a
+    // tab nobody is looking at (a background tab navigating to a blocked site),
+    // so hold the Todoist calls until it is actually on screen.
     if (shouldShowTodoPanel()) {
-      const isAuthenticated = await todoist.isAuthenticated();
+      runWhenVisible(async () => {
+        try {
+          const isAuthenticated = await todoist.isAuthenticated();
 
-      if (isAuthenticated) {
-        showTodosSection();
-        loadTodos();
-      } else {
-        showAuthSection();
-      }
+          if (isAuthenticated) {
+            showTodosSection();
+            loadTodos();
+          } else {
+            showAuthSection();
+          }
+        } catch (error) {
+          console.error('Failed to check Todoist authentication:', error);
+          showAuthSection();
+        }
+      });
     } else {
       document.getElementById('auth-required').style.display = 'none';
       document.getElementById('todos-section').style.display = 'none';

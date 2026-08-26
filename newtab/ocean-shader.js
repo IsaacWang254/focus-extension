@@ -3,27 +3,33 @@
  *
  * Faithful port of afl_ext's "Ocean" (shadertoy MdXyzX, MIT License) for the
  * "classic" light-theme variant, plus a night-mode variant with stars and moon.
+ *
+ * The iteration counts are injected as `#define`s so each quality tier compiles
+ * its own program with genuinely constant loop bounds — see gl-background.js
+ * for why a runtime break was costing full price.
  */
 
-const VERT_SRC = `attribute vec2 a_pos; void main(){ gl_Position = vec4(a_pos, 0.0, 1.0); }`;
+import { createGlBackground } from './gl-background.js';
 
-const FRAG_SRC = `
+const buildFrag = ({
+  ITERATIONS_RAYMARCH,
+  ITERATIONS_NORMAL,
+  RAYMARCH_STEPS,
+  POWER_SAVE
+}) => `
   precision highp float;
   uniform vec2 iResolution;
   uniform float iTime;
   uniform int u_mode;
-  uniform int u_powerSave;
 
   #define PI 3.14159265359
   #define DRAG_MULT 0.38
   #define WATER_DEPTH 1.0
   #define CAMERA_HEIGHT 1.5
-  #define ITERATIONS_RAYMARCH 8
-  #define ITERATIONS_NORMAL 24
-  #define RAYMARCH_STEPS 32
-  #define ITERATIONS_RAYMARCH_LOW 5
-  #define ITERATIONS_NORMAL_LOW 12
-  #define RAYMARCH_STEPS_LOW 18
+  #define ITERATIONS_RAYMARCH ${ITERATIONS_RAYMARCH}
+  #define ITERATIONS_NORMAL ${ITERATIONS_NORMAL}
+  #define RAYMARCH_STEPS ${RAYMARCH_STEPS}
+  #define POWER_SAVE ${POWER_SAVE}
 
   float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -42,12 +48,32 @@ const FRAG_SRC = `
     return vec2(w, -w * cos(x));
   }
 
-  float getwaves(vec2 pos, int iters){
+  // Two fixed-count variants instead of one parameterised loop: the raymarch
+  // and the normal pass need different depths, and a shared "iters" argument
+  // would force both to unroll to the larger of the two.
+  float getwavesRaymarch(vec2 pos){
     float phaseShift = length(pos) * 0.1;
     float iter = 0.0, freq = 1.0, tm = 2.0, weight = 1.0;
     float sumV = 0.0, sumW = 0.0;
-    for(int i=0;i<36;i++){
-      if(i >= iters) break;
+    for(int i=0;i<ITERATIONS_RAYMARCH;i++){
+      vec2 p = vec2(sin(iter), cos(iter));
+      vec2 r = wavedx(pos, p, freq, iTime*tm + phaseShift);
+      pos += p * r.y * weight * DRAG_MULT;
+      sumV += r.x * weight;
+      sumW += weight;
+      weight = mix(weight, 0.0, 0.2);
+      freq *= 1.18;
+      tm *= 1.07;
+      iter += 1232.399963;
+    }
+    return sumV / sumW;
+  }
+
+  float getwavesNormal(vec2 pos){
+    float phaseShift = length(pos) * 0.1;
+    float iter = 0.0, freq = 1.0, tm = 2.0, weight = 1.0;
+    float sumV = 0.0, sumW = 0.0;
+    for(int i=0;i<ITERATIONS_NORMAL;i++){
       vec2 p = vec2(sin(iter), cos(iter));
       vec2 r = wavedx(pos, p, freq, iTime*tm + phaseShift);
       pos += p * r.y * weight * DRAG_MULT;
@@ -64,11 +90,8 @@ const FRAG_SRC = `
   float raymarchwater(vec3 cam, vec3 start, vec3 end, float depth){
     vec3 pos = start;
     vec3 dir = normalize(end - start);
-    int steps = (u_powerSave == 1) ? RAYMARCH_STEPS_LOW : RAYMARCH_STEPS;
-    int waveIters = (u_powerSave == 1) ? ITERATIONS_RAYMARCH_LOW : ITERATIONS_RAYMARCH;
     for(int i=0;i<RAYMARCH_STEPS;i++){
-      if(i >= steps) break;
-      float h = getwaves(pos.xz, waveIters)*depth - depth;
+      float h = getwavesRaymarch(pos.xz)*depth - depth;
       if(h + 0.01 > pos.y) return distance(pos, cam);
       pos += dir * (pos.y - h);
     }
@@ -77,12 +100,11 @@ const FRAG_SRC = `
 
   vec3 normalAt(vec2 pos, float e, float depth){
     vec2 ex = vec2(e, 0.0);
-    int waveIters = (u_powerSave == 1) ? ITERATIONS_NORMAL_LOW : ITERATIONS_NORMAL;
-    float H = getwaves(pos, waveIters)*depth;
+    float H = getwavesNormal(pos)*depth;
     vec3 a = vec3(pos.x, H, pos.y);
     return normalize(cross(
-      a - vec3(pos.x - e, getwaves(pos - ex.xy, waveIters)*depth, pos.y),
-      a - vec3(pos.x, getwaves(pos + ex.yx, waveIters)*depth, pos.y + e)
+      a - vec3(pos.x - e, getwavesNormal(pos - ex.xy)*depth, pos.y),
+      a - vec3(pos.x, getwavesNormal(pos + ex.yx)*depth, pos.y + e)
     ));
   }
 
@@ -114,21 +136,6 @@ const FRAG_SRC = `
     return bluesky2 * (1.0 + 1.0 * pow(1.0 - raydir.y, 3.0));
   }
 
-  // Grey atmosphere with subtle sundir influence. Used ONLY for water
-  // reflection — the sky itself is a flat color. This gives the waves
-  // their glossy earendil-style highlights without tinting the sky.
-  vec3 extra_cheap_atmosphere_grey(vec3 raydir, vec3 sundir) {
-    float t1 = 1.0 / (raydir.y * 1.0 + 0.1);
-    float t2 = 1.0 / (sundir.y * 11.0 + 1.0);
-    float raysundt = pow(abs(dot(sundir, raydir)), 2.0);
-    vec3 TINT = vec3(12.0, 12.0, 13.0) / 22.4;
-    vec3 suncolor = mix(vec3(1.0), max(vec3(0.0), vec3(1.0) - TINT), t2);
-    vec3 sky = TINT * suncolor;
-    vec3 sky2 = max(vec3(0.0), sky - vec3(12.0, 12.0, 13.0) * 0.002 * (t1 + -6.0 * sundir.y * sundir.y));
-    sky2 *= t1 * (0.24 + raysundt * 0.24);
-    return sky2 * (1.0 + 1.0 * pow(1.0 - raydir.y, 3.0)) * 0.5;
-  }
-
   vec3 getAtmosphere(vec3 dir) { return extra_cheap_atmosphere(dir, getSunDirection()) * 0.5; }
   float getSun(vec3 dir) { return pow(max(0.0, dot(dir, getSunDirection())), 720.0) * 210.0; }
 
@@ -152,10 +159,12 @@ const FRAG_SRC = `
     float core = smoothstep(size, 0.0, dist);
     float halo = smoothstep(size * 2.8, 0.0, dist) * 0.38;
     float brightness = mix(0.95, 1.28, hash21(cell + 0.23));
-    float flicker = (u_powerSave == 1)
-      ? 1.0
-      : 0.85 + 0.15 * sin(iTime * (0.7 + hash21(cell + 0.29) * 1.3)
-                          + hash21(cell + 0.31) * 6.28);
+#if POWER_SAVE
+    float flicker = 1.0;
+#else
+    float flicker = 0.85 + 0.15 * sin(iTime * (0.7 + hash21(cell + 0.29) * 1.3)
+                                      + hash21(cell + 0.31) * 6.28);
+#endif
     float horizonFade = smoothstep(0.02, 0.16, d.y);
     return (core + halo) * brightness * flicker * horizonFade;
   }
@@ -230,14 +239,14 @@ const FRAG_SRC = `
       // Film-grain post-process matching earendil: convert to grayscale,
       // add gaussian-ish noise, then remap to a dark→light palette.
       float gray = dot(finalColor, vec3(0.299, 0.587, 0.114));
-      if(u_powerSave != 1){
-        vec2 nuv = gl_FragCoord.xy / iResolution;
-        float seed = dot(nuv * iResolution, vec2(12.9898, 78.233));
-        float n = fract(sin(seed) * 43758.5453 + iTime * 1.5);
-        float o = 0.36;
-        n = (1.0 / (o * 2.5066)) * exp(-(n * n) / (2.0 * o * o));
-        gray = clamp(gray + n * (1.0 - gray) * 0.065, 0.0, 1.0);
-      }
+#if !POWER_SAVE
+      vec2 nuv = gl_FragCoord.xy / iResolution;
+      float seed = dot(nuv * iResolution, vec2(12.9898, 78.233));
+      float n = fract(sin(seed) * 43758.5453 + iTime * 1.5);
+      float o = 0.36;
+      n = (1.0 / (o * 2.5066)) * exp(-(n * n) / (2.0 * o * o));
+      gray = clamp(gray + n * (1.0 - gray) * 0.065, 0.0, 1.0);
+#endif
       gray = pow(gray, 1.6);
       finalColor = mix(vec3(0.01), vec3(0.42), gray);
       finalColor += vec3(1.0) * starField * 0.48;
@@ -247,156 +256,32 @@ const FRAG_SRC = `
   }
 `;
 
-function compile(gl, type, src) {
-  const sh = gl.createShader(type);
-  gl.shaderSource(sh, src);
-  gl.compileShader(sh);
-  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-    console.error('Ocean shader compile error:', gl.getShaderInfoLog(sh));
-    gl.deleteShader(sh);
-    return null;
-  }
-  return sh;
-}
+const FRAG_NORMAL = buildFrag({
+  ITERATIONS_RAYMARCH: 8,
+  ITERATIONS_NORMAL: 24,
+  RAYMARCH_STEPS: 32,
+  POWER_SAVE: 0
+});
+
+const FRAG_SAVER = buildFrag({
+  ITERATIONS_RAYMARCH: 4,
+  ITERATIONS_NORMAL: 10,
+  RAYMARCH_STEPS: 14,
+  POWER_SAVE: 1
+});
+
+const TIERS = {
+  normal: { dpr: 2, scale: 0.55, fps: 0 },
+  saver: { dpr: 1, scale: 0.4, fps: 24 }
+};
 
 export function initOceanShader(canvas, { mode = 0, powerSave = false } = {}) {
-  const gl = canvas.getContext('webgl', { antialias: false, premultipliedAlpha: false });
-  if (!gl) return null;
-
-  const vs = compile(gl, gl.VERTEX_SHADER, VERT_SRC);
-  const fs = compile(gl, gl.FRAGMENT_SHADER, FRAG_SRC);
-  if (!vs || !fs) return null;
-
-  const prog = gl.createProgram();
-  gl.attachShader(prog, vs);
-  gl.attachShader(prog, fs);
-  gl.linkProgram(prog);
-  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-    console.error('Ocean shader link error:', gl.getProgramInfoLog(prog));
-    return null;
-  }
-  gl.useProgram(prog);
-
-  const buf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
-  const aPos = gl.getAttribLocation(prog, 'a_pos');
-  gl.enableVertexAttribArray(aPos);
-  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-
-  const uRes = gl.getUniformLocation(prog, 'iResolution');
-  const uTime = gl.getUniformLocation(prog, 'iTime');
-  const uMode = gl.getUniformLocation(prog, 'u_mode');
-  const uPowerSave = gl.getUniformLocation(prog, 'u_powerSave');
-  gl.uniform1i(uMode, mode);
-  gl.uniform1i(uPowerSave, powerSave ? 1 : 0);
-
-  const state = {
-    running: false,
-    rafId: null,
-    virtualMs: 0,
-    lastTickMs: performance.now(),
+  return createGlBackground(canvas, {
+    label: 'Ocean',
+    fragNormal: FRAG_NORMAL,
+    fragSaver: FRAG_SAVER,
+    tiers: TIERS,
     mode,
-    speed: 1.0,
-    powerSave: !!powerSave,
-    dpr: Math.min(window.devicePixelRatio || 1, powerSave ? 1 : 2),
-    scale: powerSave ? 0.4 : 0.55,
-    targetFrameMs: powerSave ? 1000 / 24 : 0,
-  };
-
-  function resize() {
-    const w = Math.max(1, Math.floor(canvas.clientWidth * state.dpr * state.scale));
-    const h = Math.max(1, Math.floor(canvas.clientHeight * state.dpr * state.scale));
-    if (canvas.width !== w || canvas.height !== h) {
-      canvas.width = w;
-      canvas.height = h;
-    }
-  }
-
-  function renderOnce() {
-    resize();
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.uniform2f(uRes, canvas.width, canvas.height);
-    gl.uniform1f(uTime, state.virtualMs / 1000);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-  }
-
-  function frame() {
-    if (!state.running) return;
-    const now = performance.now();
-    if (state.targetFrameMs > 0 && (now - state.lastTickMs) < state.targetFrameMs) {
-      state.rafId = requestAnimationFrame(frame);
-      return;
-    }
-    const dt = Math.min(now - state.lastTickMs, 100);
-    state.lastTickMs = now;
-    state.virtualMs += dt * state.speed;
-    renderOnce();
-    state.rafId = requestAnimationFrame(frame);
-  }
-
-  function start() {
-    if (state.running) return;
-    state.running = true;
-    state.lastTickMs = performance.now();
-    state.rafId = requestAnimationFrame(frame);
-  }
-
-  function stop() {
-    if (!state.running) return;
-    state.running = false;
-    if (state.rafId != null) {
-      cancelAnimationFrame(state.rafId);
-      state.rafId = null;
-    }
-  }
-
-  function setMode(m) {
-    state.mode = m | 0;
-    gl.useProgram(prog);
-    gl.uniform1i(uMode, state.mode);
-    if (!state.running) renderOnce();
-  }
-
-  function setSpeed(s) {
-    const clamped = Math.max(0, Math.min(3, Number.isFinite(s) ? s : 1));
-    state.speed = clamped;
-  }
-
-  function setBatterySaver(enabled) {
-    state.powerSave = !!enabled;
-    state.dpr = Math.min(window.devicePixelRatio || 1, state.powerSave ? 1 : 2);
-    state.scale = state.powerSave ? 0.4 : 0.55;
-    state.targetFrameMs = state.powerSave ? 1000 / 24 : 0;
-    gl.useProgram(prog);
-    gl.uniform1i(uPowerSave, state.powerSave ? 1 : 0);
-    if (!state.running) {
-      renderOnce();
-      return;
-    }
-    state.lastTickMs = performance.now();
-  }
-
-  const onResize = () => resize();
-  const onVisibility = () => {
-    if (document.visibilityState === 'hidden') stop();
-    else start();
-  };
-
-  window.addEventListener('resize', onResize);
-  document.addEventListener('visibilitychange', onVisibility);
-
-  function destroy() {
-    stop();
-    window.removeEventListener('resize', onResize);
-    document.removeEventListener('visibilitychange', onVisibility);
-    gl.deleteBuffer(buf);
-    gl.deleteProgram(prog);
-    gl.deleteShader(vs);
-    gl.deleteShader(fs);
-  }
-
-  start();
-
-  return { setMode, setSpeed, setBatterySaver, start, stop, destroy };
+    powerSave
+  });
 }
