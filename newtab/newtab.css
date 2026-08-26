@@ -46,12 +46,12 @@ body {
    Readability over animated backgrounds
    ============================================ */
 
-/* The ocean is a smooth gradient, so text sits on it with only a shadow. The
-   dither is high-frequency stipple at full contrast, which shreds thin text —
-   it needs an actual scrim. Anchored left and fading out to the right, so it
-   covers the content column while leaving the effect visible where it is
-   nothing but background. */
-.bg-dither-active::before {
+/* Panels carry no fill, so text sits almost directly on the shader. Rather
+   than giving every element its own shadow or frosted plate, one page-level
+   wash demotes the shader to ambient texture: flat ground under the content
+   column on the left, opening up toward the right where there is nothing but
+   background. Everything above it can then use ordinary token colors. */
+.bg-active::before {
   content: '';
   position: fixed;
   inset: 0;
@@ -60,153 +60,32 @@ body {
   background: linear-gradient(
     105deg,
     var(--background) 0%,
-    color-mix(in srgb, var(--background) 82%, transparent) 26%,
-    color-mix(in srgb, var(--background) 42%, transparent) 48%,
-    transparent 68%
+    var(--background) 32%,
+    color-mix(in srgb, var(--background) 80%, transparent) 56%,
+    color-mix(in srgb, var(--background) 55%, transparent) 100%
   );
 }
 
-/* The scrim restores a near-normal surface, so the heavy over-background text
-   shadows would only muddy it. */
-.bg-dither-active .clock,
-.bg-dither-active .weather-temp,
-.bg-dither-active .weather-desc,
-.bg-dither-active .weather-highlow,
-.bg-dither-active .weather-icon,
-.bg-dither-active .quote-text,
-.bg-dither-active .quote-author {
-  text-shadow: none;
+/* The dither is high-frequency stipple; it needs slightly more cover than the
+   ocean's smooth gradient before thin mono text stays crisp. */
+.bg-dither-active::before {
+  background: linear-gradient(
+    105deg,
+    var(--background) 0%,
+    var(--background) 38%,
+    color-mix(in srgb, var(--background) 86%, transparent) 60%,
+    color-mix(in srgb, var(--background) 62%, transparent) 100%
+  );
 }
 
-.bg-active .clock,
-.bg-active .weather-temp,
-.bg-active .weather-desc,
-.bg-active .weather-highlow,
-.bg-active .weather-icon,
-.bg-active .quote-text,
-.bg-active .quote-author {
-  text-shadow:
-    0 0 18px rgba(0, 0, 0, 0.45),
-    0 1px 2px rgba(0, 0, 0, 0.35);
-}
-
-[data-theme="dashboard-dark"] .bg-active .clock,
-[data-theme="dashboard-dark"] .bg-active .weather-temp,
-[data-theme="dashboard-dark"] .bg-active .weather-desc,
-[data-theme="dashboard-dark"] .bg-active .weather-highlow,
-[data-theme="dashboard-dark"] .bg-active .weather-icon,
-[data-theme="dashboard-dark"] .bg-active .quote-text,
-[data-theme="dashboard-dark"] .bg-active .quote-author,
-[data-theme="dark"] .bg-active .clock,
-[data-theme="dark"] .bg-active .weather-temp,
-[data-theme="dark"] .bg-active .weather-desc,
-[data-theme="dark"] .bg-active .weather-highlow,
-[data-theme="dark"] .bg-active .weather-icon,
-[data-theme="dark"] .bg-active .quote-text,
-[data-theme="dark"] .bg-active .quote-author {
-  text-shadow:
-    0 0 18px rgba(0, 0, 0, 0.7),
-    0 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-.bg-active .clock,
-.bg-active .weather-temp,
-.bg-active .panel-title {
-  color: #ffffff;
-}
-
-.bg-active .clock-separator {
-  opacity: 0.9;
-}
-
-.bg-active .weather-desc,
-.bg-active .weather-highlow,
-.bg-active .quote-text,
-.bg-active .quote-author {
-  color: rgba(255, 255, 255, 0.88);
-}
-
-.bg-active .weather-icon {
-  color: #ffffff;
-}
-
+/* The rule is what defines a panel, so it firms up where the shader shows
+   through rather than the panel gaining a fill. */
 .bg-active .panel {
-  background-color: color-mix(in srgb, var(--card) 72%, transparent 28%);
-  backdrop-filter: blur(18px) saturate(1.1);
-  -webkit-backdrop-filter: blur(18px) saturate(1.1);
-  border-color: color-mix(in srgb, var(--border) 70%, rgba(255, 255, 255, 0.25) 30%);
-  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.28);
-}
-
-.bg-active .panel-header {
-  border-bottom-color: color-mix(in srgb, var(--border) 60%, transparent 40%);
-}
-
-.bg-active .theme-toggle {
-  background-color: color-mix(in srgb, var(--card) 72%, transparent 28%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid color-mix(in srgb, var(--border) 60%, rgba(255, 255, 255, 0.25) 40%);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-}
-
-[data-theme="light"] .bg-active .clock,
-[data-theme="light"] .bg-active .weather-temp,
-[data-theme="light"] .bg-active .weather-icon,
-[data-theme="light"] .bg-active .panel-title,
-[data-theme="dashboard-light"] .bg-active .clock,
-[data-theme="dashboard-light"] .bg-active .weather-temp,
-[data-theme="dashboard-light"] .bg-active .weather-icon,
-[data-theme="dashboard-light"] .bg-active .panel-title {
-  color: var(--foreground);
-  text-shadow:
-    0 1px 1px rgba(255, 255, 255, 0.28),
-    0 2px 10px rgba(15, 23, 42, 0.08);
-}
-
-[data-theme="light"] .bg-active .weather-desc,
-[data-theme="light"] .bg-active .weather-highlow,
-[data-theme="light"] .bg-active .quote-text,
-[data-theme="light"] .bg-active .quote-author,
-[data-theme="dashboard-light"] .bg-active .weather-desc,
-[data-theme="dashboard-light"] .bg-active .weather-highlow,
-[data-theme="dashboard-light"] .bg-active .quote-text,
-[data-theme="dashboard-light"] .bg-active .quote-author {
-  color: color-mix(in srgb, var(--foreground) 78%, var(--muted-foreground) 22%);
-  text-shadow:
-    0 1px 1px rgba(255, 255, 255, 0.22),
-    0 2px 8px rgba(15, 23, 42, 0.06);
-}
-
-[data-theme="light"] .bg-active .focus-snapshot-inline,
-[data-theme="dashboard-light"] .bg-active .focus-snapshot-inline {
-  padding: 10px 16px;
-  border: 1px solid color-mix(in srgb, var(--border) 70%, rgba(255, 255, 255, 0.5) 30%);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--card) 76%, transparent 24%);
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.14);
-  backdrop-filter: blur(14px) saturate(1.05);
-  -webkit-backdrop-filter: blur(14px) saturate(1.05);
-}
-
-[data-theme="light"] .bg-active .focus-snapshot-inline-label,
-[data-theme="light"] .bg-active .focus-snapshot-saved-unit,
-[data-theme="dashboard-light"] .bg-active .focus-snapshot-inline-label,
-[data-theme="dashboard-light"] .bg-active .focus-snapshot-saved-unit {
-  color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground) 28%);
-  opacity: 0.92;
-}
-
-[data-theme="light"] .bg-active .focus-snapshot-inline-value,
-[data-theme="light"] .bg-active .focus-snapshot-saved-number,
-[data-theme="dashboard-light"] .bg-active .focus-snapshot-inline-value,
-[data-theme="dashboard-light"] .bg-active .focus-snapshot-saved-number {
-  color: var(--foreground);
-}
-
-[data-theme="light"] .bg-active .focus-snapshot-metric + .focus-snapshot-metric,
-[data-theme="dashboard-light"] .bg-active .focus-snapshot-metric + .focus-snapshot-metric {
-  border-left-color: color-mix(in srgb, var(--border) 80%, transparent 20%);
+  background-color: transparent;
+  border-color: color-mix(in srgb, var(--border) 80%, var(--foreground) 20%);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 /* ============================================
@@ -285,11 +164,11 @@ body {
   flex-direction: column;
   width: min(1024px, 100%);
   height: min(88vh, 840px);
-  border-radius: 20px;
+  border-radius: 8px;
   overflow: hidden;
   background: color-mix(in srgb, var(--background) 96%, var(--secondary) 4%);
   border: 1px solid color-mix(in srgb, var(--border) 74%, transparent 26%);
-  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+  box-shadow: none;
   transform-origin: center;
   animation: settingsDialogIn 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -407,7 +286,7 @@ body {
 .temp-unit-toggle {
   display: flex;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 8px;
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -548,23 +427,22 @@ body {
   display: inline-flex;
   align-items: baseline;
   justify-content: center;
-  gap: 0.16em;
+  gap: 0.02em;
   font-size: clamp(4.2rem, 7.8vw, 6.3rem);
   justify-content: flex-start;
   /* The box is flush left with everything else, but at this size the glyph's
      left side bearing reads as an indent. Pull it back optically. */
   margin-left: -0.035em;
-  font-weight: 500;
+  font-weight: 700;
   line-height: 0.96;
   color: var(--foreground);
-  letter-spacing: -0.035em;
+  letter-spacing: -0.045em;
   font-variant-numeric: tabular-nums;
   margin-bottom: 0;
 }
 
 .clock-part {
   display: inline-block;
-  min-width: 1.8ch;
 }
 
 .clock-separator {
@@ -774,7 +652,7 @@ body {
 
   .settings-dialog {
     height: min(92vh, 900px);
-    border-radius: 18px;
+    border-radius: 8px;
   }
 
   .settings-dialog-header {
@@ -810,7 +688,9 @@ body {
 
 .quote-text {
   font-size: 0.95rem;
-  font-style: italic;
+  /* Upright: only the roman JetBrains Mono is bundled, so italic here would be
+     a synthesised oblique. The reference uses no italics either. */
+  font-style: normal;
   color: var(--muted-foreground);
   line-height: 1.55;
   margin-bottom: 6px;
@@ -953,19 +833,21 @@ body {
 }
 
 .panel {
-  background-color: var(--card);
+  /* No fill and no depth: a hairline rule is the only thing separating a
+     panel from the page. */
+  background-color: transparent;
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   align-self: start;
-  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+  box-shadow: none;
 }
 
 .panel-header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 16px 18px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -990,9 +872,11 @@ body {
 }
 
 .panel-title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--foreground);
+  font-size: 0.7rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted-foreground);
 }
 
 .panel-date {
@@ -1002,7 +886,7 @@ body {
 }
 
 .panel-body {
-  padding: 6px 18px 18px;
+  padding: 4px 14px 12px;
   max-height: min(24vh, 220px);
   overflow-y: auto;
 }
@@ -1010,13 +894,13 @@ body {
 .panel-loading {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: var(--space-6) 0;
+  justify-content: flex-start;
+  padding: var(--space-4) 0;
 }
 
 .panel-empty {
-  text-align: center;
-  padding: var(--space-6) 0;
+  text-align: left;
+  padding: var(--space-4) 0;
 }
 
 /* ============================================
@@ -1024,8 +908,8 @@ body {
    ============================================ */
 
 .connect-prompt {
-  text-align: center;
-  padding: var(--space-5) var(--space-2);
+  text-align: left;
+  padding: var(--space-4) 0 var(--space-3);
 }
 
 .connect-text {
@@ -1438,7 +1322,7 @@ body {
   min-height: 42px;
   padding: 8px 10px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 [data-theme="dashboard-light"] .settings-row:hover,
