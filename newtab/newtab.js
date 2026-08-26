@@ -14,6 +14,9 @@ import {
 } from '../lib/theme.js';
 import { getDailyQuote } from './quotes.js';
 import { initOceanShader } from './ocean-shader.js';
+import { initDitherShader } from './dither-shader.js';
+import { resolveNewtabBackground } from '../lib/newtab-background.js';
+import { runWhenVisible } from '../lib/when-visible.js';
 
 // =============================================================================
 // CONSTANTS
@@ -30,6 +33,7 @@ const DEFAULTS = {
   newtabShowCalendar: true,
   newtabShowTodos: true,
   newtabShowFocusSnapshot: true,
+  newtabBackground: 'ocean',
   newtabShowOceanBackground: true,
   newtabOceanBatterySaver: false,
   newtabOceanWaveSpeed: 0.8,
@@ -146,68 +150,101 @@ function setupThemeToggle() {
   });
 }
 
-// Classic (afl_ext-faithful) for light themes, night variant for dark themes
-const OCEAN_MODE = { CLASSIC: 2, NIGHT: 1 };
+// Light themes get the "day" variant, dark themes the night variant. Both
+// backgrounds share the convention so one mode value drives either shader.
+const SHADER_MODE = { DAY: 2, NIGHT: 1 };
 
-function getOceanModeForTheme() {
+const BACKGROUND_SHADERS = {
+  ocean: { canvasId: 'bg-ocean', init: initOceanShader },
+  dither: { canvasId: 'bg-dither', init: initDitherShader }
+};
+
+function getShaderModeForTheme() {
   const theme = document.documentElement.getAttribute('data-theme') || '';
-  return theme.includes('dark') ? OCEAN_MODE.NIGHT : OCEAN_MODE.CLASSIC;
+  return theme.includes('dark') ? SHADER_MODE.NIGHT : SHADER_MODE.DAY;
 }
 
-let oceanShader = null;
-let oceanShaderInitFailed = false;
-let oceanBatterySaverEnabled = false;
+let activeBackground = null;      // { kind, handle } for the running shader
+let backgroundInitFailed = false; // WebGL unavailable or shader failed to build
+let backgroundThemeObserver = null;
+let backgroundBatterySaver = false;
+let backgroundSpeed = 0.8;
 
-function ensureOceanShader() {
-  if (oceanShader || oceanShaderInitFailed) return oceanShader;
-  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    oceanShaderInitFailed = true;
-    return null;
-  }
-  const canvas = document.getElementById('bg-ocean');
-  if (!canvas) return null;
-  oceanShader = initOceanShader(canvas, {
-    mode: getOceanModeForTheme(),
-    powerSave: oceanBatterySaverEnabled
+function prefersReducedMotion() {
+  return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+function hideAllBackgroundCanvases() {
+  Object.values(BACKGROUND_SHADERS).forEach(({ canvasId }) => {
+    const canvas = document.getElementById(canvasId);
+    if (canvas) canvas.style.display = 'none';
   });
-  if (!oceanShader) {
-    oceanShaderInitFailed = true;
-    return null;
+}
+
+function teardownActiveBackground() {
+  if (backgroundThemeObserver) {
+    backgroundThemeObserver.disconnect();
+    backgroundThemeObserver = null;
   }
-  const observer = new MutationObserver(() => {
-    oceanShader.setMode(getOceanModeForTheme());
-  });
-  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-  return oceanShader;
+  if (activeBackground) {
+    // destroy() rather than stop(): only one WebGL context should be alive at
+    // a time, so switching backgrounds must release the previous one.
+    activeBackground.handle.destroy();
+    activeBackground = null;
+  }
+  hideAllBackgroundCanvases();
 }
 
-function applyOceanBatterySaver(enabled) {
-  oceanBatterySaverEnabled = enabled === true;
-  if (!oceanShader) return;
-  oceanShader.setBatterySaver(oceanBatterySaverEnabled);
-}
+function applyBackgroundSetting(kind) {
+  const shader = BACKGROUND_SHADERS[kind];
+  const active = !!shader && !prefersReducedMotion() && !backgroundInitFailed;
 
-function applyOceanBackgroundSetting(enabled) {
-  const canvas = document.getElementById('bg-ocean');
+  document.body.classList.toggle('bg-active', active);
+  document.body.classList.toggle('bg-dither-active', active && kind === 'dither');
+
+  if (activeBackground && activeBackground.kind === kind) {
+    activeBackground.handle.start();
+    return;
+  }
+
+  teardownActiveBackground();
+  if (!active) return;
+
+  const canvas = document.getElementById(shader.canvasId);
   if (!canvas) return;
-  const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const shaderActive = enabled && !reducedMotion;
-  document.body.classList.toggle('ocean-active', shaderActive);
-  if (enabled) {
-    canvas.style.display = '';
-    const handle = ensureOceanShader();
-    if (handle) handle.start();
-  } else if (oceanShader) {
-    oceanShader.stop();
+  canvas.style.display = 'block';
+
+  const handle = shader.init(canvas, {
+    mode: getShaderModeForTheme(),
+    powerSave: backgroundBatterySaver
+  });
+  if (!handle) {
+    backgroundInitFailed = true;
     canvas.style.display = 'none';
-  } else {
-    canvas.style.display = 'none';
+    document.body.classList.remove('bg-active', 'bg-dither-active');
+    return;
   }
+
+  handle.setSpeed(backgroundSpeed);
+  activeBackground = { kind, handle };
+
+  backgroundThemeObserver = new MutationObserver(() => {
+    handle.setMode(getShaderModeForTheme());
+  });
+  backgroundThemeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme']
+  });
 }
 
-function applyOceanWaveSpeed(speed) {
-  if (!oceanShader) return;
-  oceanShader.setSpeed(speed);
+function applyBackgroundBatterySaver(enabled) {
+  backgroundBatterySaver = enabled === true;
+  if (activeBackground) activeBackground.handle.setBatterySaver(backgroundBatterySaver);
+}
+
+function applyBackgroundSpeed(speed) {
+  backgroundSpeed = Number.isFinite(speed) ? speed : 0.8;
+  if (activeBackground) activeBackground.handle.setSpeed(backgroundSpeed);
 }
 
 function setupBrowserThemeSyncListener() {
@@ -610,9 +647,9 @@ async function loadSettings() {
 
   // Apply visibility
   applyVisibility(settings);
-  applyOceanBatterySaver(settings.newtabOceanBatterySaver === true);
-  applyOceanBackgroundSetting(settings.newtabShowOceanBackground !== false);
-  applyOceanWaveSpeed(Number.isFinite(settings.newtabOceanWaveSpeed) ? settings.newtabOceanWaveSpeed : 0.8);
+  applyBackgroundBatterySaver(settings.newtabOceanBatterySaver === true);
+  applyBackgroundSpeed(Number.isFinite(settings.newtabOceanWaveSpeed) ? settings.newtabOceanWaveSpeed : 0.8);
+  applyBackgroundSetting(resolveNewtabBackground(settings));
   renderBedtimeReminder(settings);
 
   const bgImageKey = getBgImageStorageKey();
@@ -1049,6 +1086,15 @@ async function loadTodos() {
   const listEl = document.getElementById('todo-list');
   const showMoreBtn = document.getElementById('todos-show-more');
 
+  // Reset every state up front — loadTodos re-runs on refresh, and leaving a
+  // previously shown connect prompt or empty state visible stacks it behind
+  // the freshly rendered list.
+  connectEl.classList.add('hidden');
+  emptyEl.classList.add('hidden');
+  loadingEl.classList.add('hidden');
+  showMoreBtn.classList.add('hidden');
+  listEl.innerHTML = '';
+
   try {
     if (!hasExtensionRuntime()) {
       connectEl.classList.remove('hidden');
@@ -1361,6 +1407,7 @@ function setupStorageSync() {
       'newtabShowCalendar',
       'newtabShowTodos',
       'newtabShowFocusSnapshot',
+      'newtabBackground',
       'newtabShowOceanBackground',
       'newtabOceanBatterySaver',
       'newtabOceanWaveSpeed',
@@ -1441,7 +1488,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Failed to refresh calendar:', error);
     });
   }, 60000);
-  loadTodos();
   loadWeather();
-  fetchCompletedToday();
+  // Chrome preloads and restores new tabs that are never looked at; both of
+  // these hit Todoist, so hold them until the page is actually on screen.
+  runWhenVisible(() => {
+    loadTodos();
+    fetchCompletedToday();
+  });
 });

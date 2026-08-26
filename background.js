@@ -108,6 +108,7 @@ const DEFAULT_SETTINGS = {
   newtabShowCalendar: true,
   newtabShowTodos: true,
   newtabShowFocusSnapshot: true,
+  newtabBackground: 'ocean',
   newtabShowOceanBackground: true,
   newtabOceanBatterySaver: false,
   newtabOceanWaveSpeed: 0.8,

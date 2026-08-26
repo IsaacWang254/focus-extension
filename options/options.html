@@ -1491,22 +1491,23 @@
 
             <div class="setting-row compact">
               <div class="setting-info">
-                <span class="setting-label">Ocean background</span>
-                <span class="setting-desc">Animated WebGL ocean behind the new-tab content.</span>
+                <span class="setting-label">Animated background</span>
+                <span class="setting-desc">Ocean is a WebGL water scene. Dither is a retro stippled gradient and costs far less power.</span>
                 <span class="setting-warning reduced-motion-warning" id="ocean-reduced-motion-warning">
-                  Your system has <strong>Reduce motion</strong> enabled, so the ocean is hidden. Disable Reduce motion in your OS accessibility settings to see it.
+                  Your system has <strong>Reduce motion</strong> enabled, so animated backgrounds are hidden. Disable Reduce motion in your OS accessibility settings to see them.
                 </span>
               </div>
-              <label class="toggle">
-                <input type="checkbox" id="newtab-show-ocean-background">
-                <span class="toggle-slider"></span>
-              </label>
+              <select id="newtab-background" class="select select-compact">
+                <option value="none">None</option>
+                <option value="ocean">Ocean</option>
+                <option value="dither">Dither</option>
+              </select>
             </div>
 
             <div class="setting-row compact">
               <div class="setting-info">
-                <span class="setting-label">Wave speed</span>
-                <span class="setting-desc">Adjust how fast the ocean animates.</span>
+                <span class="setting-label">Animation speed</span>
+                <span class="setting-desc">Adjust how fast the background animates. This is a look-and-feel setting — it does not reduce power usage.</span>
               </div>
               <div class="range-with-value">
                 <input type="range" id="newtab-ocean-wave-speed" min="0.2" max="2" step="0.1" value="1">
@@ -1516,8 +1517,8 @@
 
             <div class="setting-row compact">
               <div class="setting-info">
-                <span class="setting-label">Battery saver waves</span>
-                <span class="setting-desc">Lowers wave render resolution, frame rate, and shader quality to reduce power usage.</span>
+                <span class="setting-label">Battery saver</span>
+                <span class="setting-desc">Lowers render resolution, frame rate, and shader detail for the animated background to reduce power usage.</span>
               </div>
               <label class="toggle">
                 <input type="checkbox" id="newtab-ocean-battery-saver">

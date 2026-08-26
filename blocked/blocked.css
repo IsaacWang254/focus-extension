@@ -59,10 +59,10 @@ body::before {
   text-align: center;
   margin-bottom: var(--space-4);
   padding: var(--space-5);
-  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
-  border-radius: 28px;
-  background: var(--card);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
 }
 
 .header-top {
@@ -117,7 +117,7 @@ body::before {
   padding: 5px 10px;
   background-color: color-mix(in srgb, var(--secondary) 76%, var(--card) 24%);
   border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
-  border-radius: 14px;
+  border-radius: 8px;
   font-size: 0.75rem;
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -133,7 +133,7 @@ body::before {
   margin-bottom: var(--space-4);
   background: var(--card);
   border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
-  border-radius: 24px;
+  border-radius: 8px;
   text-align: center;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
@@ -245,16 +245,15 @@ body::before {
 .section {
   margin-bottom: var(--space-4);
   padding: var(--space-5);
-  background: var(--card);
-  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
-  border-radius: 28px;
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: none;
+  transition: border-color var(--transition-fast);
 }
 
 .section:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow);
+  border-color: color-mix(in srgb, var(--border) 55%, var(--foreground) 45%);
 }
 
 .section-header {
@@ -890,7 +889,7 @@ body::before {
   padding: var(--space-4);
   background: var(--secondary);
   border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
-  border-radius: 22px;
+  border-radius: 8px;
   transition: transform var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
@@ -1053,7 +1052,7 @@ body::before {
   padding: var(--space-3);
   background-color: color-mix(in srgb, var(--card) 82%, var(--secondary) 18%);
   border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
-  border-radius: 18px;
+  border-radius: 8px;
 }
 
 /* Required Phrase */
@@ -1064,7 +1063,7 @@ body::before {
   padding: var(--space-3) var(--space-4);
   background-color: color-mix(in srgb, var(--card) 82%, var(--secondary) 18%);
   border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
-  border-radius: 18px;
+  border-radius: 8px;
   text-align: center;
   margin-bottom: var(--space-3);
   word-break: break-all;
@@ -1171,7 +1170,7 @@ body::before {
   padding: var(--space-5);
   background-color: color-mix(in srgb, var(--secondary) 74%, var(--card) 26%);
   border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
-  border-radius: 24px;
+  border-radius: 8px;
   min-width: 200px;
 }
 
@@ -1402,7 +1401,7 @@ body::before {
   background: var(--indigo);
   color: var(--indigo-foreground);
   border: none;
-  border-radius: 18px;
+  border-radius: 8px;
   transition: all var(--transition-fast);
 }
 
@@ -1436,7 +1435,7 @@ body::before {
   padding: var(--space-4);
   background: color-mix(in srgb, var(--card) 88%, var(--secondary) 12%);
   border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
-  border-radius: 22px;
+  border-radius: 8px;
 }
 
 .whitelist-link-header h3 {
@@ -1460,7 +1459,7 @@ body::before {
   box-sizing: border-box;
   background-color: color-mix(in srgb, var(--card) 82%, var(--secondary) 18%);
   border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
-  border-radius: 16px;
+  border-radius: 8px;
   color: var(--foreground);
   font-size: 0.75rem;
   line-height: 1.45;
@@ -1499,7 +1498,7 @@ body::before {
   font-family: inherit;
   font-size: 0.9375rem;
   font-weight: 600;
-  border-radius: 18px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all var(--transition-fast);
 }

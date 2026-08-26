@@ -90,7 +90,7 @@ body[data-scroll-locked] {
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 500;
-  border-radius: 12px;
+  border-radius: 8px;
   font-family: inherit;
   text-align: left;
   cursor: pointer;
@@ -633,7 +633,7 @@ body[data-scroll-locked] {
 }
 
 .history-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: none;
 }
 
 .history-card:last-child {
@@ -1468,7 +1468,7 @@ body[data-scroll-locked] {
 [data-theme="dashboard-dark"] .sidebar-link {
   margin: 0 var(--space-2);
   border-left: 0;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 [data-theme="dashboard-light"] .sidebar-link.active,

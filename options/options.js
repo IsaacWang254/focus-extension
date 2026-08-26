@@ -8,6 +8,7 @@ import {
   loadTheme as loadThemeShared,
   resolveThemeVariant
 } from '../lib/theme.js';
+import { resolveNewtabBackground } from '../lib/newtab-background.js';
 
 // =============================================================================
 // STATE
@@ -1007,7 +1008,7 @@ function populateNewtabAppearanceSettings() {
   document.getElementById('newtab-show-calendar').checked = settings.newtabShowCalendar !== false;
   document.getElementById('newtab-show-todos').checked = settings.newtabShowTodos !== false;
   document.getElementById('newtab-show-focus-snapshot').checked = settings.newtabShowFocusSnapshot !== false;
-  document.getElementById('newtab-show-ocean-background').checked = settings.newtabShowOceanBackground !== false;
+  document.getElementById('newtab-background').value = resolveNewtabBackground(settings);
   document.getElementById('newtab-ocean-battery-saver').checked = settings.newtabOceanBatterySaver === true;
 
   const speedInput = document.getElementById('newtab-ocean-wave-speed');
@@ -1033,13 +1034,14 @@ function setupNewtabAppearanceControls() {
     'newtab-show-calendar',
     'newtab-show-todos',
     'newtab-show-focus-snapshot',
-    'newtab-show-ocean-background',
     'newtab-ocean-battery-saver'
   ];
 
   toggleIds.forEach((id) => {
     document.getElementById(id)?.addEventListener('change', markAsChanged);
   });
+
+  document.getElementById('newtab-background')?.addEventListener('change', markAsChanged);
 
   const speedInput = document.getElementById('newtab-ocean-wave-speed');
   const speedValue = document.getElementById('newtab-ocean-wave-speed-value');
@@ -2138,7 +2140,9 @@ async function saveSettings() {
   settings.newtabShowCalendar = document.getElementById('newtab-show-calendar').checked;
   settings.newtabShowTodos = document.getElementById('newtab-show-todos').checked;
   settings.newtabShowFocusSnapshot = document.getElementById('newtab-show-focus-snapshot').checked;
-  settings.newtabShowOceanBackground = document.getElementById('newtab-show-ocean-background').checked;
+  settings.newtabBackground = document.getElementById('newtab-background').value;
+  // Kept in sync so downgrading to a build without the picker still works.
+  settings.newtabShowOceanBackground = settings.newtabBackground !== 'none';
   settings.newtabOceanBatterySaver = document.getElementById('newtab-ocean-battery-saver').checked;
   settings.newtabOceanWaveSpeed = parseFloat(document.getElementById('newtab-ocean-wave-speed')?.value) || 0.8;
   settings.newtabTempUnit = document.querySelector('.newtab-temp-unit-btn.active')?.dataset.unit || 'C';
@@ -2214,6 +2218,7 @@ async function saveSettings() {
       newtabShowCalendar: settings.newtabShowCalendar,
       newtabShowTodos: settings.newtabShowTodos,
       newtabShowFocusSnapshot: settings.newtabShowFocusSnapshot,
+      newtabBackground: settings.newtabBackground,
       newtabShowOceanBackground: settings.newtabShowOceanBackground,
       newtabOceanBatterySaver: settings.newtabOceanBatterySaver,
       newtabOceanWaveSpeed: settings.newtabOceanWaveSpeed,
@@ -2652,7 +2657,7 @@ function gatherCurrentSettings() {
     newtabShowCalendar: document.getElementById('newtab-show-calendar').checked,
     newtabShowTodos: document.getElementById('newtab-show-todos').checked,
     newtabShowFocusSnapshot: document.getElementById('newtab-show-focus-snapshot').checked,
-    newtabShowOceanBackground: document.getElementById('newtab-show-ocean-background').checked,
+    newtabBackground: document.getElementById('newtab-background').value,
     newtabOceanBatterySaver: document.getElementById('newtab-ocean-battery-saver').checked,
     newtabOceanWaveSpeed: parseFloat(document.getElementById('newtab-ocean-wave-speed')?.value) || 0.8,
     newtabTempUnit: document.querySelector('.newtab-temp-unit-btn.active')?.dataset.unit || 'C',
