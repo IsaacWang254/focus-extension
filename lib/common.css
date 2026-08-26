@@ -23,31 +23,6 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* NK57 Monospace Nerd Font Mono. local() first so an installed copy is used
-   as-is (including the Nerd icon glyphs); the bundled files are a Latin-only
-   subset — the full patched face is 1.25MB per weight, almost all of it icons
-   this UI never draws. Only Regular and Bold are bundled, so 500/600 weights
-   round to one of them. */
-@font-face {
-  font-family: "NK57 Monospace Nerd Font Mono";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src: local("NK57 Monospace Nerd Font Mono"),
-       local("NK57MonospaceNerdFontMono-Regular"),
-       url("./fonts/nk57-mono-regular.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "NK57 Monospace Nerd Font Mono";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 700;
-  src: local("NK57 Monospace Nerd Font Mono Bold"),
-       local("NK57MonospaceNerdFontMono-Bold"),
-       url("./fonts/nk57-mono-bold.woff2") format("woff2");
-}
-
 @font-face {
   font-family: "JetBrains Mono";
   font-style: normal;
@@ -72,9 +47,9 @@
 
 :root {
   /* Font */
-  --font-sans: "NK57 Monospace Nerd Font Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-  --font-mono: "NK57 Monospace Nerd Font Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-dashboard: "NK57 Monospace Nerd Font Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --font-sans: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-dashboard: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 
   /* Radius */
   --radius-sm: 4px;
