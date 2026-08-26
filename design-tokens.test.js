@@ -38,9 +38,23 @@ assert.match(
 // --font-sans is the interface face, not a fallback: the whole UI is mono.
 assert.match(
   common,
-  /--font-sans: "JetBrains Mono"/,
-  '--font-sans must resolve to JetBrains Mono'
+  /--font-sans: "NK57 Monospace Nerd Font Mono", "JetBrains Mono"/,
+  '--font-sans must lead with NK57 and keep JetBrains Mono as the bundled fallback'
 );
+
+// local() first means an installed copy is used as-is, icons included.
+assert.match(
+  common,
+  /src: local\("NK57 Monospace Nerd Font Mono"\)/,
+  'NK57 must prefer a locally installed copy before the bundled subset'
+);
+
+['nk57-mono-regular.woff2', 'nk57-mono-bold.woff2'].forEach((file) => {
+  assert.ok(
+    fs.existsSync(new URL(`./lib/fonts/${file}`, import.meta.url)),
+    `${file} must be bundled so the face survives without a local install`
+  );
+});
 
 // Only the roman weight axis is bundled, so italics would be synthesised.
 assert.doesNotMatch(

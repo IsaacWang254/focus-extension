@@ -731,18 +731,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Update schedule info card
     updateScheduleInfoCard();
 
-    // Update daily limit info card
-    await updateDailyLimitInfoCard();
+    // Unblock methods come first, because this is where the wait timer starts
+    // and nothing about the countdown depends on task data. Loading the info
+    // cards and task progress ahead of it meant the timer did not begin until
+    // those round trips returned — so a slow Todoist call silently extended
+    // the wait. setupUnblockMethods fetches task progress itself on the one
+    // path that needs it (the daily task goal).
+    await setupUnblockMethods();
+    setupWhitelistLinkAction();
+    setupEventListeners();
 
-    // Update earned time info card
-    await updateEarnedTimeInfoCard();
+    // Everything below only adds detail on top of an already-running page, so
+    // it resolves in the background. Each failure is contained: one card that
+    // cannot load must not take the unblock flow down with it.
+    updateDailyLimitInfoCard().catch((error) => {
+      console.error('Failed to update daily limit info card:', error);
+    });
 
-    // Load task completion progress for todo-based unlocks
-    await loadCompleteTodoProgress();
+    updateEarnedTimeInfoCard().catch((error) => {
+      console.error('Failed to update earned time info card:', error);
+    });
 
-    // Check authentication and load todos. A blocked page often renders in a
-    // tab nobody is looking at (a background tab navigating to a blocked site),
-    // so hold the Todoist calls until it is actually on screen.
+    loadCompleteTodoProgress()
+      .then(updateCompleteTodoUI)
+      .catch((error) => {
+        console.error('Failed to load task completion progress:', error);
+      });
+
+    // A blocked page often renders in a tab nobody is looking at (a background
+    // tab navigating to a blocked site), so hold the Todoist calls until it is
+    // actually on screen.
     if (shouldShowTodoPanel()) {
       runWhenVisible(async () => {
         try {
@@ -763,15 +781,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('auth-required').style.display = 'none';
       document.getElementById('todos-section').style.display = 'none';
     }
-
-    updateCompleteTodoUI();
-
-    // Setup unblock methods
-    await setupUnblockMethods();
-    setupWhitelistLinkAction();
-
-    // Setup event listeners
-    setupEventListeners();
   } catch (error) {
     showInitializationFallback(error);
   }
