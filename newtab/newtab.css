@@ -78,11 +78,10 @@ body {
   );
 }
 
-/* The rule is what defines a panel, so it firms up where the shader shows
-   through rather than the panel gaining a fill. */
+/* Panels are plain lists — no fill, no frosted plate — so over the shader
+   they rely entirely on the page-level wash for legibility. */
 .bg-active .panel {
   background-color: transparent;
-  border-color: color-mix(in srgb, var(--border) 80%, var(--foreground) 20%);
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -724,7 +723,8 @@ body {
   margin: 0;
   flex-shrink: 0;
   padding-top: 0;
-  margin-top: 0;
+  /* A clear beat between the lists and the day's numbers. */
+  margin-top: clamp(20px, 3.5vh, 36px);
 }
 
 .focus-snapshot-inline {
@@ -746,7 +746,7 @@ body {
 .focus-snapshot-metric {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: 6px;
   min-width: 0;
@@ -759,13 +759,10 @@ body {
 }
 
 .focus-snapshot-inline-label {
-  letter-spacing: 0.08em;
-  font-size: 0.73rem;
-  font-weight: 500;
+  font-size: 0.8125rem;
+  font-weight: 400;
   line-height: 1;
-  text-transform: uppercase;
   color: var(--muted-foreground);
-  opacity: 0.72;
 }
 
 .focus-snapshot-inline-value {
@@ -780,7 +777,6 @@ body {
 .focus-snapshot-inline-value-saved {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.28rem;
   flex-wrap: nowrap;
 }
 
@@ -791,11 +787,14 @@ body {
 .focus-snapshot-saved-unit {
   display: inline-block;
   font-size: 0.46em;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 400;
   color: var(--muted-foreground);
-  opacity: 0.82;
+  margin-left: 0.14em;
+}
+
+/* Second number/unit pair ("8h|30min") sits a beat apart from the first */
+.focus-snapshot-saved-unit + .focus-snapshot-saved-number {
+  margin-left: 0.32em;
 }
 
 
@@ -803,64 +802,89 @@ body {
    Content Panels (Calendar, Todos, Completed)
    ============================================ */
 
+/* Homepage composition: the hero owns the top, tasks are the one primary
+   reading column, and the schedule + completed record sit in a quiet rail
+   behind a hairline — the same grammar as the blocked page. */
 .content-panels {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
   align-content: start;
-  gap: clamp(14px, 1.6vw, 18px);
+  gap: clamp(24px, 3vh, 36px) clamp(32px, 4.5vw, 64px);
   width: 100%;
   max-width: 940px;
-  margin-top: 2px;
+  margin-top: clamp(16px, 3vh, 32px);
 }
 
-/* Calendar spans the full width on top */
-.panel-calendar {
-  grid-column: 1 / -1;
-}
-
-.panel-calendar .panel-body {
-  max-height: min(22vh, 176px);
-}
-
-/* Tasks and Completed sit side by side */
 .panel-todos {
   grid-column: 1;
 }
 
-.panel-completed {
+/* The primary column gets room to actually read the list. */
+.panel-todos .panel-body {
+  max-height: min(44vh, 420px);
+}
+
+.side-rail {
   grid-column: 2;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(24px, 4vh, 40px);
+  border-left: 1px solid var(--border);
+  padding-left: clamp(20px, 2.5vw, 32px);
+}
+
+/* In the rail's flex column, `align-self: start` would shrink panels to
+   their content and cut the row hairlines short — stretch them instead. */
+.side-rail .panel {
+  align-self: stretch;
+  width: 100%;
+}
+
+.panel-calendar .panel-body {
+  max-height: min(24vh, 220px);
+}
+
+.panel-completed .panel-body {
+  max-height: min(18vh, 160px);
+}
+
+/* If tasks are turned off, the rail becomes the main column — kept to a
+   comfortable reading measure rather than a full-width band. */
+.content-panels:has(.panel-todos.hidden) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.content-panels:has(.panel-todos.hidden) .side-rail {
+  grid-column: 1;
+  max-width: 560px;
+  border-left: 0;
+  padding-left: 0;
 }
 
 .panel {
-  /* No fill and no depth: a hairline rule is the only thing separating a
-     panel from the page. */
+  /* Not a card: a plain left-aligned list under a small section heading.
+     Hierarchy comes from type and spacing, never from boxes. */
   background-color: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+  border: 0;
+  border-radius: 0;
   align-self: start;
   box-shadow: none;
+  /* Grid items default to min-width auto; without this, nowrap task/event
+     rows push the columns wider than the page instead of ellipsizing. */
+  min-width: 0;
 }
 
 .panel-header {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-2);
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
+  padding: 0 0 var(--space-2);
 }
 
 .panel-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--indigo);
-}
-
-.panel-icon svg {
-  width: 17px;
-  height: 17px;
+  /* Icons were decoration on the card headers; plain headings don't need them. */
+  display: none;
 }
 
 .panel-header-text {
@@ -872,21 +896,19 @@ body {
 }
 
 .panel-title {
-  font-size: 0.7rem;
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
 }
 
 .panel-date {
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   color: var(--muted-foreground);
   font-weight: 400;
 }
 
 .panel-body {
-  padding: 4px 14px 12px;
+  padding: 0;
   max-height: min(24vh, 220px);
   overflow-y: auto;
 }
@@ -975,25 +997,20 @@ body {
 }
 
 .event-allday {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+
+/* Current event: emphasis through weight and ink, not a filled pill.
+   (The list scrolls, so a gutter rule would be clipped by overflow.) */
+.event-item.event-current .event-title {
+  font-weight: 600;
+}
+
+.event-item.event-current .event-time {
+  color: var(--foreground);
   font-weight: 500;
-  color: var(--indigo);
-  background-color: var(--indigo-subtle);
-  padding: 1px 6px;
-  border-radius: var(--radius-full);
-}
-
-/* Current event highlight */
-.event-item.event-current {
-  background-color: var(--indigo-subtle);
-  margin: 0 calc(-1 * var(--space-2));
-  padding: var(--space-2);
-  border-radius: var(--radius-md);
-  border-bottom: none;
-}
-
-.event-item.event-current + .event-item {
-  border-top: none;
 }
 
 /* ============================================
@@ -1080,11 +1097,11 @@ body {
 }
 
 .todo-checkbox.priority-medium {
-  border-color: var(--indigo);
+  border-color: var(--muted-foreground);
 }
 
 .todo-checkbox.priority-medium:hover {
-  background-color: var(--indigo-subtle);
+  background-color: var(--secondary);
 }
 
 .todo-details {
@@ -1110,7 +1127,7 @@ body {
 }
 
 .todo-due {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
 }
 
@@ -1151,9 +1168,8 @@ body {
 }
 
 .subtask-count {
-  font-size: 0.6875rem;
-  color: var(--muted-foreground);
-  opacity: 0.7;
+  font-size: 0.75rem;
+  color: var(--faint);
 }
 
 /* Show more */
@@ -1169,22 +1185,15 @@ body {
    ============================================ */
 
 .panel-count {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: var(--indigo);
-  background-color: var(--indigo-subtle);
-  padding: 1px 8px;
-  border-radius: var(--radius-full);
-  min-width: 20px;
-  text-align: center;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--muted-foreground);
 }
 
 .completed-list {
-  --completed-accent: #15803d;
-  --completed-border: color-mix(in srgb, var(--completed-accent) 22%, var(--border) 78%);
-  --completed-surface: color-mix(in srgb, #f0fdf4 52%, var(--secondary) 48%);
-  --completed-text: color-mix(in srgb, #14532d 78%, var(--foreground) 22%);
-  --completed-check-ring: color-mix(in srgb, #86efac 22%, transparent);
+  /* Same quiet rows as the task list — done items are a record, not a
+     celebration. */
+  --completed-accent: var(--muted-foreground);
   list-style: none;
   display: flex;
   flex-direction: column;
@@ -1195,37 +1204,34 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--completed-border);
-  border-radius: var(--radius-md);
-  background-color: var(--completed-surface);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .completed-item:last-child {
-  border-bottom: 1px solid var(--completed-border);
+  border-bottom: none;
 }
 
 .completed-item-check {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
   border-radius: 50%;
   background-color: var(--completed-accent);
-  color: #f0fdf4;
-  box-shadow: 0 0 0 2px var(--completed-check-ring);
+  color: var(--background);
 }
 
 .completed-item-check svg {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
 }
 
 .completed-item-content {
   font-size: 0.8125rem;
-  color: var(--completed-text);
+  color: var(--muted-foreground);
   text-decoration: line-through;
   line-height: 1.3;
   overflow: hidden;
@@ -1405,41 +1411,6 @@ body {
   margin-top: 6px;
 }
 
-[data-theme="dashboard-light"] .content-panels,
-[data-theme="dashboard-dark"] .content-panels {
-  gap: clamp(16px, 2vw, 22px);
-}
-
-[data-theme="dashboard-light"] .panel,
-[data-theme="dashboard-dark"] .panel {
-  background: var(--card);
-  border-color: var(--border);
-  box-shadow: var(--shadow);
-}
-
-[data-theme="dashboard-light"] .panel-header,
-[data-theme="dashboard-dark"] .panel-header {
-  padding: 18px 20px;
-}
-
-[data-theme="dashboard-light"] .panel-body,
-[data-theme="dashboard-dark"] .panel-body {
-  padding: 8px 20px 20px;
-}
-
-[data-theme="dashboard-light"] .panel-title,
-[data-theme="dashboard-dark"] .panel-title {
-  font-size: 0.92rem;
-  letter-spacing: 0;
-}
-
-[data-theme="dashboard-light"] .panel-date,
-[data-theme="dashboard-dark"] .panel-date,
-[data-theme="dashboard-light"] .panel-count,
-[data-theme="dashboard-dark"] .panel-count {
-  font-weight: 600;
-}
-
 [data-theme="dashboard-light"] .weather-temp,
 [data-theme="dashboard-dark"] .weather-temp {
   font-size: 1.6rem;
@@ -1480,64 +1451,22 @@ body {
   background-color: var(--background);
 }
 
-[data-theme="dashboard-light"] .todo-checkbox.priority-urgent,
-[data-theme="dashboard-dark"] .todo-checkbox.priority-urgent {
-  border-color: #ef4444;
-}
-
-[data-theme="dashboard-light"] .todo-checkbox.priority-high,
-[data-theme="dashboard-dark"] .todo-checkbox.priority-high {
-  border-color: #f59e0b;
-}
-
-[data-theme="dashboard-light"] .todo-checkbox.priority-medium,
-[data-theme="dashboard-dark"] .todo-checkbox.priority-medium {
-  border-color: #3b82f6;
-}
-
+/* Priority rings inherit the token-driven base rules above — in the dashboard
+   themes the semantic tokens resolve to graphite tiers, matching the blocked
+   page. No hardcoded reds/ambers here. */
 [data-theme="dashboard-light"] .todo-checkbox:hover,
 [data-theme="dashboard-dark"] .todo-checkbox:hover {
   border-color: var(--foreground);
   background-color: var(--muted);
 }
 
-[data-theme="dashboard-light"] .todo-checkbox.priority-urgent:hover,
-[data-theme="dashboard-dark"] .todo-checkbox.priority-urgent:hover {
-  border-color: #ef4444;
-  background-color: #fee2e2;
-}
-
-[data-theme="dashboard-dark"] .todo-checkbox.priority-urgent:hover {
-  background-color: #3a1d1d;
-}
-
-[data-theme="dashboard-light"] .todo-checkbox.priority-high:hover,
-[data-theme="dashboard-dark"] .todo-checkbox.priority-high:hover {
-  border-color: #f59e0b;
-  background-color: #fef3c7;
-}
-
-[data-theme="dashboard-dark"] .todo-checkbox.priority-high:hover {
-  background-color: #3b2a16;
-}
-
-[data-theme="dashboard-light"] .todo-checkbox.priority-medium:hover,
-[data-theme="dashboard-dark"] .todo-checkbox.priority-medium:hover {
-  border-color: #3b82f6;
-  background-color: #dbeafe;
-}
-
-[data-theme="dashboard-dark"] .todo-checkbox.priority-medium:hover {
-  background-color: #172554;
-}
-
 [data-theme="dashboard-light"] .todo-checkbox.checked,
 [data-theme="dashboard-dark"] .todo-checkbox.checked,
 [data-theme="dashboard-light"] .completed-item-check,
 [data-theme="dashboard-dark"] .completed-item-check {
-  background-color: var(--completed-accent);
-  border-color: var(--completed-accent);
-  color: #f0fdf4;
+  background-color: var(--muted-foreground);
+  border-color: var(--muted-foreground);
+  color: var(--background);
 }
 
 [data-theme="dashboard-light"] .todo-checkbox.checked::after,
@@ -1545,49 +1474,14 @@ body {
   border-color: var(--background);
 }
 
-[data-theme="dashboard-light"] .completed-list {
-  --completed-accent: #15803d;
-  --completed-surface: color-mix(in srgb, #f0fdf4 56%, var(--secondary) 44%);
-  --completed-text: #166534;
-}
-
-[data-theme="dashboard-dark"] .completed-list {
-  --completed-accent: #22c55e;
-  --completed-border: color-mix(in srgb, #22c55e 24%, var(--border) 76%);
-  --completed-surface: color-mix(in srgb, #14532d 20%, var(--card) 80%);
-  --completed-text: color-mix(in srgb, #dcfce7 84%, var(--foreground) 16%);
-  --completed-check-ring: color-mix(in srgb, #4ade80 18%, transparent);
-}
-
 [data-theme="dashboard-light"] .panel-count,
 [data-theme="dashboard-dark"] .panel-count {
-  background-color: var(--muted);
-  color: var(--foreground);
+  color: var(--muted-foreground);
 }
 
 [data-theme="dashboard-light"] .show-more-btn,
 [data-theme="dashboard-dark"] .show-more-btn {
   border-color: var(--border);
-}
-
-[data-theme="dashboard-light"] .completed-item-content,
-[data-theme="dashboard-light"] .todo-item.subtask .todo-content,
-[data-theme="dashboard-light"] .event-time {
-  color: #5f5f5f;
-}
-
-[data-theme="dashboard-dark"] .completed-item-content,
-[data-theme="dashboard-dark"] .todo-item.subtask .todo-content,
-[data-theme="dashboard-dark"] .event-time {
-  color: #c4c4c8;
-}
-
-[data-theme="dashboard-light"] .completed-item-content {
-  color: var(--completed-text);
-}
-
-[data-theme="dashboard-dark"] .completed-item-content {
-  color: var(--completed-text);
 }
 
 /* ============================================
@@ -1659,13 +1553,22 @@ body {
     max-width: none;
   }
 
-  .panel-calendar,
-  .panel-todos,
-  .panel-completed {
+  .panel-todos {
     grid-column: 1;
   }
 
-  .panel-body {
+  /* The rail folds under the tasks, separated by a hairline. */
+  .side-rail {
+    grid-column: 1;
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-4);
+    gap: var(--space-6);
+  }
+
+  .panel-body,
+  .panel-todos .panel-body {
     max-height: 200px;
   }
 }

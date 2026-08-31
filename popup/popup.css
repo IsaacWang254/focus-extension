@@ -45,7 +45,7 @@ body {
   justify-content: space-between;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  background-color: var(--secondary);
+  background-color: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   font-size: 0.9375rem;
@@ -62,30 +62,23 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--success);
+  background-color: var(--foreground);
   margin-right: 8px;
   vertical-align: middle;
 }
 
 .status.disabled #status-text::before {
-  background-color: var(--muted-foreground);
+  background-color: var(--faint, var(--muted-foreground));
 }
 
 #mode-badge {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 3px 8px;
-  background-color: var(--background);
+  font-size: 0.75rem;
+  font-weight: 400;
   color: var(--muted-foreground);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
 }
 
 #mode-badge.allowlist {
   color: var(--foreground);
-  background-color: var(--muted);
 }
 
 /* Profile select */
@@ -106,7 +99,7 @@ body {
   padding: var(--space-2) var(--space-3);
   font-size: 0.9375rem;
   font-family: inherit;
-  background-color: var(--secondary);
+  background-color: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--foreground);
@@ -115,7 +108,7 @@ body {
 }
 
 .profile-select:hover {
-  background-color: var(--accent);
+  background-color: var(--secondary);
 }
 
 .profile-select:focus-visible {
@@ -184,20 +177,25 @@ body {
   gap: var(--space-2);
 }
 
+/* Informational alerts are plain quiet text; only warnings get a hairline. */
 .alert-item {
   font-size: 0.875rem;
   line-height: 1.45;
   color: var(--muted-foreground);
+  padding: var(--space-1) 0;
+  background-color: transparent;
+}
+
+.alert-item.locked,
+.alert-item.incognito-alert {
   padding: var(--space-2) var(--space-3);
-  background-color: var(--secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
 
 .alert-item.locked {
   color: var(--destructive);
-  background-color: var(--destructive-subtle);
-  border-color: transparent;
+  border-color: color-mix(in srgb, var(--destructive) 32%, var(--border) 68%);
 }
 
 .alert-item.incognito-alert {
@@ -205,7 +203,7 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-2);
-  background-color: var(--warning-subtle);
+  border-color: color-mix(in srgb, var(--warning) 32%, var(--border) 68%);
 }
 
 .incognito-alert-text {
@@ -233,11 +231,9 @@ body {
 }
 
 .site-label {
-  font-size: 0.6875rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 400;
   color: var(--muted-foreground);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .site-domain {
@@ -279,7 +275,7 @@ body {
   justify-content: space-between;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  background-color: var(--secondary);
+  background-color: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   font-size: 0.875rem;
@@ -305,11 +301,9 @@ body {
 }
 
 .focus-label {
-  font-size: 0.6875rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 400;
   color: var(--muted-foreground);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   margin-bottom: var(--space-3);
 }
 
@@ -331,7 +325,7 @@ body {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--foreground);
-  background-color: var(--secondary);
+  background-color: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -339,13 +333,13 @@ body {
 }
 
 .focus-preset-btn:hover {
-  background-color: var(--accent);
-  border-color: var(--foreground);
+  background-color: var(--secondary);
+  border-color: var(--muted-foreground);
 }
 
 .focus-preset-btn.selected,
 .focus-preset-btn[data-state="on"] {
-  background-color: var(--muted);
+  background-color: var(--secondary);
   border-color: var(--foreground);
   color: var(--foreground);
 }
@@ -396,25 +390,14 @@ body {
 }
 
 .focus-phase-badge {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 3px 8px;
-  background-color: var(--muted);
-  color: var(--foreground);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
 }
 
-.focus-phase-badge.break {
-  background-color: var(--muted);
-  color: var(--foreground);
-}
-
+.focus-phase-badge.break,
 .focus-phase-badge.longBreak {
-  background-color: var(--muted);
-  color: var(--foreground);
+  color: var(--muted-foreground);
 }
 
 .focus-time {
@@ -475,27 +458,7 @@ body {
   color: var(--border);
 }
 
-/* Buttons */
-.btn-primary {
-  background-color: var(--foreground);
-  color: var(--background);
-  border-color: var(--foreground);
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: var(--primary);
-}
-
-.btn-secondary {
-  background-color: var(--secondary);
-  color: var(--foreground);
-  border: 1px solid var(--border);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background-color: var(--accent);
-}
-
+/* Buttons — common.css supplies the primary/secondary/ghost styles. */
 .btn-danger {
   background-color: var(--destructive-subtle);
   color: var(--destructive);
@@ -513,9 +476,10 @@ body {
   background: var(--background);
 }
 
+/* The popup sits on the page surface itself — no card plate. */
 [data-theme="dashboard-light"] .popup,
 [data-theme="dashboard-dark"] .popup {
-  background: var(--card);
+  background: transparent;
 }
 
 [data-theme="dashboard-light"] .header h1,
@@ -539,49 +503,16 @@ body {
 }
 
 [data-theme="dashboard-light"] #mode-badge,
-[data-theme="dashboard-dark"] #mode-badge {
-  background: var(--muted);
-  color: var(--foreground);
-  border: 1px solid var(--border);
-}
-
-[data-theme="dashboard-light"] #mode-badge.allowlist,
-[data-theme="dashboard-dark"] #mode-badge.allowlist,
+[data-theme="dashboard-dark"] #mode-badge,
 [data-theme="dashboard-light"] .focus-phase-badge,
-[data-theme="dashboard-dark"] .focus-phase-badge,
-[data-theme="dashboard-light"] .focus-phase-badge.break,
-[data-theme="dashboard-dark"] .focus-phase-badge.break,
-[data-theme="dashboard-light"] .focus-phase-badge.longBreak,
-[data-theme="dashboard-dark"] .focus-phase-badge.longBreak {
-  background: var(--muted);
-  color: var(--foreground);
-  border: 1px solid var(--border);
-}
-
-[data-theme="dashboard-light"] .btn-primary,
-[data-theme="dashboard-dark"] .btn-primary {
-  color: var(--background);
-}
-
-[data-theme="dashboard-light"] .btn-danger,
-[data-theme="dashboard-dark"] .btn-danger {
-  background-color: var(--muted);
-  color: var(--foreground);
-  border-color: var(--border);
-}
-
-[data-theme="dashboard-light"] .btn-danger:hover:not(:disabled),
-[data-theme="dashboard-dark"] .btn-danger:hover:not(:disabled) {
-  background-color: var(--accent);
-  color: var(--foreground);
+[data-theme="dashboard-dark"] .focus-phase-badge {
+  color: var(--muted-foreground);
 }
 
 [data-theme="dashboard-light"] .status,
 [data-theme="dashboard-dark"] .status,
 [data-theme="dashboard-light"] .sessions-row,
 [data-theme="dashboard-dark"] .sessions-row,
-[data-theme="dashboard-light"] .alert-item,
-[data-theme="dashboard-dark"] .alert-item,
 [data-theme="dashboard-light"] .focus-preset-btn,
 [data-theme="dashboard-dark"] .focus-preset-btn {
   color: var(--foreground);
@@ -597,30 +528,15 @@ body {
   background-color: var(--muted-foreground);
 }
 
-[data-theme="dashboard-light"] .focus-preset-btn.selected,
-[data-theme="dashboard-dark"] .focus-preset-btn.selected,
-[data-theme="dashboard-light"] .focus-preset-btn[data-state="on"],
-[data-theme="dashboard-dark"] .focus-preset-btn[data-state="on"] {
-  background-color: var(--muted);
-  border-color: var(--foreground);
-  color: var(--foreground);
-}
-
 [data-theme="dashboard-light"] .focus-preset-btn.selected .preset-label,
 [data-theme="dashboard-dark"] .focus-preset-btn.selected .preset-label,
 [data-theme="dashboard-light"] .focus-preset-btn[data-state="on"] .preset-label,
-[data-theme="dashboard-dark"] .focus-preset-btn[data-state="on"] .preset-label,
-[data-theme="dashboard-light"] .alert-item.locked,
-[data-theme="dashboard-dark"] .alert-item.locked,
-[data-theme="dashboard-light"] .alert-item.incognito-alert,
-[data-theme="dashboard-dark"] .alert-item.incognito-alert {
+[data-theme="dashboard-dark"] .focus-preset-btn[data-state="on"] .preset-label {
   color: var(--foreground);
-  background-color: var(--muted);
 }
 
 [data-theme="dashboard-light"] .alert-item.locked,
 [data-theme="dashboard-dark"] .alert-item.locked {
-  background-color: var(--secondary);
   border-color: var(--foreground);
   color: var(--foreground);
   font-weight: 500;

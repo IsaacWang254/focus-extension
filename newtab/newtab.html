@@ -54,41 +54,9 @@
         </div>
       </div>
 
-      <!-- Content panels -->
+      <!-- Content: tasks are the primary column, schedule + completed sit in
+           a quiet rail — the same composition as the blocked page. -->
       <div class="content-panels" id="content-panels">
-        <!-- Calendar panel -->
-        <div class="panel panel-calendar" id="calendar-panel">
-          <div class="panel-header">
-            <span class="panel-icon" id="calendar-icon"></span>
-            <div class="panel-header-text">
-              <h3 class="panel-title" id="calendar-title">Today's Schedule</h3>
-              <span class="panel-date" id="calendar-date"></span>
-            </div>
-          </div>
-          <div class="panel-body">
-            <!-- Calendar not connected state -->
-            <div class="connect-prompt" id="calendar-connect">
-              <p class="connect-text">Connect Google Calendar to see your schedule</p>
-              <button class="btn btn-secondary btn-small" id="calendar-connect-btn">Connect Calendar</button>
-            </div>
-            <!-- Calendar session expired state -->
-            <div class="connect-prompt hidden" id="calendar-reconnect">
-              <p class="connect-text connect-text-warning">Calendar session expired. Please reconnect.</p>
-              <button class="btn btn-secondary btn-small" id="calendar-reconnect-btn">Reconnect Calendar</button>
-            </div>
-            <!-- Calendar loading state -->
-            <div class="panel-loading hidden" id="calendar-loading">
-              <div class="spinner"></div>
-            </div>
-            <!-- Calendar empty state -->
-            <div class="panel-empty hidden" id="calendar-empty">
-              <p class="text-muted text-sm" id="calendar-empty-text">No upcoming events</p>
-            </div>
-            <!-- Calendar events list -->
-            <ul class="event-list" id="event-list"></ul>
-          </div>
-        </div>
-
         <!-- Todos panel -->
         <div class="panel panel-todos" id="todos-panel">
           <div class="panel-header">
@@ -116,28 +84,63 @@
           </div>
         </div>
 
-        <!-- Completed panel -->
-        <div class="panel panel-completed" id="completed-panel">
-          <div class="panel-header">
-            <span class="panel-icon" id="completed-icon"></span>
-            <div class="panel-header-text">
-              <h3 class="panel-title">Completed</h3>
-              <span class="panel-count" id="completed-count">0</span>
+        <aside class="side-rail" id="side-rail">
+          <!-- Calendar panel -->
+          <div class="panel panel-calendar" id="calendar-panel">
+            <div class="panel-header">
+              <span class="panel-icon" id="calendar-icon"></span>
+              <div class="panel-header-text">
+                <h3 class="panel-title" id="calendar-title">Today's Schedule</h3>
+                <span class="panel-date" id="calendar-date"></span>
+              </div>
+            </div>
+            <div class="panel-body">
+              <!-- Calendar not connected state -->
+              <div class="connect-prompt" id="calendar-connect">
+                <p class="connect-text">Connect Google Calendar to see your schedule</p>
+                <button class="btn btn-secondary btn-small" id="calendar-connect-btn">Connect Calendar</button>
+              </div>
+              <!-- Calendar session expired state -->
+              <div class="connect-prompt hidden" id="calendar-reconnect">
+                <p class="connect-text connect-text-warning">Calendar session expired. Please reconnect.</p>
+                <button class="btn btn-secondary btn-small" id="calendar-reconnect-btn">Reconnect Calendar</button>
+              </div>
+              <!-- Calendar loading state -->
+              <div class="panel-loading hidden" id="calendar-loading">
+                <div class="spinner"></div>
+              </div>
+              <!-- Calendar empty state -->
+              <div class="panel-empty hidden" id="calendar-empty">
+                <p class="text-muted text-sm" id="calendar-empty-text">No upcoming events</p>
+              </div>
+              <!-- Calendar events list -->
+              <ul class="event-list" id="event-list"></ul>
             </div>
           </div>
-          <div class="panel-body">
-            <!-- Completed loading state -->
-            <div class="panel-loading hidden" id="completed-loading">
-              <div class="spinner"></div>
+
+          <!-- Completed panel -->
+          <div class="panel panel-completed" id="completed-panel">
+            <div class="panel-header">
+              <span class="panel-icon" id="completed-icon"></span>
+              <div class="panel-header-text">
+                <h3 class="panel-title">Completed</h3>
+                <span class="panel-count" id="completed-count">0</span>
+              </div>
             </div>
-            <!-- Completed empty state -->
-            <div class="panel-empty" id="completed-empty">
-              <p class="text-muted text-sm">No tasks completed yet today</p>
+            <div class="panel-body">
+              <!-- Completed loading state -->
+              <div class="panel-loading hidden" id="completed-loading">
+                <div class="spinner"></div>
+              </div>
+              <!-- Completed empty state -->
+              <div class="panel-empty" id="completed-empty">
+                <p class="text-muted text-sm">No tasks completed yet today</p>
+              </div>
+              <!-- Completed list -->
+              <ul class="completed-list" id="completed-list"></ul>
             </div>
-            <!-- Completed list -->
-            <ul class="completed-list" id="completed-list"></ul>
           </div>
-        </div>
+        </aside>
       </div>
 
       <section class="focus-snapshot hidden" id="focus-snapshot">

@@ -112,20 +112,22 @@
   --input: #cccccc;
   --ring: #18181b;
 
-  /* Indigo accent (for primary actions) */
-  --indigo: #6366f1;
+  /* Accent (for primary actions) — fully neutral graphite, matching the
+     dashboard themes. The --indigo names are kept so existing rules keep
+     resolving; only the values went neutral. */
+  --indigo: #111111;
   --indigo-foreground: #ffffff;
-  --indigo-hover: #4f46e5;
+  --indigo-hover: #2e2e2e;
 
-  /* Indigo shades */
-  --indigo-50: #eef2ff;
-  --indigo-100: #e0e7ff;
-  --indigo-200: #c7d2fe;
-  --indigo-800: #3730a3;
-  --indigo-900: #312e81;
+  /* Accent shades */
+  --indigo-50: #f6f6f6;
+  --indigo-100: #efefef;
+  --indigo-200: #e3e3e3;
+  --indigo-800: #2a2a2a;
+  --indigo-900: #171717;
 
   /* Semi-transparent colors for backgrounds (light mode) */
-  --indigo-subtle: rgba(99, 102, 241, 0.08);
+  --indigo-subtle: rgba(17, 17, 17, 0.06);
   --success-subtle: rgba(34, 197, 94, 0.08);
   --destructive-subtle: rgba(239, 68, 68, 0.08);
   --warning-subtle: rgba(245, 158, 11, 0.08);
@@ -176,16 +178,16 @@
   --input: #333333;
   --ring: #d4d4d8;
 
-  --indigo: #818cf8;
-  --indigo-foreground: #09090b;
-  --indigo-hover: #6366f1;
+  --indigo: #ededed;
+  --indigo-foreground: #0b0b0b;
+  --indigo-hover: #d6d6d6;
 
-  /* Indigo shade variants for dark mode (used by ::selection etc.) */
-  --indigo-50: #0a0a18;
-  --indigo-100: #0f0f24;
-  --indigo-200: #191a3c;
-  --indigo-800: #8a8cf5;
-  --indigo-900: #a1a3f7;
+  /* Accent shade variants for dark mode (used by ::selection etc.) */
+  --indigo-50: #141414;
+  --indigo-100: #1a1a1a;
+  --indigo-200: #262626;
+  --indigo-800: #d6d6d6;
+  --indigo-900: #ededed;
 
   --shadow-sm: none;
   --shadow: none;
@@ -193,7 +195,7 @@
   --shadow-lg: none;
 
   /* Semi-transparent colors for backgrounds (dark mode - increased opacity) */
-  --indigo-subtle: rgba(99, 102, 241, 0.15);
+  --indigo-subtle: rgba(255, 255, 255, 0.09);
   --success-subtle: rgba(34, 197, 94, 0.15);
   --destructive-subtle: rgba(239, 68, 68, 0.15);
   --warning-subtle: rgba(245, 158, 11, 0.15);
@@ -321,19 +323,19 @@
     --border: #333333;
     --input: #333333;
     --ring: #d4d4d8;
-    --indigo: #818cf8;
-    --indigo-foreground: #09090b;
-    --indigo-hover: #6366f1;
-    --indigo-50: #0a0a18;
-    --indigo-100: #0f0f24;
-    --indigo-200: #191a3c;
-    --indigo-800: #8a8cf5;
-    --indigo-900: #a1a3f7;
+    --indigo: #ededed;
+    --indigo-foreground: #0b0b0b;
+    --indigo-hover: #d6d6d6;
+    --indigo-50: #141414;
+    --indigo-100: #1a1a1a;
+    --indigo-200: #262626;
+    --indigo-800: #d6d6d6;
+    --indigo-900: #ededed;
     --shadow-sm: none;
     --shadow: none;
     --shadow-md: none;
     --shadow-lg: none;
-    --indigo-subtle: rgba(99, 102, 241, 0.15);
+    --indigo-subtle: rgba(255, 255, 255, 0.09);
     --success-subtle: rgba(34, 197, 94, 0.15);
     --destructive-subtle: rgba(239, 68, 68, 0.15);
     --warning-subtle: rgba(245, 158, 11, 0.15);
@@ -493,11 +495,20 @@ a:hover {
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.25;
-  border: 1px solid transparent;
+  /* Neutralize the UA button face; unvarianted buttons read as quiet
+     outline controls, and every variant overrides fill/border/color. */
+  background-color: transparent;
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+  background-color: var(--secondary);
+  color: var(--foreground);
 }
 
 .btn:disabled {
@@ -519,12 +530,8 @@ a:hover {
 }
 
 .btn-primary:hover:not(:disabled) {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-.btn-primary:active:not(:disabled) {
-  transform: translateY(0);
+  background-color: var(--indigo-hover);
+  border-color: var(--indigo-hover);
 }
 
 /* Secondary Button */
@@ -542,6 +549,7 @@ a:hover {
 .btn-ghost {
   background-color: transparent;
   color: var(--foreground);
+  border-color: transparent;
 }
 
 .btn-ghost:hover:not(:disabled) {
@@ -583,17 +591,32 @@ a:hover {
 [data-theme="dashboard-dark"] .btn-primary:hover:not(:disabled),
 [data-theme="dashboard-light"] .btn-indigo:hover:not(:disabled),
 [data-theme="dashboard-dark"] .btn-indigo:hover:not(:disabled) {
-  transform: translateY(-1px);
   filter: none;
   background: var(--indigo-hover);
 }
 
+/* Flat surfaces: secondary buttons are hairline outlines, ghosts are bare. */
 [data-theme="dashboard-light"] .btn-secondary,
-[data-theme="dashboard-dark"] .btn-secondary,
+[data-theme="dashboard-dark"] .btn-secondary {
+  background: transparent;
+  border-color: var(--border);
+}
+
+[data-theme="dashboard-light"] .btn-secondary:hover:not(:disabled),
+[data-theme="dashboard-dark"] .btn-secondary:hover:not(:disabled) {
+  background: var(--secondary);
+  border-color: var(--input);
+}
+
 [data-theme="dashboard-light"] .btn-ghost,
 [data-theme="dashboard-dark"] .btn-ghost {
-  background: var(--card);
-  border-color: var(--border);
+  background: transparent;
+  border-color: transparent;
+}
+
+[data-theme="dashboard-light"] .btn-ghost:hover:not(:disabled),
+[data-theme="dashboard-dark"] .btn-ghost:hover:not(:disabled) {
+  background: var(--secondary);
 }
 
 /* Button Sizes */
@@ -1039,18 +1062,13 @@ hr {
 
 [data-theme="dashboard-light"] .theme-toggle,
 [data-theme="dashboard-dark"] .theme-toggle {
-  background: var(--card);
+  background: transparent;
   border-color: var(--border);
 }
 
 .theme-toggle:hover {
-  background-color: var(--accent);
+  background-color: var(--secondary);
   border-color: var(--input);
-  transform: scale(1.05);
-}
-
-.theme-toggle:active {
-  transform: scale(0.95);
 }
 
 .theme-icon-light,

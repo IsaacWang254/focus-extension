@@ -11,60 +11,67 @@
     <!-- Header -->
     <header class="header" id="blocked-header">
       <div class="header-top">
-        <h1 class="title">Focus Mode</h1>
+        <span class="header-eyebrow">Focus mode is on</span>
         <div id="blocked-header-controls-root"></div>
       </div>
-      <p class="blocked-url">You tried to visit: <span id="blocked-domain">-</span></p>
+      <h1 class="title">This can wait.</h1>
+      <p class="blocked-url">You tried to visit <span id="blocked-domain">-</span></p>
       <p id="blocked-content-row" class="blocked-content" style="display: none;">
         Attempted content: <span id="blocked-content-title">-</span>
       </p>
     </header>
 
-    <!-- Motivational Quote -->
-    <div class="quote-section" id="quote-section">
-      <blockquote class="quote-text" id="quote-text"></blockquote>
-      <cite class="quote-author" id="quote-author"></cite>
-    </div>
+    <div class="layout">
+      <!-- Work column: the reason to stay -->
+      <div class="work-col">
+        <!-- Motivational Quote -->
+        <div class="quote-section" id="quote-section">
+          <blockquote class="quote-text" id="quote-text"></blockquote>
+          <cite class="quote-author" id="quote-author"></cite>
+        </div>
 
-    <!-- Auth Required Message (shown when not logged into Todoist) -->
-    <div id="auth-required" class="section auth-section" style="display: none;">
-      <div class="auth-message">
-        <h2>Connect Todoist to see your tasks</h2>
-        <p>Link your Todoist account to view and complete your tasks while staying focused.</p>
-        <button id="auth-button" class="btn btn-primary">Connect Todoist</button>
-        <p class="auth-note">Or <a href="#" id="open-options">configure settings</a> to manage blocked sites.</p>
-      </div>
-    </div>
+        <!-- Auth Required Message (shown when not logged into Todoist) -->
+        <div id="auth-required" class="section auth-section" style="display: none;">
+          <div class="auth-message">
+            <h2>Connect Todoist to see your tasks</h2>
+            <p>Link your Todoist account to view and complete your tasks while staying focused.</p>
+            <button id="auth-button" class="btn btn-primary">Connect Todoist</button>
+            <p class="auth-note">Or <a href="#" id="open-options">configure settings</a> to manage blocked sites.</p>
+          </div>
+        </div>
 
-    <!-- Todos Section -->
-    <div id="todos-section" class="section" style="display: none;">
-      <div class="section-header">
-        <h2>Your Tasks <span id="task-count-badge" class="task-count-badge"></span></h2>
-        <button id="refresh-todos" class="btn btn-small" title="Refresh tasks">Refresh</button>
-      </div>
-      
-      <div id="todos-loading" class="loading">
-        <div class="spinner"></div>
-        <span>Loading tasks...</span>
-      </div>
-      
-      <div id="todos-error" class="error" style="display: none;">
-        <p id="error-message">Failed to load tasks</p>
-        <button id="retry-button" class="btn btn-small">Retry</button>
-      </div>
-      
-      <ul id="todos-list" class="todos-list"></ul>
-      
-      <div id="no-todos" class="no-todos" style="display: none;">
-        <span class="no-todos-title">All caught up!</span>
-        <p>You have no pending tasks. Great job!</p>
-      </div>
-    </div>
+        <!-- Todos Section -->
+        <div id="todos-section" class="section" style="display: none;">
+          <div class="section-header">
+            <h2>Do this instead <span id="task-count-badge" class="task-count-badge"></span></h2>
+            <button id="refresh-todos" class="btn btn-small" title="Refresh tasks">Refresh</button>
+          </div>
 
+          <div id="todos-loading" class="loading">
+            <div class="spinner"></div>
+            <span>Loading tasks...</span>
+          </div>
+
+          <div id="todos-error" class="error" style="display: none;">
+            <p id="error-message">Failed to load tasks</p>
+            <button id="retry-button" class="btn btn-small">Retry</button>
+          </div>
+
+          <ul id="todos-list" class="todos-list"></ul>
+
+          <div id="no-todos" class="no-todos" style="display: none;">
+            <span class="no-todos-title">All caught up!</span>
+            <p>You have no pending tasks. Great job!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Unblock column: the quiet escape hatch -->
+      <aside class="unblock-col">
     <!-- Unblock Section -->
     <div id="unblock-section" class="section">
       <div class="section-header">
-        <h2>Unblock This Site</h2>
+        <h2>Still want to continue?</h2>
         <span id="require-mode" class="require-badge">Complete any one</span>
       </div>
       
@@ -296,7 +303,7 @@
       
       <!-- Time Limit Selection -->
       <div class="time-limit-section">
-        <label class="time-limit-label">Access time limit:</label>
+        <label class="time-limit-label">Access time</label>
         <div class="time-limit-options">
           <button class="time-btn" data-minutes="5">5 min</button>
           <button class="time-btn" data-minutes="10">10 min</button>
@@ -304,7 +311,7 @@
           <button class="time-btn" data-minutes="30">30 min</button>
           <button class="time-btn" data-minutes="60">1 hour</button>
           <button class="time-btn time-btn-unlimited" data-minutes="0" style="display: none;">Unlimited</button>
-          <input type="number" id="custom-time" class="custom-time-input" placeholder="Custom" min="0.1" max="480" step="0.1"> min
+          <input type="number" id="custom-time" class="custom-time-input" placeholder="Custom" min="0.1" max="480" step="0.1"> <span class="custom-time-unit">min</span>
         </div>
       </div>
       
@@ -368,7 +375,9 @@
         </div>
       </div>
     </div>
-    
+      </aside>
+    </div>
+
     <!-- Footer -->
     <footer class="footer" id="blocked-footer">
       <div id="blocked-footer-actions-root"></div>

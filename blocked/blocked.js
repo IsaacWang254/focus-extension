@@ -801,8 +801,10 @@ async function loadQuote() {
     const quote = await chrome.runtime.sendMessage({ type: 'GET_QUOTE_OF_DAY' });
 
     if (quote) {
-      document.getElementById('quote-text').textContent = `"${quote.text}"`;
-      document.getElementById('quote-author').textContent = `— ${quote.author}`;
+      // Plain text only — the stylesheet supplies the quotation marks and dash,
+      // same as the new tab page.
+      document.getElementById('quote-text').textContent = quote.text;
+      document.getElementById('quote-author').textContent = quote.author;
       document.getElementById('quote-section').style.display = 'block';
     }
   } catch (e) {

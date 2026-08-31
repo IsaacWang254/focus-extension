@@ -1382,16 +1382,22 @@ function getSavedTimeParts(minutes) {
     return { value: String(hours), unit: 'hr' };
   }
 
-  return { value: `${hours}h ${remainder}`, unit: 'min' };
+  // Two number/unit pairs so both units render in the small unit style
+  // ("8h 30min"), instead of a giant "8h 30" with only "min" set small.
+  return [
+    { value: String(hours), unit: 'h' },
+    { value: String(remainder), unit: 'min' }
+  ];
 }
 
 function renderSavedTime(minutes) {
   const savedTimeEl = document.getElementById('focus-snapshot-saved');
-  const { value, unit } = getSavedTimeParts(minutes);
-  savedTimeEl.innerHTML = `
-    <span class="focus-snapshot-saved-number">${value}</span>
-    <span class="focus-snapshot-saved-unit">${unit}</span>
-  `;
+  const parts = getSavedTimeParts(minutes);
+  savedTimeEl.innerHTML = (Array.isArray(parts) ? parts : [parts])
+    .map(({ value, unit }) => (
+      `<span class="focus-snapshot-saved-number">${value}</span><span class="focus-snapshot-saved-unit">${unit}</span>`
+    ))
+    .join('');
 }
 
 function setupStorageSync() {

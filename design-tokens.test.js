@@ -7,7 +7,9 @@ const common = read('./lib/common.css');
 const pageStyles = {
   'newtab/newtab.css': read('./newtab/newtab.css'),
   'blocked/blocked.css': read('./blocked/blocked.css'),
-  'options/options.css': read('./options/options.css')
+  'options/options.css': read('./options/options.css'),
+  'popup/popup.css': read('./popup/popup.css'),
+  'stats/stats.css': read('./stats/stats.css')
 };
 
 // ---------------------------------------------------------------------------
@@ -110,6 +112,71 @@ Object.entries(pageStyles).forEach(([name, css]) => {
     `${name} still has soft-card radii ${oversized.join(', ')} — collapse them to 8px`
   );
 });
+
+// No uppercase labels anywhere — hierarchy comes from size/weight/ink.
+Object.entries(pageStyles).forEach(([name, css]) => {
+  assert.doesNotMatch(
+    css,
+    /text-transform: uppercase/,
+    `${name} must not use uppercase labels`
+  );
+});
+
+// No depth shadows in page styles (spread-only focus rings are fine).
+Object.entries(pageStyles).forEach(([name, css]) => {
+  assert.doesNotMatch(
+    css,
+    /box-shadow:[^;]*\d+px\s+\d+px/,
+    `${name} must not paint depth shadows — separation comes from rules`
+  );
+});
+
+// The indigo accent went graphite; no page may resurrect the old purple.
+[...Object.entries(pageStyles), ['lib/common.css', common]].forEach(([name, css]) => {
+  assert.doesNotMatch(
+    css,
+    /#6366f1|#4f46e5|#818cf8/i,
+    `${name} still references the retired indigo accent`
+  );
+});
+
+// Task priority rings are token-driven so every theme stays coherent.
+['newtab/newtab.css', 'blocked/blocked.css'].forEach((name) => {
+  const css = pageStyles[name];
+  assert.match(
+    css,
+    /priority-urgent[^{]*\{[^}]*var\(--destructive\)/s,
+    `${name}: urgent priority must use var(--destructive)`
+  );
+  assert.match(
+    css,
+    /priority-high[^{]*\{[^}]*var\(--warning\)/s,
+    `${name}: high priority must use var(--warning)`
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Blocked page: legible rail, single set of quotation marks
+// ---------------------------------------------------------------------------
+
+const blockedCss = pageStyles['blocked/blocked.css'];
+const blockedJs = read('./blocked/blocked.js');
+
+// The unblock rail was once dimmed to 0.55 opacity — a hidden affordance.
+assert.doesNotMatch(
+  blockedCss,
+  /\.unblock-col \{[^}]*opacity/s,
+  'the unblock rail must not be faded at rest'
+);
+
+// The stylesheet owns the quotation marks and the author dash; the script
+// setting them too is how the page once rendered ""double"" quotes.
+assert.match(blockedCss, /\.quote-text::before \{[^}]*\\201C/s, 'CSS supplies the opening quote');
+assert.match(
+  blockedJs,
+  /quote-text'\)\.textContent = quote\.text/,
+  'blocked.js must set the bare quote text — punctuation lives in CSS'
+);
 
 // ---------------------------------------------------------------------------
 // Panels over the animated background
