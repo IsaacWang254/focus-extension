@@ -11,7 +11,8 @@
     "build:newtab": "esbuild newtab/radix-shell.jsx --bundle --format=esm --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --minify --outfile=newtab/radix-shell.bundle.js",
     "build:blocked": "esbuild blocked/radix-shell.jsx --bundle --format=esm --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --minify --outfile=blocked/radix-shell.bundle.js",
     "build:ui": "npm run build:popup && npm run build:stats && npm run build:options && npm run build:newtab && npm run build:blocked",
-    "copy-fonts": "node scripts/copy-fonts.js"
+    "copy-fonts": "node scripts/copy-fonts.js",
+    "preview": "node scripts/preview/serve.mjs"
   },
   "devDependencies": {
     "@fontsource-variable/inter": "^5.2.8",

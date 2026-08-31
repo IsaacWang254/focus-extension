@@ -118,6 +118,26 @@ If you change the deployed Worker URL, update `TOKEN_PROXY_URL` in `.env` and re
 3. Enable **Developer mode**.
 4. Click **Load unpacked** and select the `focus-extension` folder.
 
+### Previewing the UI outside Chrome
+
+All five surfaces can be rendered in a normal browser with fixture data (no
+extension load needed):
+
+```bash
+npm run preview   # http://localhost:4173
+```
+
+- `/newtab/newtab.html`, `/blocked/blocked.html?url=…`, `/options/options.html`
+  get a `chrome.*` shim with realistic fixtures injected at request time
+  (`scripts/preview/shim.js`); the files on disk are untouched.
+- `/popup/popup.html` and `/stats/stats.html` use their built-in preview
+  fixtures; append `?shim=1` to use the shim fixtures instead.
+- Query params: `preview-theme=dark`, `preview-state=nuclear|limit|empty`
+  (blocked page), `preview-bg=ocean|dither` (new tab), `shim=0` to disable.
+
+Design invariants (mono face, flat hairline surfaces, token-driven color) are
+enforced by `node design-tokens.test.js`.
+
 ### Privacy & data
 
 - **Local storage**:
