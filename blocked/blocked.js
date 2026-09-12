@@ -666,9 +666,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupThemeToggle();
     setupBrowserThemeSyncListener();
 
-    // Load and display motivational quote
-    await loadQuote();
-
     // Parse the blocked URL from query params
     const params = new URLSearchParams(window.location.search);
     originalUrl = sanitizeBlockedTargetUrl(params.get('url') || '');
@@ -719,6 +716,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     applyBlockedPageVisibility();
+
+    // Load and display motivational quote
+    loadQuote().catch((error) => {
+      console.error('Failed to load quote:', error);
+    });
 
     if (await redirectIfUrlIsWhitelisted()) {
       return;
@@ -1842,22 +1844,25 @@ async function setupUnblockMethods() {
   const methods = settings.unblockMethods;
   const schedule = settings.schedule;
 
+  const [nuclearStatus, usageInfo, earnedInfo] = await Promise.all([
+    chrome.runtime.sendMessage({ type: 'GET_NUCLEAR_STATUS' }),
+    chrome.runtime.sendMessage({ type: 'GET_DAILY_USAGE' }),
+    chrome.runtime.sendMessage({ type: 'GET_EARNED_TIME' })
+  ]);
+
   // Check if nuclear mode is active
-  const nuclearStatus = await chrome.runtime.sendMessage({ type: 'GET_NUCLEAR_STATUS' });
   if (nuclearStatus && nuclearStatus.active) {
     await showNuclearModeActive(nuclearStatus);
     return;
   }
 
   // Check if daily limit is exceeded
-  const usageInfo = await chrome.runtime.sendMessage({ type: 'GET_DAILY_USAGE' });
   if (usageInfo && usageInfo.enabled && usageInfo.exceeded) {
     await showDailyLimitExceeded();
     return;
   }
 
   // Check if earned time is required but user has none
-  const earnedInfo = await chrome.runtime.sendMessage({ type: 'GET_EARNED_TIME' });
   earnedTimeInfo = earnedInfo;
   if (earnedInfo && earnedInfo.enabled && earnedInfo.requireTasksToUnlock && earnedInfo.minutes <= 0) {
     await showInsufficientEarnedTime();
@@ -2121,8 +2126,12 @@ function getTimerDurationSeconds(timerSettings) {
 }
 
 function startTimer(totalSeconds) {
+  clearTimeout(timerInterval);
   timerTotalSeconds = totalSeconds;
-  timerRemainingSeconds = timerTotalSeconds;
+  timerRemainingSeconds = totalSeconds;
+  completedMethods.timer = false;
+  isPageVisible = !document.hidden && document.hasFocus();
+  timerEndTime = isPageVisible ? performance.now() + totalSeconds * 1000 : null;
 
   // Initialize progress bar to 0% width (shows empty track)
   document.getElementById('timer-progress').style.width = '0%';
@@ -2133,12 +2142,18 @@ function startTimer(totalSeconds) {
   window.addEventListener('blur', handleWindowBlur);
   window.addEventListener('focus', handleWindowFocus);
 
-  updateTimerDisplay();
-  timerInterval = setInterval(timerTick, 1000);
+  updatePageVisible(isPageVisible);
 }
 
 function updatePageVisible(visible) {
+  if (isPageVisible && timerEndTime !== null) {
+    timerRemainingSeconds = Math.max(0, (timerEndTime - performance.now()) / 1000);
+  }
   isPageVisible = visible;
+  timerEndTime = visible && timerRemainingSeconds > 0
+    ? performance.now() + timerRemainingSeconds * 1000
+    : null;
+  timerTick();
 
   // Update the timer hint when visibility changes
   const timerMethod = document.getElementById('method-timer');
@@ -2176,16 +2191,22 @@ function handleWindowFocus() {
 }
 
 function timerTick() {
+  clearTimeout(timerInterval);
+  timerInterval = null;
+  if (isPageVisible && timerEndTime !== null) {
+    timerRemainingSeconds = Math.max(0, (timerEndTime - performance.now()) / 1000);
+  }
+  updateTimerDisplay();
   // Only count down if page is visible
-  if (isPageVisible && timerRemainingSeconds > 0) {
-    timerRemainingSeconds--;
-    updateTimerDisplay();
+  if (isPageVisible && !completedMethods.timer) {
+    timerInterval = setTimeout(timerTick, Math.min(100, timerRemainingSeconds * 1000));
   }
 }
 
 function updateTimerDisplay() {
-  const mins = Math.floor(timerRemainingSeconds / 60);
-  const secs = timerRemainingSeconds % 60;
+  const displaySeconds = Math.ceil(timerRemainingSeconds);
+  const mins = Math.floor(displaySeconds / 60);
+  const secs = displaySeconds % 60;
 
   document.getElementById('timer-minutes').textContent = mins.toString().padStart(2, '0');
   document.getElementById('timer-seconds').textContent = secs.toString().padStart(2, '0');
@@ -2196,8 +2217,10 @@ function updateTimerDisplay() {
   document.getElementById('timer-progress').style.width = `${progress}%`;
 
   // Check if timer completed
-  if (timerRemainingSeconds <= 0) {
-    clearInterval(timerInterval);
+  if (timerRemainingSeconds <= 0 && !completedMethods.timer) {
+    clearTimeout(timerInterval);
+    timerInterval = null;
+    timerEndTime = null;
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('blur', handleWindowBlur);
     window.removeEventListener('focus', handleWindowFocus);
@@ -2640,8 +2663,10 @@ function setupEventListeners() {
         return;
       }
 
-      // Small delay to ensure rules are updated before navigation
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Only navigate after the background confirms that rules are updated
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to unblock site');
+      }
 
       // Navigate to the original URL (full URL if available, otherwise just domain)
       window.location.href = getBlockedPageTargetUrl();

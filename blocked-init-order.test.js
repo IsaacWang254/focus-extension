@@ -67,4 +67,44 @@ assert.match(
     );
   });
 
+assert.doesNotMatch(
+  init,
+  /await loadQuote\(\)/,
+  'the quote must not block init — it only adds decoration'
+);
+
+assert.match(
+  init,
+  /loadQuote\(\)[\s\S]{0,120}?\.catch\(/,
+  'loadQuote runs unawaited, so it must handle its own rejection'
+);
+
+const settingsAt = init.indexOf("settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' })");
+const visibilityAt = init.indexOf('applyBlockedPageVisibility();');
+const quoteAt = init.indexOf('loadQuote()');
+assert.ok(settingsAt > 0 && visibilityAt > settingsAt, 'settings must be applied to page visibility during init');
+assert.ok(
+  quoteAt > visibilityAt,
+  'loadQuote must start after settings are loaded and applied, so it respects stored visibility'
+);
+
+const setupStart = source.indexOf('async function setupUnblockMethods');
+const setupEnd = source.indexOf('Show the schedule locked', setupStart);
+assert.ok(setupStart > 0 && setupEnd > setupStart, 'could not locate setupUnblockMethods');
+const setup = source.slice(setupStart, setupEnd);
+
+assert.match(
+  setup,
+  /Promise\.all\(\[[\s\S]*GET_NUCLEAR_STATUS[\s\S]*GET_DAILY_USAGE[\s\S]*GET_EARNED_TIME[\s\S]*\]\)/,
+  'the three gate checks must be requested concurrently with Promise.all'
+);
+
+['nuclearStatus', 'usageInfo', 'earnedInfo'].forEach((name) => {
+  assert.doesNotMatch(
+    setup,
+    new RegExp(`const ${name} = await chrome\\.runtime\\.sendMessage`),
+    `${name} must come from the concurrent Promise.all, not a serial await`
+  );
+});
+
 console.log('blocked init order tests passed');

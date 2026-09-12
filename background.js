@@ -314,6 +314,7 @@ const RULE_ID_START = 1000;
 // Flag to prevent concurrent rule updates
 let isUpdatingRules = false;
 let pendingUpdate = false;
+let ruleUpdatePromise = null;
 
 // Daily usage tracking state
 let usageTrackingInterval = null;
@@ -1009,153 +1010,112 @@ async function updateBlockingRules() {
   // Prevent concurrent updates
   if (isUpdatingRules) {
     pendingUpdate = true;
-    return;
+    return ruleUpdatePromise;
   }
-
   isUpdatingRules = true;
+  ruleUpdatePromise = Promise.resolve().then(async () => {
+    try {
+      do {
+        pendingUpdate = false;
+        await applyBlockingRules();
+        // If there was a pending update, run it now
+      } while (pendingUpdate);
+    } finally {
+      isUpdatingRules = false;
+      ruleUpdatePromise = null;
+    }
+  });
+  return ruleUpdatePromise;
+}
 
-  try {
-    const settings = await getSettings();
-    const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
-    const blockedPageExtensionPath = '/blocked/blocked.html';
-    const escapedBlockedPageUrl = blockedPageUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+async function applyBlockingRules() {
+  const settings = await getSettings();
+  const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
+  const blockedPageExtensionPath = '/blocked/blocked.html';
+  const escapedBlockedPageUrl = blockedPageUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    // Get temporary unblocks to exclude from blocking
-    const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
-    const activeUnblocks = new Set();
+  // Get temporary unblocks to exclude from blocking
+  const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
+  const activeUnblocks = new Set();
 
-    // Check if schedule allows unblocks right now
-    const scheduleAllowsUnblock = isInAllowedTimeWindow(settings.schedule);
+  // Check if schedule allows unblocks right now
+  const scheduleAllowsUnblock = isInAllowedTimeWindow(settings.schedule);
 
-    // Filter to only active (non-expired) unblocks
-    // BUT only if schedule allows unblocks
-    const now = Date.now();
-    if (scheduleAllowsUnblock) {
-      for (const [domain, expiry] of Object.entries(tempUnblocks)) {
-        if (isTempUnblockActive(expiry, now)) {
-          activeUnblocks.add(domain);
-        }
+  // Filter to only active (non-expired) unblocks
+  // BUT only if schedule allows unblocks
+  const now = Date.now();
+  if (scheduleAllowsUnblock) {
+    for (const [domain, expiry] of Object.entries(tempUnblocks)) {
+      if (isTempUnblockActive(expiry, now)) {
+        activeUnblocks.add(domain);
       }
     }
+  }
 
-    // Get existing dynamic rules
-    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
-    const existingRuleIds = existingRules.map(rule => rule.id);
+  // Get existing dynamic rules
+  const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+  const existingRuleIds = existingRules.map(rule => rule.id);
 
-    // Build new rules based on mode
-    const newRules = [];
-    let ruleId = RULE_ID_START;
+  // Build new rules based on mode
+  const newRules = [];
+  let ruleId = RULE_ID_START;
 
-    // During pomodoro breaks, suspend all blocking rules as a reward
-    const onBreak = await isOnFocusBreak();
+  // During pomodoro breaks, suspend all blocking rules as a reward
+  const onBreak = await isOnFocusBreak();
 
-    // Only build rules if extension is enabled AND not on a focus break
-    // Note: Schedule controls whether unblock methods are available on the blocked page,
-    // not whether blocking happens. Sites are always blocked when schedule is enabled.
-    if (settings.enabled && !onBreak) {
-      // Always allow our own blocked page to avoid self-blocking loops
-      newRules.push({
-        id: ruleId++,
-        priority: 100,
-        action: {
-          type: 'allow'
-        },
-        condition: {
-          regexFilter: `^${escapedBlockedPageUrl}(\\?.*)?$`,
-          resourceTypes: BLOCKED_RESOURCE_TYPES
+  // Only build rules if extension is enabled AND not on a focus break
+  // Note: Schedule controls whether unblock methods are available on the blocked page,
+  // not whether blocking happens. Sites are always blocked when schedule is enabled.
+  if (settings.enabled && !onBreak) {
+    // Always allow our own blocked page to avoid self-blocking loops
+    newRules.push({
+      id: ruleId++,
+      priority: 100,
+      action: {
+        type: 'allow'
+      },
+      condition: {
+        regexFilter: `^${escapedBlockedPageUrl}(\\?.*)?$`,
+        resourceTypes: BLOCKED_RESOURCE_TYPES
+      }
+    });
+
+    const hasGlobalUnblock = hasEffectiveGlobalTempUnblock(tempUnblocks, settings, now);
+
+    if (settings.mode === 'blocklist') {
+      // First, add allow rules for whitelisted URLs (higher priority)
+      const allowedUrls = settings.allowedUrls || [];
+      for (const url of allowedUrls) {
+        let allowedUrlRegex;
+        try {
+          allowedUrlRegex = buildAllowedUrlRegex(url);
+        } catch {
+          continue;
         }
-      });
 
-      const hasGlobalUnblock = hasEffectiveGlobalTempUnblock(tempUnblocks, settings, now);
+        newRules.push({
+          id: ruleId++,
+          priority: 10, // Higher priority than block rules
+          action: {
+            type: 'allow'
+          },
+          condition: {
+            regexFilter: allowedUrlRegex,
+            resourceTypes: BLOCKED_RESOURCE_TYPES
+          }
+        });
+      }
 
-      if (settings.mode === 'blocklist') {
-        // First, add allow rules for whitelisted URLs (higher priority)
-        const allowedUrls = settings.allowedUrls || [];
-        for (const url of allowedUrls) {
-          let allowedUrlRegex;
-          try {
-            allowedUrlRegex = buildAllowedUrlRegex(url);
-          } catch {
+      // Combine blocked sites with sites from enabled categories
+      if (!hasGlobalUnblock) {
+        // Block specific sites (excluding temporarily unblocked ones)
+        for (const domain of getAllBlockedDomains(settings)) {
+          if (activeUnblocks.has(domain)) {
             continue;
           }
 
-          newRules.push({
-            id: ruleId++,
-            priority: 10, // Higher priority than block rules
-            action: {
-              type: 'allow'
-            },
-            condition: {
-              regexFilter: allowedUrlRegex,
-              resourceTypes: BLOCKED_RESOURCE_TYPES
-            }
-          });
-        }
+          const escapedDomain = domain.replace(/\./g, '\\.');
 
-        // Combine blocked sites with sites from enabled categories
-        if (!hasGlobalUnblock) {
-          // Block specific sites (excluding temporarily unblocked ones)
-          for (const domain of getAllBlockedDomains(settings)) {
-            if (activeUnblocks.has(domain)) {
-              continue;
-            }
-
-            const escapedDomain = domain.replace(/\./g, '\\.');
-
-            newRules.push({
-              id: ruleId++,
-              priority: 1,
-              action: {
-                type: 'redirect',
-                redirect: {
-                  regexSubstitution: `${blockedPageUrl}?url=\\0`
-                }
-              },
-              condition: {
-                regexFilter: `^https?://(www\\.)?${escapedDomain}.*`,
-                resourceTypes: BLOCKED_RESOURCE_TYPES
-              }
-            });
-          }
-        }
-
-        // Add keyword blocking rules (if enabled)
-        const keywordSettings = settings.blockedKeywords || { enabled: false, keywords: [] };
-        if (!hasGlobalUnblock && keywordSettings.enabled && keywordSettings.keywords.length > 0) {
-          for (const keywordObj of keywordSettings.keywords) {
-            // Escape special regex characters in the keyword
-            const escapedKeyword = keywordObj.keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-            // Build regex pattern - case insensitive by default
-            const flags = keywordObj.caseSensitive ? '' : '(?i)';
-
-            newRules.push({
-              id: ruleId++,
-              priority: 1,
-              action: {
-                type: 'redirect',
-                redirect: {
-                  regexSubstitution: `${blockedPageUrl}?url=\\0`
-                }
-              },
-              condition: {
-                regexFilter: `^https?://.*${escapedKeyword}.*`,
-                isUrlFilterCaseSensitive: keywordObj.caseSensitive || false,
-                resourceTypes: BLOCKED_RESOURCE_TYPES
-              }
-            });
-          }
-        }
-      } else {
-        // Allowlist mode - block everything except allowed sites
-        // Combine allowedSites with temporarily unblocked sites
-        const allAllowedDomains = new Set([
-          ...settings.allowedSites.map(extractDomain),
-          ...[...activeUnblocks].filter((domain) => domain !== TEMP_UNBLOCK_ALL_KEY)
-        ]);
-
-        if (!hasGlobalUnblock) {
-          // First, add a rule to block all sites
           newRules.push({
             id: ruleId++,
             priority: 1,
@@ -1166,73 +1126,118 @@ async function updateBlockingRules() {
               }
             },
             condition: {
-              regexFilter: '^https?://.*',
-              resourceTypes: ['main_frame'],
-              excludedInitiatorDomains: ['chrome-extension']
-            }
-          });
-
-          // Add exceptions for allowed sites (higher priority)
-          for (const domain of allAllowedDomains) {
-            newRules.push({
-              id: ruleId++,
-              priority: 2,
-              action: {
-                type: 'allow'
-              },
-              condition: {
-                urlFilter: `||${domain}^`,
-                resourceTypes: ['main_frame']
-              }
-            });
-          }
-
-          // Always allow extension pages
-          newRules.push({
-            id: ruleId++,
-            priority: 3,
-            action: {
-              type: 'allow'
-            },
-            condition: {
-              urlFilter: '|chrome-extension://',
-              resourceTypes: ['main_frame']
-            }
-          });
-
-          // Allow chrome:// pages
-          newRules.push({
-            id: ruleId++,
-            priority: 3,
-            action: {
-              type: 'allow'
-            },
-            condition: {
-              urlFilter: '|chrome://',
-              resourceTypes: ['main_frame']
+              regexFilter: `^https?://(www\\.)?${escapedDomain}.*`,
+              resourceTypes: BLOCKED_RESOURCE_TYPES
             }
           });
         }
       }
-    }
 
-    // Remove old rules and add new ones in a single atomic operation
-    await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: existingRuleIds,
-      addRules: newRules
-    });
+      // Add keyword blocking rules (if enabled)
+      const keywordSettings = settings.blockedKeywords || { enabled: false, keywords: [] };
+      if (!hasGlobalUnblock && keywordSettings.enabled && keywordSettings.keywords.length > 0) {
+        for (const keywordObj of keywordSettings.keywords) {
+          // Escape special regex characters in the keyword
+          const escapedKeyword = keywordObj.keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    console.log(`Updated blocking rules: ${newRules.length} rules active`);
-    console.log('Rules:', JSON.stringify(newRules, null, 2));
-  } finally {
-    isUpdatingRules = false;
+          // Build regex pattern - case insensitive by default
+          const flags = keywordObj.caseSensitive ? '' : '(?i)';
 
-    // If there was a pending update, run it now
-    if (pendingUpdate) {
-      pendingUpdate = false;
-      await updateBlockingRules();
+          newRules.push({
+            id: ruleId++,
+            priority: 1,
+            action: {
+              type: 'redirect',
+              redirect: {
+                regexSubstitution: `${blockedPageUrl}?url=\\0`
+              }
+            },
+            condition: {
+              regexFilter: `^https?://.*${escapedKeyword}.*`,
+              isUrlFilterCaseSensitive: keywordObj.caseSensitive || false,
+              resourceTypes: BLOCKED_RESOURCE_TYPES
+            }
+          });
+        }
+      }
+    } else {
+      // Allowlist mode - block everything except allowed sites
+      // Combine allowedSites with temporarily unblocked sites
+      const allAllowedDomains = new Set([
+        ...settings.allowedSites.map(extractDomain),
+        ...[...activeUnblocks].filter((domain) => domain !== TEMP_UNBLOCK_ALL_KEY)
+      ]);
+
+      if (!hasGlobalUnblock) {
+        // First, add a rule to block all sites
+        newRules.push({
+          id: ruleId++,
+          priority: 1,
+          action: {
+            type: 'redirect',
+            redirect: {
+              regexSubstitution: `${blockedPageUrl}?url=\\0`
+            }
+          },
+          condition: {
+            regexFilter: '^https?://.*',
+            resourceTypes: ['main_frame'],
+            excludedInitiatorDomains: ['chrome-extension']
+          }
+        });
+
+        // Add exceptions for allowed sites (higher priority)
+        for (const domain of allAllowedDomains) {
+          newRules.push({
+            id: ruleId++,
+            priority: 2,
+            action: {
+              type: 'allow'
+            },
+            condition: {
+              urlFilter: `||${domain}^`,
+              resourceTypes: ['main_frame']
+            }
+          });
+        }
+
+        // Always allow extension pages
+        newRules.push({
+          id: ruleId++,
+          priority: 3,
+          action: {
+            type: 'allow'
+          },
+          condition: {
+            urlFilter: '|chrome-extension://',
+            resourceTypes: ['main_frame']
+          }
+        });
+
+        // Allow chrome:// pages
+        newRules.push({
+          id: ruleId++,
+          priority: 3,
+          action: {
+            type: 'allow'
+          },
+          condition: {
+            urlFilter: '|chrome://',
+            resourceTypes: ['main_frame']
+          }
+        });
+      }
     }
   }
+
+  // Remove old rules and add new ones in a single atomic operation
+  await chrome.declarativeNetRequest.updateDynamicRules({
+    removeRuleIds: existingRuleIds,
+    addRules: newRules
+  });
+
+  console.log(`Updated blocking rules: ${newRules.length} rules active`);
+  console.log('Rules:', JSON.stringify(newRules, null, 2));
 }
 
 /**
@@ -2136,7 +2141,7 @@ async function temporaryUnblock(site, minutes, useEarnedTimeFlag = false) {
   // Set alarms to re-block each domain (only if not unlimited)
   if (expiryTime !== 'unlimited') {
     for (const d of domainsToUnblock) {
-      chrome.alarms.create(`reblock_${d}`, { when: Date.now() + (actualMinutes * 60 * 1000) });
+      chrome.alarms.create(`reblock_${d}`, { when: expiryTime });
     }
   }
 
@@ -4823,7 +4828,9 @@ async function incrementBlockAttempts() {
   await incrementBlockedPageCounter();
 
   // Check achievements after incrementing
-  await checkBlockingAchievements();
+  checkBlockingAchievements().catch((error) => {
+    console.error('Failed to check blocking achievements:', error);
+  });
 
   return newTotal;
 }
