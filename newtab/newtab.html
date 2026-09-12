@@ -1,13 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-design="modernist">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>New Tab</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" type="image/png" href="../icons/icon16.png">
   <link rel="stylesheet" href="newtab.css">
+  <link rel="stylesheet" href="../lib/modernist.css">
 </head>
-<body>
+<body data-surface="newtab">
   <canvas class="bg-shader" id="bg-ocean" aria-hidden="true"></canvas>
   <canvas class="bg-shader bg-dither" id="bg-dither" aria-hidden="true"></canvas>
 
@@ -23,6 +24,10 @@
       <p class="bedtime-reminder-text" id="bedtime-reminder-text"></p>
       <p class="bedtime-reminder-sub" id="bedtime-reminder-sub"></p>
     </section>
+
+    <header class="modernist-masthead">
+      <div class="modernist-wordmark">Focus<br>Modern</div>
+    </header>
 
     <div class="center-stage">
       <!-- Motivational Quote -->
@@ -63,7 +68,7 @@
             <span class="panel-icon" id="todos-icon"></span>
             <h3 class="panel-title">Tasks</h3>
           </div>
-          <div class="panel-body">
+          <div class="panel-body" tabindex="0" aria-label="Tasks list">
             <!-- Todoist not connected state -->
             <div class="connect-prompt" id="todos-connect">
               <p class="connect-text">Connect Todoist to see your tasks</p>
@@ -94,7 +99,7 @@
                 <span class="panel-date" id="calendar-date"></span>
               </div>
             </div>
-            <div class="panel-body">
+            <div class="panel-body" tabindex="0" aria-label="Schedule">
               <!-- Calendar not connected state -->
               <div class="connect-prompt" id="calendar-connect">
                 <p class="connect-text">Connect Google Calendar to see your schedule</p>
@@ -127,7 +132,7 @@
                 <span class="panel-count" id="completed-count">0</span>
               </div>
             </div>
-            <div class="panel-body">
+            <div class="panel-body" tabindex="0" aria-label="Completed tasks">
               <!-- Completed loading state -->
               <div class="panel-loading hidden" id="completed-loading">
                 <div class="spinner"></div>

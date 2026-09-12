@@ -12,6 +12,7 @@ import {
   loadTheme,
   resolveThemeVariant
 } from '../lib/theme.js';
+import { setIconButtonLabel } from '../lib/design-theme.js';
 import { getDailyQuote } from './quotes.js';
 import { initOceanShader } from './ocean-shader.js';
 import { initDitherShader } from './dither-shader.js';
@@ -278,10 +279,7 @@ function updateThemeToggleIcon(themeValue = document.documentElement.getAttribut
     themeIconDark.setAttribute('aria-hidden', isDark ? 'false' : 'true');
   }
 
-  if (toggle) {
-    toggle.title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
-    toggle.setAttribute('aria-label', toggle.title);
-  }
+  setIconButtonLabel(toggle, isDark ? 'Switch to light mode' : 'Switch to dark mode');
 }
 
 function setupIcons() {

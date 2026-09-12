@@ -15,6 +15,7 @@
     "preview": "node scripts/preview/serve.mjs"
   },
   "devDependencies": {
+    "@fontsource-variable/hanken-grotesk": "5.2.8",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@radix-ui/react-popover": "^1.1.15",

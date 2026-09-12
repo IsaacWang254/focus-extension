@@ -1,0 +1,643 @@
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("./fonts/hanken-grotesk-latin-ext-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("./fonts/hanken-grotesk-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+.modernist-masthead {
+  display: none;
+}
+
+html[data-design="modernist"] {
+  --font-sans: "Hanken Grotesk", sans-serif;
+  --font-dashboard: "Hanken Grotesk", sans-serif;
+  --radius-sm: 0px; --radius-md: 0px; --radius-lg: 0px; --radius-xl: 0px;
+  --background: #f7f5ef; --foreground: #242420;
+  --card: #f7f5ef; --card-foreground: #242420;
+  --popover: #fbf9f4; --popover-foreground: #242420;
+  --primary: #c52e25; --primary-foreground: #fff9f1;
+  --secondary: #ede9df; --secondary-foreground: #242420;
+  --muted: #ede9df; --muted-foreground: #656259; --faint: #716d63;
+  --accent: #e9e4d9; --accent-foreground: #242420;
+  --border: #cbc6ba; --input: #a7a194; --ring: var(--modernist-highlight);
+  --indigo: #c52e25; --indigo-foreground: #fff9f1; --indigo-hover: #d9231b;
+  --indigo-50: #f7f5ef; --indigo-100: #f4e2d9; --indigo-200: #e9c8bd;
+  --indigo-800: #a5221c; --indigo-900: #822019; --indigo-subtle: #f4e2d9;
+  --destructive: #b42c25; --destructive-foreground: #fff9f1; --destructive-subtle: #f4e2d9;
+  --success: #3c6449; --success-foreground: #fff9f1; --success-subtle: #e3eadd;
+  --warning: #88600b; --warning-foreground: #fff9f1; --warning-subtle: #f0e6cb;
+  --brand-red: #e5342a; --modernist-highlight: var(--brand-red);
+  --modernist-display: var(--brand-red);
+  background: var(--background);
+}
+
+html[data-design="modernist"][data-theme$="dark"] {
+  --background: #242521; --foreground: #f3f0e7;
+  --card: #242521; --card-foreground: #f3f0e7;
+  --popover: #2c2d28; --popover-foreground: #f3f0e7;
+  --primary: #ff7d69; --primary-foreground: #242521;
+  --secondary: #31322c; --secondary-foreground: #f3f0e7;
+  --muted: #31322c; --muted-foreground: #b9b4a6; --faint: #aaa495;
+  --accent: #3e3e35; --accent-foreground: #f3f0e7;
+  --border: #535347; --input: #767566; --ring: var(--modernist-highlight);
+  --indigo: #ff7d69; --indigo-foreground: #242521; --indigo-hover: #ff705e;
+  --indigo-50: #242521; --indigo-100: #3c302a; --indigo-200: #624237;
+  --indigo-800: #ff9a85; --indigo-900: #ffb7a4; --indigo-subtle: #3c302a;
+  --destructive: #ff927d; --destructive-foreground: #242521; --destructive-subtle: #3c302a;
+  --success: #b3cd9e; --success-foreground: #242521; --success-subtle: #303b2d;
+  --warning: #e6c174; --warning-foreground: #242521; --warning-subtle: #3c3829;
+  --modernist-highlight: #ff4e3a;
+  --modernist-display: #ff7d69;
+}
+
+html[data-design="modernist"] body { font-family: var(--font-sans); }
+
+html[data-design="modernist"] :is(h1, h2, h3) {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  letter-spacing: -.035em;
+}
+
+html[data-design="modernist"] :is(.btn, .input, .radio-content, .method, .settings-dialog, .theme-toggle, .settings-dialog-close, .focus-preset-btn, .radix-select-content, .time-range-select, .search-input, .profile-card, .preset-card) {
+  border-radius: 0;
+}
+
+html[data-design="modernist"] .btn-primary {
+  background: var(--indigo);
+  color: var(--indigo-foreground);
+  border-color: var(--indigo);
+}
+
+html[data-design="modernist"] .btn-primary:hover:not(:disabled) {
+  background: var(--indigo-hover);
+  border-color: var(--indigo-hover);
+}
+
+html[data-design="modernist"] .toggle-slider,
+html[data-design="modernist"] .toggle-slider::before {
+  border-radius: 0;
+}
+
+html[data-design="modernist"] .toggle input:checked + .toggle-slider {
+  background: var(--indigo);
+  border-color: var(--indigo);
+}
+
+html[data-design="modernist"] .toggle input:checked + .toggle-slider::before {
+  background: var(--indigo-foreground);
+}
+
+html[data-design="modernist"] .sidebar-title {
+  font-size: 1.7rem;
+  font-weight: 500;
+  letter-spacing: -.05em;
+  color: var(--indigo);
+}
+
+html[data-design="modernist"] .sidebar-header {
+  padding-top: 28px;
+  padding-bottom: 24px;
+}
+
+html[data-design="modernist"] .sidebar-link {
+  border-radius: 0;
+}
+
+html[data-design="modernist"] .sidebar-link.active {
+  color: var(--indigo);
+}
+
+html[data-design="modernist"] .sidebar-link:hover {
+  color: var(--indigo-hover);
+}
+
+html[data-design="modernist"] .sidebar-link.active .sidebar-link-icon {
+  color: var(--indigo);
+}
+
+html[data-design="modernist"] .sidebar-link:hover .sidebar-link-icon {
+  color: var(--indigo-hover);
+}
+
+html[data-design="modernist"] .radio-card input:checked + .radio-content {
+  border-color: var(--indigo);
+}
+
+html[data-design="modernist"] .radio-card input:checked + .radio-content .radio-title {
+  color: var(--indigo);
+}
+
+html[data-design="modernist"] .quote-author {
+  opacity: 1;
+}
+
+html[data-design="modernist"] :is(.theme-toggle, .settings-dialog-close) {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--foreground);
+  transition: color 180ms ease, transform 180ms cubic-bezier(.22, 1, .36, 1);
+}
+
+html[data-design="modernist"] :is(.theme-toggle, .settings-dialog-close):is(:hover, :focus-visible) {
+  border: 0;
+  background: transparent;
+  color: var(--modernist-highlight);
+}
+
+html[data-design="modernist"] :is(.theme-toggle, .settings-dialog-close):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+html[data-design="modernist"] :is(.theme-toggle, .settings-dialog-close):active {
+  transform: scale(.9);
+}
+
+html[data-design="modernist"] :is(.settings-icon, .theme-icon-light, .theme-icon-dark) {
+  color: inherit;
+}
+
+html[data-design="modernist"] .settings-dialog-close span {
+  width: 20px;
+  height: 20px;
+}
+
+html[data-design="modernist"] :is(.theme-toggle, .settings-dialog-close) svg {
+  width: 20px;
+  height: 20px;
+  transform-origin: center;
+  transition: transform 300ms cubic-bezier(.22, 1, .36, 1);
+}
+
+html[data-design="modernist"] .settings-launch:is(:hover, :focus-visible) svg {
+  transform: rotate(60deg);
+}
+
+html[data-design="modernist"] .theme-toggle:not(.settings-launch):is(:hover, :focus-visible) svg {
+  transform: rotate(-15deg);
+}
+
+html[data-design="modernist"] .settings-dialog-close:is(:hover, :focus-visible) svg {
+  transform: rotate(90deg);
+}
+
+html[data-design="modernist"] .settings-launch::after {
+  content: none;
+  display: none;
+}
+
+html[data-design="modernist"] :is(.theme-icon-light, .theme-icon-dark) svg {
+  animation: modernist-icon-reveal 240ms cubic-bezier(.22, 1, .36, 1);
+}
+
+@keyframes modernist-icon-reveal {
+  from {opacity: 0; transform: rotate(-35deg) scale(.8);}
+  to {opacity: 1; transform: rotate(0) scale(1);}
+}
+
+html[data-design="modernist"] a:hover {
+  color: var(--indigo-hover);
+}
+
+html[data-design="modernist"] :is(.btn-secondary, .btn-ghost, .profile-select, .time-range-select, .focus-preset-btn):hover:not(:disabled) {
+  color: var(--indigo-hover);
+  border-color: var(--modernist-highlight);
+  background-color: var(--background);
+}
+
+html[data-design="modernist"] .radix-select-item[data-highlighted] {
+  color: var(--indigo-hover);
+  background-color: var(--background);
+}
+
+html[data-design="modernist"] .todo-checkbox:hover {
+  border-color: var(--modernist-highlight);
+  background-color: var(--indigo-subtle);
+}
+
+html[data-design="modernist"] [data-surface="newtab"] {
+  --modernist-gutter: clamp(16px, 3.8vw, 56px);
+  --modernist-inset: clamp(16px, 2.2dvh, 28px);
+  --modernist-pad: clamp(20px, 2.5vw, 40px);
+  --modernist-frame-edge: max(var(--modernist-gutter), calc((100vw - 1600px) / 2));
+  height: auto;
+  min-height: 100dvh;
+  overflow: auto;
+}
+
+html[data-design="modernist"] [data-surface="newtab"] .main {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(12px, 2dvh, 24px);
+  width: calc(100% - 2 * var(--modernist-gutter));
+  max-width: 1600px;
+  min-height: 100dvh;
+  padding: var(--modernist-inset) var(--modernist-pad);
+  overflow: visible;
+}
+
+html[data-design="modernist"] [data-surface="newtab"] .modernist-masthead {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  flex: 0 0 auto;
+  padding: 0 100px 16px 0;
+  border-bottom: 1px solid var(--foreground);
+  margin: 0;
+}
+
+html[data-design="modernist"] [data-surface="newtab"] .modernist-wordmark {
+  font-size: clamp(22px, 3dvh, 28px);
+  font-weight: 500;
+  line-height: .9;
+  letter-spacing: -.055em;
+  color: var(--indigo);
+}
+
+html[data-design="modernist"] [data-surface="newtab"] .center-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(240px, .6fr);
+  grid-template-areas: "clock quote" "weather quote" "panels panels" "snapshot snapshot";
+  width: 100%;
+  min-height: 0;
+  align-items: start;
+  gap: clamp(8px, 1.5dvh, 16px) clamp(24px, 3vw, 48px);
+  padding: 0;
+}
+
+html[data-design="modernist"] [data-surface="newtab"] .hero {grid-area: clock; text-align: left; min-width: 0;}
+
+html[data-design="modernist"] [data-surface="newtab"] .clock {
+  font-family: var(--font-sans);
+  font-size: clamp(4.5rem, min(9vw, 16dvh), 9rem);
+  font-weight: 400;
+  line-height: .9;
+  letter-spacing: -.065em;
+  color: var(--modernist-display);
+}
+
+html[data-design="modernist"] [data-surface="newtab"] .clock-separator {opacity: 1; font-weight: 400;}
+
+html[data-design="modernist"] [data-surface="newtab"] .quote-section {
+  grid-area: quote;
+  align-self: center;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+html[data-design="modernist"] [data-surface="newtab"] .quote-text {
+  font-size: clamp(1.1rem, min(2vw, 3dvh), 1.75rem);
+  font-weight: 400;
+  line-height: 1.18;
+  letter-spacing: -.025em;
+  color: var(--foreground);
+  max-width: 25ch;
+}
+
+html[data-design="modernist"] [data-surface="newtab"] .quote-author {font-size: .8rem; color: var(--muted-foreground);}
+
+html[data-design="modernist"] [data-surface="newtab"] .weather-section {grid-area: weather; margin: 0; justify-content: flex-start; text-align: left;}
+
+html[data-design="modernist"] [data-surface="newtab"] .weather-content {justify-content: flex-start;}
+
+html[data-design="modernist"] [data-surface="newtab"] .content-panels {
+  grid-area: panels;
+  max-width: none;
+  min-height: 0;
+  margin-top: clamp(8px, 1.5dvh, 16px);
+  padding-top: clamp(12px, 2dvh, 20px);
+  border-top: 1px solid var(--foreground);
+}
+
+html[data-design="modernist"] [data-surface="newtab"] .panel-header {padding-bottom: 10px; flex-wrap: wrap;}
+
+html[data-design="modernist"] [data-surface="newtab"] .panel-header-text {flex-wrap: wrap;}
+
+html[data-design="modernist"] [data-surface="newtab"] .panel-title {font-size: clamp(1.2rem, 2.7dvh, 1.5rem); color: var(--indigo); font-weight: 400; letter-spacing: -.035em;}
+
+html[data-design="modernist"] [data-surface="newtab"] .todo-content {font-size: 1rem; line-height: 1.4;}
+
+html[data-design="modernist"] [data-surface="newtab"] .event-title {font-size: .95rem;}
+
+html[data-design="modernist"] [data-surface="newtab"] .focus-snapshot {
+  grid-area: snapshot;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+html[data-design="modernist"] [data-surface="newtab"] .focus-snapshot-inline-value {font-size: clamp(1.5rem, 4dvh, 2.25rem);}
+
+html[data-design="modernist"] [data-surface="newtab"] .top-bar {
+  top: var(--modernist-inset);
+  right: calc(var(--modernist-frame-edge) + var(--modernist-pad));
+  bottom: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+html[data-design="modernist"] [data-surface="blocked"] {
+  background-color: var(--background);
+}
+
+html[data-design="modernist"] [data-surface="blocked"] .header {
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--foreground);
+}
+
+html[data-design="modernist"] [data-surface="blocked"] .header-eyebrow {
+  color: var(--indigo);
+  font-size: .9rem;
+}
+
+html[data-design="modernist"] [data-surface="blocked"] .title {
+  font-size: clamp(3rem, 8vw, 7.5rem);
+  font-weight: 400;
+  color: var(--modernist-display);
+  letter-spacing: -.06em;
+  line-height: .96;
+  margin-bottom: 24px;
+}
+
+html[data-design="modernist"] [data-surface="blocked"] .blocked-url {
+  font-size: .95rem;
+}
+
+html[data-design="modernist"] [data-surface="blocked"] .quote-text {
+  font-size: clamp(1.1rem, 1.8vw, 1.6rem);
+  line-height: 1.3;
+  color: var(--foreground);
+}
+
+html[data-design="modernist"] [data-surface="blocked"] .section-header h2 {
+  font-size: 1.45rem;
+  color: var(--indigo);
+  font-weight: 400;
+}
+
+html[data-design="modernist"] [data-surface="blocked"] .timer-display {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  color: var(--indigo);
+}
+
+html[data-design="modernist"] [data-surface="options"] .section > h2 {
+  font-size: 1.65rem;
+  font-weight: 400;
+  padding-bottom: 16px;
+}
+
+html[data-design="modernist"] [data-surface="options"] .page-title,
+html[data-design="modernist"] [data-surface="options"].embedded-popup .settings-page .page-content > .section:first-child > h2 {
+  font-size: clamp(2.4rem, 5vw, 4.5rem);
+  line-height: 1;
+  color: var(--modernist-display);
+  letter-spacing: -.05em;
+  padding-bottom: 24px;
+}
+
+html[data-design="modernist"] [data-surface="options"] .setting-label {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+html[data-design="modernist"] [data-surface="options"] .setting-desc {
+  line-height: 1.5;
+}
+
+html[data-design="modernist"] [data-surface="options"] .search-input {
+  border-color: var(--border);
+}
+
+html[data-design="modernist"] [data-surface="options"].embedded-popup .sidebar {
+  width: auto;
+}
+
+html[data-design="modernist"] [data-surface="options"].embedded-popup .main-wrapper {
+  margin-left: 0;
+}
+
+html[data-design="modernist"] [data-surface="popup"] {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+html[data-design="modernist"] [data-surface="popup"] .popup {
+  padding: 20px 20px 16px;
+  gap: 14px;
+}
+
+html[data-design="modernist"] [data-surface="popup"] .header {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--foreground);
+}
+
+html[data-design="modernist"] [data-surface="popup"] .header h1 {
+  font-size: 3rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -.055em;
+  color: var(--modernist-display);
+}
+
+html[data-design="modernist"] [data-surface="popup"] .status {
+  padding: 4px 0 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+html[data-design="modernist"] [data-surface="popup"] #status-text::before {
+  background: var(--indigo);
+  border-radius: 0;
+}
+
+html[data-design="modernist"] [data-surface="popup"] .status.disabled #status-text::before {
+  background: var(--muted-foreground);
+}
+
+html[data-design="modernist"] [data-surface="popup"] .focus-label {
+  font-size: 1rem;
+  color: var(--indigo);
+}
+
+html[data-design="modernist"] [data-surface="popup"] .focus-preset-btn {
+  padding: 10px 6px;
+}
+
+html[data-design="modernist"] [data-surface="stats"] .header {
+  padding: 12px 0 28px;
+  border-bottom: 1px solid var(--foreground);
+  align-items: flex-start;
+}
+
+html[data-design="modernist"] [data-surface="stats"] .header h1 {
+  font-size: clamp(2.6rem, 5.5vw, 5rem);
+  font-weight: 400;
+  color: var(--modernist-display);
+  line-height: .98;
+  letter-spacing: -.055em;
+}
+
+html[data-design="modernist"] [data-surface="stats"] .stat-value {
+  font-family: var(--font-sans);
+  font-size: clamp(2rem, 3.2vw, 3.2rem);
+  font-weight: 400;
+  letter-spacing: -.04em;
+}
+
+html[data-design="modernist"] [data-surface="stats"] .section-title {
+  font-size: 1.65rem;
+  font-weight: 400;
+  color: var(--indigo);
+}
+
+@media (max-width: 768px) {
+  html[data-design="modernist"] [data-surface="newtab"] .center-stage {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "clock" "weather" "quote" "panels" "snapshot";
+    gap: 20px;
+  }
+
+  html[data-design="modernist"] [data-surface="newtab"] .clock {
+    font-size: clamp(4.2rem, 18vw, 7rem);
+  }
+
+  html[data-design="modernist"] [data-surface="newtab"] .quote-text {
+    max-width: 32ch;
+  }
+
+  html[data-design="modernist"] [data-surface="newtab"] .content-panels {
+    margin-top: 8px;
+  }
+
+  html[data-design="modernist"] [data-surface="newtab"] .panel-title {
+    font-size: 1.35rem;
+  }
+}
+
+@media (min-width: 900px) and (min-height: 600px) {
+  html[data-design="modernist"] [data-surface="newtab"] {height: 100dvh; min-height: 0; overflow: hidden;}
+
+  html[data-design="modernist"] [data-surface="newtab"] .main {height: 100dvh; min-height: 0; flex: 0 0 auto;}
+
+  html[data-design="modernist"] [data-surface="newtab"] .center-stage {
+    flex: 1 1 0;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    align-items: stretch;
+  }
+
+  html[data-design="modernist"] [data-surface="newtab"] .content-panels {
+    grid-template-rows: minmax(0, 1fr);
+    align-content: stretch;
+    min-height: 0;
+  }
+
+  html[data-design="modernist"] [data-surface="newtab"] .panel {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    align-self: stretch;
+    min-height: 0;
+  }
+
+  html[data-design="modernist"] [data-surface="newtab"] .panel-body {
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  html[data-design="modernist"] [data-surface="newtab"] .side-rail {
+    display: grid;
+    grid-template-rows: minmax(0, 1.2fr) minmax(0, .8fr);
+    min-height: 0;
+    gap: clamp(12px, 2dvh, 24px);
+  }
+
+  html[data-design="modernist"] [data-surface="newtab"] .side-rail:has(.panel-calendar.hidden),
+  html[data-design="modernist"] [data-surface="newtab"] .side-rail:has(.panel-completed.hidden) {
+    grid-template-rows: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  html[data-design="modernist"] [data-surface="stats"] .sidebar {
+    position: static;
+    width: 100%;
+    display: flex;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+
+  html[data-design="modernist"] [data-surface="stats"] .sidebar-nav {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  html[data-design="modernist"] [data-surface="stats"] .sidebar-link {
+    width: auto;
+    flex-shrink: 0;
+  }
+
+  html[data-design="modernist"] [data-surface="stats"] .sidebar-header {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  html[data-design="modernist"] [data-surface="stats"] .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  html[data-design="modernist"] [data-surface="stats"] .header-actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-design="modernist"] *,
+  html[data-design="modernist"] *::before,
+  html[data-design="modernist"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  html[data-design="modernist"] :is(.theme-toggle, .settings-dialog-close):is(:hover, :focus-visible, :active) {
+    transform: none;
+  }
+
+  html[data-design="modernist"] .theme-toggle:not(.settings-launch):is(:hover, :focus-visible) svg,
+  html[data-design="modernist"] :is(.theme-toggle, .settings-dialog-close):is(:hover, :focus-visible) svg {
+    transform: none;
+  }
+
+  html[data-design="modernist"] :is(.theme-toggle, .settings-dialog-close) svg,
+  html[data-design="modernist"] :is(.theme-icon-light, .theme-icon-dark) svg {
+    animation: none !important;
+  }
+}

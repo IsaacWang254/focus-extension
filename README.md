@@ -4,7 +4,7 @@
   <img src="./icons/icon128.png" alt="Focus Extension icon" width="128" height="128">
 </p>
 
-Chrome extension for blocking distracting sites and replacing them with a focused dashboard that shows your Todoist tasks, calendar, and helpful context.
+Chrome extension for blocking distracting sites and replacing them with a focused dashboard that shows your Todoist tasks, calendar, and helpful context. The interface uses a red, Modernist-inspired design with light/dark modes and optional animated backgrounds.
 
 ### Features
 
@@ -135,7 +135,7 @@ npm run preview   # http://localhost:4173
 - Query params: `preview-theme=dark`, `preview-state=nuclear|limit|empty`
   (blocked page), `preview-bg=ocean|dither` (new tab), `shim=0` to disable.
 
-Design invariants (mono face, flat hairline surfaces, token-driven color) are
+Design invariants (flat hairline surfaces and token-driven color) are
 enforced by `node design-tokens.test.js`.
 
 ### Privacy & data
