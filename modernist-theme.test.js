@@ -301,4 +301,24 @@ assert.doesNotMatch(read('./README.md'), /preview-design/, 'README no longer doc
 const shim = read('./scripts/preview/shim.js');
 assert.doesNotMatch(shim, /focus-preview-modernist|modernistEnabled|preview-design/, 'preview shim returns to pre-session state');
 
+const popupStatus = modernistCss.match(/\[data-surface="popup"\]\s+\.status\s*\{([^}]*)\}/s);
+assert.ok(popupStatus, 'popup status rule exists');
+assert.match(popupStatus[1], /border:\s*0/, 'popup status removes the divider');
+assert.doesNotMatch(popupStatus[1], /border-bottom/, 'popup status has no bottom border');
+assert.match(
+  modernistCss,
+  /\[data-surface="popup"\]\s+:is\(\.current-site,\s*\.focus-section,\s*\.footer\)\s*\{[^}]*border-top:\s*0/s,
+  'popup secondary dividers removed'
+);
+assert.match(
+  modernistCss,
+  /\[data-surface="popup"\]\s+\.header\s*\{[^}]*border-bottom:\s*1px solid var\(--foreground\)/s,
+  'popup header keeps its strong divider'
+);
+assert.match(
+  read('./popup/popup.css'),
+  /\.focus-preset-btn\s*\{[^}]*border:\s*1px solid var\(--border\)/s,
+  'preset buttons keep their visible outline'
+);
+
 console.log('modernist-theme.test.js: all assertions passed');

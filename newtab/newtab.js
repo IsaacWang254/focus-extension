@@ -501,8 +501,8 @@ function loadQuote() {
 function getWeatherInfo(code, isDay) {
   const map = {
     0: { icon: isDay ? 'sun' : 'moon', desc: 'Clear' },
-    1: { icon: isDay ? 'partlyCloudy' : 'moon', desc: 'Mostly clear' },
-    2: { icon: 'partlyCloudy', desc: 'Partly cloudy' },
+    1: { icon: isDay ? 'partlyCloudy' : 'partlyCloudyNight', desc: 'Mostly clear' },
+    2: { icon: isDay ? 'partlyCloudy' : 'partlyCloudyNight', desc: 'Partly cloudy' },
     3: { icon: 'cloud', desc: 'Overcast' },
     45: { icon: 'cloudFog', desc: 'Fog' },
     48: { icon: 'cloudFog', desc: 'Rime fog' },
