@@ -88,6 +88,12 @@ assert.ok(
   'loadQuote must start after settings are loaded and applied, so it respects stored visibility'
 );
 
+const readyAt = init.indexOf('notifyInPageBlockerReady()');
+const themeAt = init.indexOf('await loadTheme()');
+assert.ok(readyAt > 0, 'embedded blocked page must announce readiness during init');
+assert.ok(readyAt < themeAt, 'readiness must be announced before the first awaited init step');
+assert.doesNotMatch(init, /await notifyInPageBlockerReady\(\)/, 'readiness signal must not block init');
+
 const setupStart = source.indexOf('async function setupUnblockMethods');
 const setupEnd = source.indexOf('Show the schedule locked', setupStart);
 assert.ok(setupStart > 0 && setupEnd > setupStart, 'could not locate setupUnblockMethods');

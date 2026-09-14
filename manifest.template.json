@@ -10,6 +10,7 @@
     "storage",
     "identity",
     "tabs",
+    "webNavigation",
     "scripting",
     "alarms",
     "history",

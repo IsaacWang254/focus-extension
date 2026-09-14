@@ -161,19 +161,50 @@ const TEMP_UNBLOCK_ALL_KEY = '__all__';
 const BEDTIME_REMINDER_ALARM = 'bedtimeReminder';
 const BEDTIME_REMINDER_NOTIFICATION_ID = 'bedtime-reminder';
 const BEDTIME_REMINDER_LAST_SENT_KEY = 'bedtimeReminderLastSentWindow';
-const BLOCKED_RESOURCE_TYPES = ['main_frame'];
 
 const SITE_INTERVENTION_ALARM = 'siteInterventionCheck';
 const SITE_INTERVENTION_TRACKING_KEY = 'siteInterventionTracking';
 const SITE_INTERVENTION_NOTIFICATION_PREFIX = 'site-intervention';
-const SITE_INTERVENTION_TIME_THRESHOLD_MINUTES = 12;
-const SITE_INTERVENTION_VISIT_THRESHOLD = 6;
-const SITE_INTERVENTION_PROMPT_COOLDOWN_MS = 2 * 60 * 60 * 1000;
-const SITE_INTERVENTION_MAX_PROMPTS_PER_DOMAIN_PER_DAY = 2;
+const SITE_INTERVENTION_TIME_THRESHOLD_MINUTES = 30;
+const SITE_INTERVENTION_PROMPT_COOLDOWN_MS = 4 * 60 * 60 * 1000;
+const SITE_INTERVENTION_MAX_PROMPTS_PER_DOMAIN_PER_DAY = 1;
+const SITE_INTERVENTION_MAX_PROMPTS_PER_DAY = 2;
 const SITE_INTERVENTION_MAX_SECONDS_PER_TICK = 150;
 
 const DISTRACTING_SITE_CATEGORIES = new Set(['socialMedia', 'entertainment', 'gaming', 'forums', 'news', 'shopping']);
 const PRODUCTIVE_SITE_CATEGORIES = new Set(['productivity', 'education', 'email']);
+
+const SITE_INTERVENTION_EXCLUDED_DOMAINS = new Set([
+  'bing.com',
+  'duckduckgo.com',
+  'search.yahoo.com',
+  'search.brave.com',
+  'ecosia.org',
+  'startpage.com'
+]);
+const GOOGLE_DOMAIN_PATTERN = /^google\.(?:[a-z]{2,3}|com\.[a-z]{2}|co\.[a-z]{2})$/;
+
+function isSiteInterventionExcludedDomain(domain) {
+  const normalized = normalizeTrackedDomain(domain);
+  if (!normalized || normalized === 'unknown site') {
+    return true;
+  }
+
+  const parts = normalized.split('.');
+  for (let index = 0; index < parts.length - 1; index += 1) {
+    if (GOOGLE_DOMAIN_PATTERN.test(parts.slice(index).join('.'))) {
+      return true;
+    }
+  }
+
+  for (const excluded of SITE_INTERVENTION_EXCLUDED_DOMAINS) {
+    if (normalized === excluded || normalized.endsWith(`.${excluded}`)) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 function normalizeBlockedPageSettings(blockedPageSettings = {}) {
   return {
@@ -307,9 +338,6 @@ const PROFILE_TEMPLATES = {
     }
   }
 };
-
-// Rule ID counter start (to avoid conflicts)
-const RULE_ID_START = 1000;
 
 // Flag to prevent concurrent rule updates
 let isUpdatingRules = false;
@@ -731,20 +759,21 @@ function getTempUnblockExpiry(tempUnblocks, domain, settings = null, now = Date.
     return domainExpiry;
   }
 
+  for (const [unblockedDomain, expiry] of Object.entries(tempUnblocks)) {
+    if (unblockedDomain === TEMP_UNBLOCK_ALL_KEY || unblockedDomain === domain) {
+      continue;
+    }
+
+    if (domain.endsWith(`.${unblockedDomain}`) && isTempUnblockActive(expiry, now)) {
+      return expiry;
+    }
+  }
+
   if (settings?.unblockAllBlockedSites && wouldBlockDomain(domain, settings)) {
     return getSharedTempUnblockExpiry(tempUnblocks, now);
   }
 
   return null;
-}
-
-function hasGlobalTempUnblock(tempUnblocks, now = Date.now()) {
-  return isTempUnblockActive(tempUnblocks[TEMP_UNBLOCK_ALL_KEY], now);
-}
-
-function hasEffectiveGlobalTempUnblock(tempUnblocks, settings, now = Date.now()) {
-  return hasGlobalTempUnblock(tempUnblocks, now) ||
-    Boolean(settings?.unblockAllBlockedSites && getSharedTempUnblockExpiry(tempUnblocks, now));
 }
 
 function normalizeAllowedUrlInput(url) {
@@ -781,28 +810,6 @@ function normalizeAllowedUrlInput(url) {
     success: true,
     normalizedUrl: `${parsedUrl.origin}${pathSegment}${parsedUrl.search}`
   };
-}
-
-function buildAllowedUrlRegex(url) {
-  const normalizedResult = normalizeAllowedUrlInput(url);
-  if (!normalizedResult.success) {
-    throw new Error(normalizedResult.error);
-  }
-
-  const parsedUrl = new URL(normalizedResult.normalizedUrl);
-  const escapedOrigin = parsedUrl.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const escapedPath = parsedUrl.pathname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const escapedSearch = (parsedUrl.search || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-  if (parsedUrl.pathname === '/' && !parsedUrl.search) {
-    return `^${escapedOrigin}(?:$|[/?#].*)`;
-  }
-
-  if (parsedUrl.search) {
-    return `^${escapedOrigin}${escapedPath}${escapedSearch}(?:#.*)?$`;
-  }
-
-  return `^${escapedOrigin}${escapedPath}(?:$|[/?#].*)`;
 }
 
 function doesAllowedUrlMatch(normalizedTargetUrl, normalizedAllowedUrl) {
@@ -1029,215 +1036,13 @@ async function updateBlockingRules() {
 }
 
 async function applyBlockingRules() {
-  const settings = await getSettings();
-  const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
-  const blockedPageExtensionPath = '/blocked/blocked.html';
-  const escapedBlockedPageUrl = blockedPageUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-  // Get temporary unblocks to exclude from blocking
-  const tempUnblocks = (await chrome.storage.local.get('tempUnblocks')).tempUnblocks || {};
-  const activeUnblocks = new Set();
-
-  // Check if schedule allows unblocks right now
-  const scheduleAllowsUnblock = isInAllowedTimeWindow(settings.schedule);
-
-  // Filter to only active (non-expired) unblocks
-  // BUT only if schedule allows unblocks
-  const now = Date.now();
-  if (scheduleAllowsUnblock) {
-    for (const [domain, expiry] of Object.entries(tempUnblocks)) {
-      if (isTempUnblockActive(expiry, now)) {
-        activeUnblocks.add(domain);
-      }
-    }
-  }
-
-  // Get existing dynamic rules
   const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
-  const existingRuleIds = existingRules.map(rule => rule.id);
-
-  // Build new rules based on mode
-  const newRules = [];
-  let ruleId = RULE_ID_START;
-
-  // During pomodoro breaks, suspend all blocking rules as a reward
-  const onBreak = await isOnFocusBreak();
-
-  // Only build rules if extension is enabled AND not on a focus break
-  // Note: Schedule controls whether unblock methods are available on the blocked page,
-  // not whether blocking happens. Sites are always blocked when schedule is enabled.
-  if (settings.enabled && !onBreak) {
-    // Always allow our own blocked page to avoid self-blocking loops
-    newRules.push({
-      id: ruleId++,
-      priority: 100,
-      action: {
-        type: 'allow'
-      },
-      condition: {
-        regexFilter: `^${escapedBlockedPageUrl}(\\?.*)?$`,
-        resourceTypes: BLOCKED_RESOURCE_TYPES
-      }
-    });
-
-    const hasGlobalUnblock = hasEffectiveGlobalTempUnblock(tempUnblocks, settings, now);
-
-    if (settings.mode === 'blocklist') {
-      // First, add allow rules for whitelisted URLs (higher priority)
-      const allowedUrls = settings.allowedUrls || [];
-      for (const url of allowedUrls) {
-        let allowedUrlRegex;
-        try {
-          allowedUrlRegex = buildAllowedUrlRegex(url);
-        } catch {
-          continue;
-        }
-
-        newRules.push({
-          id: ruleId++,
-          priority: 10, // Higher priority than block rules
-          action: {
-            type: 'allow'
-          },
-          condition: {
-            regexFilter: allowedUrlRegex,
-            resourceTypes: BLOCKED_RESOURCE_TYPES
-          }
-        });
-      }
-
-      // Combine blocked sites with sites from enabled categories
-      if (!hasGlobalUnblock) {
-        // Block specific sites (excluding temporarily unblocked ones)
-        for (const domain of getAllBlockedDomains(settings)) {
-          if (activeUnblocks.has(domain)) {
-            continue;
-          }
-
-          const escapedDomain = domain.replace(/\./g, '\\.');
-
-          newRules.push({
-            id: ruleId++,
-            priority: 1,
-            action: {
-              type: 'redirect',
-              redirect: {
-                regexSubstitution: `${blockedPageUrl}?url=\\0`
-              }
-            },
-            condition: {
-              regexFilter: `^https?://(www\\.)?${escapedDomain}.*`,
-              resourceTypes: BLOCKED_RESOURCE_TYPES
-            }
-          });
-        }
-      }
-
-      // Add keyword blocking rules (if enabled)
-      const keywordSettings = settings.blockedKeywords || { enabled: false, keywords: [] };
-      if (!hasGlobalUnblock && keywordSettings.enabled && keywordSettings.keywords.length > 0) {
-        for (const keywordObj of keywordSettings.keywords) {
-          // Escape special regex characters in the keyword
-          const escapedKeyword = keywordObj.keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-          // Build regex pattern - case insensitive by default
-          const flags = keywordObj.caseSensitive ? '' : '(?i)';
-
-          newRules.push({
-            id: ruleId++,
-            priority: 1,
-            action: {
-              type: 'redirect',
-              redirect: {
-                regexSubstitution: `${blockedPageUrl}?url=\\0`
-              }
-            },
-            condition: {
-              regexFilter: `^https?://.*${escapedKeyword}.*`,
-              isUrlFilterCaseSensitive: keywordObj.caseSensitive || false,
-              resourceTypes: BLOCKED_RESOURCE_TYPES
-            }
-          });
-        }
-      }
-    } else {
-      // Allowlist mode - block everything except allowed sites
-      // Combine allowedSites with temporarily unblocked sites
-      const allAllowedDomains = new Set([
-        ...settings.allowedSites.map(extractDomain),
-        ...[...activeUnblocks].filter((domain) => domain !== TEMP_UNBLOCK_ALL_KEY)
-      ]);
-
-      if (!hasGlobalUnblock) {
-        // First, add a rule to block all sites
-        newRules.push({
-          id: ruleId++,
-          priority: 1,
-          action: {
-            type: 'redirect',
-            redirect: {
-              regexSubstitution: `${blockedPageUrl}?url=\\0`
-            }
-          },
-          condition: {
-            regexFilter: '^https?://.*',
-            resourceTypes: ['main_frame'],
-            excludedInitiatorDomains: ['chrome-extension']
-          }
-        });
-
-        // Add exceptions for allowed sites (higher priority)
-        for (const domain of allAllowedDomains) {
-          newRules.push({
-            id: ruleId++,
-            priority: 2,
-            action: {
-              type: 'allow'
-            },
-            condition: {
-              urlFilter: `||${domain}^`,
-              resourceTypes: ['main_frame']
-            }
-          });
-        }
-
-        // Always allow extension pages
-        newRules.push({
-          id: ruleId++,
-          priority: 3,
-          action: {
-            type: 'allow'
-          },
-          condition: {
-            urlFilter: '|chrome-extension://',
-            resourceTypes: ['main_frame']
-          }
-        });
-
-        // Allow chrome:// pages
-        newRules.push({
-          id: ruleId++,
-          priority: 3,
-          action: {
-            type: 'allow'
-          },
-          condition: {
-            urlFilter: '|chrome://',
-            resourceTypes: ['main_frame']
-          }
-        });
-      }
-    }
-  }
-
-  // Remove old rules and add new ones in a single atomic operation
   await chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: existingRuleIds,
-    addRules: newRules
+    removeRuleIds: existingRules.map(rule => rule.id),
+    addRules: []
   });
 
-  console.log(`Updated blocking rules: ${newRules.length} rules active`);
-  console.log('Rules:', JSON.stringify(newRules, null, 2));
+  await redirectTabsThatShouldNowBeBlocked('settings');
 }
 
 /**
@@ -1507,6 +1312,12 @@ async function handleMessage(message, sender) {
 
     case 'IS_URL_WHITELISTED':
       return await isUrlWhitelisted(message.url);
+
+    case 'SHOULD_BLOCK_URL':
+      return await shouldBlockUrl(message.url);
+
+    case 'BLOCKED_PAGE_NAVIGATE':
+      return await navigateFromBlockedPage(message, sender);
 
     // Profile operations
     case 'GET_PROFILES':
@@ -2580,7 +2391,7 @@ function isUrlWhitelistedWithSettings(url, settings) {
 }
 
 async function shouldBlockUrl(url) {
-  if (!url) return false;
+  if (!getHistoryTrackableDomain(url)) return false;
 
   const settings = await getSettings();
   if (!settings.enabled) return false;
@@ -2607,24 +2418,112 @@ async function shouldBlockUrl(url) {
     }
   }
 
-  return wouldBlockDomain(domain, settings);
+  if (wouldBlockDomain(domain, settings)) return true;
+
+  const keywordSettings = settings.blockedKeywords;
+  return settings.mode === 'blocklist' && !!keywordSettings?.enabled &&
+    (keywordSettings.keywords || []).some(({ keyword, caseSensitive }) =>
+      typeof keyword === 'string' && keyword.length > 0 &&
+      (caseSensitive ? url.includes(keyword) : url.toLowerCase().includes(keyword.toLowerCase())));
 }
 
 async function redirectTabIfNeeded(tabId, url, reason = 'navigation') {
-  const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
-  if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
+  if (!getHistoryTrackableDomain(url)) {
     return;
   }
 
-  if (url.startsWith(blockedPageUrl)) {
-    return;
+  const message = { type: 'REEVALUATE_BLOCKING', reason };
+  try {
+    await chrome.tabs.sendMessage(tabId, message, { frameId: 0 });
+  } catch {
+    try {
+      await chrome.scripting.executeScript({ target: { tabId, frameIds: [0] }, files: ['content-redirect.js'] });
+      await chrome.tabs.sendMessage(tabId, message, { frameId: 0 });
+    } catch {
+      console.debug('Focus Extension: tab is unavailable for blocking', tabId);
+    }
+  }
+}
+
+async function navigateFromBlockedPage(message, sender) {
+  if (sender?.id !== chrome.runtime.id) {
+    return { success: false };
   }
 
-  if (await shouldBlockUrl(url)) {
-    await chrome.tabs.update(tabId, {
-      url: `${blockedPageUrl}?url=${encodeURIComponent(url)}&reason=${encodeURIComponent(reason)}`
-    });
+  const tabId = sender.tab?.id;
+  if (!Number.isInteger(tabId) || !(sender.frameId > 0)) {
+    return { success: false };
   }
+
+  let senderUrl;
+  try {
+    senderUrl = new URL(sender.url || '');
+  } catch {
+    return { success: false };
+  }
+
+  const blockedPageUrl = new URL(chrome.runtime.getURL('blocked/blocked.html'));
+  if (senderUrl.protocol !== blockedPageUrl.protocol
+    || senderUrl.host !== blockedPageUrl.host
+    || senderUrl.pathname !== blockedPageUrl.pathname
+    || senderUrl.searchParams.get('embedded') !== '1') {
+    return { success: false };
+  }
+
+  let expectedUrl;
+  try {
+    expectedUrl = new URL(senderUrl.searchParams.get('url') || '').href;
+    const actualUrl = new URL(sender.tab?.url || '').href;
+    if (!expectedUrl || expectedUrl !== actualUrl) {
+      return { success: false };
+    }
+  } catch {
+    return { success: false };
+  }
+
+  if (message.action === 'ready') {
+    const response = await chrome.tabs.sendMessage(
+      tabId,
+      { type: 'BLOCKED_PAGE_READY', blockedUrl: expectedUrl, renderId: senderUrl.searchParams.get('renderId') },
+      { frameId: 0 }
+    );
+    return { success: response?.success === true };
+  }
+
+  if (message.action === 'back') {
+    try {
+      await chrome.tabs.goBack(tabId);
+      return { success: true };
+    } catch {
+      return { success: false };
+    }
+  }
+
+  if (message.action === 'continue') {
+    let targetUrl;
+    try {
+      targetUrl = new URL(message.url || '');
+    } catch {
+      return { success: false };
+    }
+
+    if (targetUrl.protocol !== 'http:' && targetUrl.protocol !== 'https:') {
+      return { success: false };
+    }
+
+    if (await shouldBlockUrl(targetUrl.href)) {
+      return { success: false };
+    }
+
+    const response = await chrome.tabs.sendMessage(
+      tabId,
+      { type: 'CONTINUE_BLOCKED_PAGE', url: targetUrl.href, blockedUrl: expectedUrl },
+      { frameId: 0 }
+    );
+    return { success: response?.success === true };
+  }
+
+  return { success: false };
 }
 
 /**
@@ -2668,6 +2567,18 @@ chrome.webNavigation.onReferenceFragmentUpdated.addListener(async (details) => {
   } catch (e) {
     console.error('Fragment navigation handler error:', e);
   }
+});
+
+chrome.webNavigation.onCommitted.addListener((details) => {
+  if (details.frameId !== 0 || !getHistoryTrackableDomain(details.url)) {
+    return;
+  }
+
+  chrome.tabs.sendMessage(
+    details.tabId,
+    { type: 'REEVALUATE_BLOCKING', reason: 'navigation' },
+    { frameId: 0 }
+  ).catch(() => {});
 });
 
 /**
@@ -2921,15 +2832,12 @@ async function enforceDailyLimit() {
   if (!shouldRedirectAll) {
     try {
       const tabs = await chrome.tabs.query({});
-      const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
 
       for (const tab of tabs) {
         if (tab.url) {
           const tabDomain = extractDomain(tab.url);
           if (domainsToBlock.includes(tabDomain) || domainsToBlock.some(d => tabDomain.endsWith('.' + d))) {
-            await chrome.tabs.update(tab.id, {
-              url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=dailylimit`
-            });
+            await redirectTabIfNeeded(tab.id, tab.url, 'daily-limit');
           }
         }
       }
@@ -3047,19 +2955,18 @@ function formatSiteInterventionUsage(entry) {
 }
 
 async function sendSiteInterventionPrompt({ action, domain, categoryKey, entry }) {
-  const categoryName = SITE_CATEGORIES[categoryKey]?.name || 'that category';
   const usage = formatSiteInterventionUsage(entry);
 
   const isBlockAction = action === 'block';
   const title = isBlockAction
-    ? `Still browsing ${domain}?`
-    : `Lock in on ${domain}?`;
+    ? `Take a break from ${domain}?`
+    : `Focus on ${domain}?`;
   const message = isBlockAction
-    ? `You've already spent ${usage.label} in ${categoryName} today. Want to block it now?`
-    : `You've spent ${usage.label} in ${categoryName} today. Start a focus session?`;
+    ? `You've spent ${usage.minutes} minutes here today. Block this site for fewer distractions?`
+    : `You've spent ${usage.minutes} minutes here today. Start a focus session?`;
   const buttons = isBlockAction
-    ? [{ title: 'Block this site' }, { title: 'Not now' }]
-    : [{ title: 'Start focus session' }, { title: 'Not now' }];
+    ? [{ title: 'Block this site' }, { title: 'Not today' }]
+    : [{ title: 'Start focus session' }, { title: 'Not today' }];
 
   const notificationId = buildSiteInterventionNotificationId(action, domain);
 
@@ -3068,18 +2975,22 @@ async function sendSiteInterventionPrompt({ action, domain, categoryKey, entry }
     iconUrl: 'icons/icon128.png',
     title,
     message,
-    priority: 2,
-    requireInteraction: true,
+    priority: 0,
+    requireInteraction: false,
+    silent: true,
     buttons
   });
 }
 
 async function maybePromptForSiteIntervention({ domain, tab, settings, tracking, now }) {
+  if (isSiteInterventionExcludedDomain(domain)) {
+    return false;
+  }
+
   const domainState = ensureSiteInterventionDomainState(tracking, domain);
   const minutesSpent = (domainState.seconds || 0) / 60;
-  const visitCount = domainState.visits || 0;
 
-  if (minutesSpent < SITE_INTERVENTION_TIME_THRESHOLD_MINUTES && visitCount < SITE_INTERVENTION_VISIT_THRESHOLD) {
+  if (minutesSpent < SITE_INTERVENTION_TIME_THRESHOLD_MINUTES) {
     return false;
   }
 
@@ -3087,7 +2998,24 @@ async function maybePromptForSiteIntervention({ domain, tab, settings, tracking,
     return false;
   }
 
-  if (domainState.lastPromptAt && (now - domainState.lastPromptAt) < SITE_INTERVENTION_PROMPT_COOLDOWN_MS) {
+  const domainStates = Object.values(tracking.domains || {});
+  const promptsToday = domainStates.reduce((total, state) => total + (state.promptCount || 0), 0);
+  if (promptsToday >= SITE_INTERVENTION_MAX_PROMPTS_PER_DAY) {
+    return false;
+  }
+
+  const lastPromptAt = domainStates.reduce((latest, state) => Math.max(latest, state.lastPromptAt || 0), 0);
+  if (lastPromptAt && (now - lastPromptAt) < SITE_INTERVENTION_PROMPT_COOLDOWN_MS) {
+    return false;
+  }
+
+  if (isUrlWhitelistedWithSettings(tab?.url || '', settings)
+    || doesDomainMatchAny(domain, (settings.allowedSites || []).map(extractDomain))) {
+    return false;
+  }
+
+  const focusSession = await getFocusSession();
+  if (focusSession.active || await isOnFocusBreak()) {
     return false;
   }
 
@@ -3103,6 +3031,10 @@ async function maybePromptForSiteIntervention({ domain, tab, settings, tracking,
     overrides,
     suggestions
   });
+
+  if (categoryContext.source !== 'built-in' && categoryContext.source !== 'override') {
+    return false;
+  }
 
   const categoryKey = categoryContext.category;
   const action = getSiteInterventionActionForCategory(categoryKey);
@@ -3121,13 +3053,6 @@ async function maybePromptForSiteIntervention({ domain, tab, settings, tracking,
     }
   }
 
-  if (action === 'focus') {
-    const focusSession = await getFocusSession();
-    if (focusSession.active) {
-      return false;
-    }
-  }
-
   await sendSiteInterventionPrompt({ action, domain, categoryKey, entry: domainState });
 
   domainState.promptCount = (domainState.promptCount || 0) + 1;
@@ -3142,15 +3067,6 @@ async function applySiteInterventionAction({ action, domain }) {
     await addBlockedSite(domain);
     await updateBlockingRules();
     await redirectMatchingDomainTabsIfNeeded([domain], 'intervention-block');
-
-    await chrome.notifications.create(`site-intervention-feedback-${Date.now()}`, {
-      type: 'basic',
-      iconUrl: 'icons/icon128.png',
-      title: 'Site blocked',
-      message: `${domain} was added to your blocklist.`,
-      priority: 1
-    });
-
     return;
   }
 
@@ -4970,7 +4886,6 @@ async function activateNuclearMode(minutes) {
         await redirectTabsThatShouldNowBeBlocked('nuclear');
       } else {
         const tabs = await chrome.tabs.query({});
-        const blockedPageUrl = chrome.runtime.getURL('blocked/blocked.html');
         const settings = await getSettings();
 
         for (const tab of tabs) {
@@ -4982,9 +4897,7 @@ async function activateNuclearMode(minutes) {
             });
 
             if (isBlockedSite) {
-              await chrome.tabs.update(tab.id, {
-                url: `${blockedPageUrl}?url=${encodeURIComponent(tab.url)}&reason=nuclear`
-              });
+              await redirectTabIfNeeded(tab.id, tab.url, 'nuclear');
             }
           }
         }

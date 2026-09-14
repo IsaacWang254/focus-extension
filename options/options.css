@@ -45,7 +45,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 18px 16px 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   margin-bottom: 8px;
 }
 
@@ -312,7 +312,7 @@ body.embedded-popup .settings-page:not(.active) {
 /* Sub-rows inside a settings block: flat hairline list. */
 .newtab-settings-group > .setting-row {
   padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
 }
 
 .newtab-settings-group > .setting-row:last-child {
@@ -646,7 +646,7 @@ textarea.input:focus {
 /* Section heading pattern: title, hairline rule, then intro text. */
 .section > h2 {
   padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   margin-bottom: var(--space-3);
 }
 
@@ -662,7 +662,7 @@ textarea.input:focus {
   height: 0;
   margin: 0;
   border: 0;
-  border-top: 1px solid var(--border);
+  border-top: 0;
 }
 
 /* The header hairline lives under the h2; content after the intro text only
@@ -712,7 +712,7 @@ textarea.input:focus {
 ) {
   margin-top: var(--space-4);
   padding-top: var(--space-4);
-  border-top: 1px solid var(--border);
+  border-top: 0;
 }
 
 .privacy-note {
@@ -789,7 +789,7 @@ textarea.input:focus {
   justify-content: space-between;
   gap: var(--space-3);
   padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   margin-bottom: var(--space-4);
 }
 
@@ -925,7 +925,7 @@ textarea.input:focus {
   padding: 10px 0;
   background-color: transparent;
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   border-radius: 0;
 }
 
@@ -1077,11 +1077,11 @@ textarea.input:focus {
 
 .method-setting {
   padding: var(--space-4) 0 var(--space-5);
-  border-bottom: none;
+  border-bottom: 0;
 }
 
 .method-setting + .method-setting {
-  border-top: 1px solid var(--border);
+  border-top: 0;
 }
 
 .method-setting:first-child {
@@ -1193,7 +1193,7 @@ textarea.input:focus {
   padding: var(--space-3) 0 0;
   background-color: transparent;
   border: 0;
-  border-top: 1px solid var(--border);
+  border-top: 0;
   border-radius: 0;
 }
 
@@ -1266,7 +1266,7 @@ textarea.input:focus {
   padding: var(--space-3) 0 0;
   margin-top: var(--space-3);
   background-color: transparent;
-  border-top: 1px solid var(--border);
+  border-top: 0;
   border-radius: 0;
   font-size: 0.875rem;
 }
@@ -1344,7 +1344,7 @@ textarea.input:focus {
   margin-top: var(--space-3);
   padding: var(--space-3) 0 0;
   background-color: transparent;
-  border-top: 1px solid var(--border);
+  border-top: 0;
   border-radius: 0;
 }
 
@@ -1368,7 +1368,7 @@ textarea.input:focus {
   padding: var(--space-2) 0;
   background-color: transparent;
   border-radius: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
 }
 
 .reason-item:last-child {
@@ -1415,7 +1415,7 @@ textarea.input:focus {
   gap: var(--space-3);
   padding: var(--space-2) 0;
   font-size: 0.8125rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
 }
 
 .category-stat:last-child {
@@ -1486,7 +1486,7 @@ textarea.input:focus {
   padding: var(--space-4) 0;
   background-color: transparent;
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   border-radius: 0;
 }
 
@@ -1739,7 +1739,7 @@ textarea.input:focus {
   padding: var(--space-2) 0;
   background-color: transparent;
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   border-radius: 0;
   font-size: 0.875rem;
 }
@@ -1828,7 +1828,7 @@ textarea.input:focus {
   padding: var(--space-3) 0;
   background-color: transparent;
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   border-radius: 0;
 }
 
@@ -1962,7 +1962,7 @@ textarea.input:focus {
   gap: var(--space-3);
   margin-bottom: var(--space-4);
   padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
 }
 
 .preset-card-icon {
@@ -2118,7 +2118,7 @@ textarea.input:focus {
   padding: var(--space-2) 0;
   background-color: transparent;
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   border-radius: 0;
 }
 
@@ -2271,7 +2271,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   flex-direction: column;
   gap: var(--space-3);
   padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
+  border-top: 0;
 }
 
 .btn-nuclear {
@@ -2599,7 +2599,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 .profile-modal-section {
   margin-top: var(--space-4);
   padding-top: var(--space-4);
-  border-top: 1px solid var(--border);
+  border-top: 0;
 }
 
 .profile-modal-section h4 {
@@ -2678,7 +2678,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .profile-unblock-methods > .setting-row {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
 }
 
 .profile-unblock-methods > .setting-row:last-child {
@@ -3290,7 +3290,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   padding: var(--space-2) 0;
   background-color: transparent;
   border-radius: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   cursor: pointer;
   transition: background-color var(--transition-fast);
 }
@@ -3354,7 +3354,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
 .keyword-tags-group + .keyword-tags-group {
   padding-top: var(--space-4);
-  border-top: 1px solid var(--border);
+  border-top: 0;
 }
 
 .keyword-tags-header {
@@ -3481,7 +3481,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   padding: var(--space-2) 0;
   background-color: transparent;
   border-radius: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
 }
 
 .profile-mapping-item:last-child {
@@ -3834,7 +3834,7 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
 }
 
 .spotlight-icon {

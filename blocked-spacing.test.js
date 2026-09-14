@@ -43,8 +43,8 @@ assert.match(layoutRule[1], /display:\s*grid/, 'blocked layout is a grid');
 assert.match(layoutRule[1], /grid-template-columns:\s*minmax\(0,\s*1fr\)/, 'blocked layout stacks by default');
 assert.match(layoutRule[1], /row-gap:\s*var\(--modernist-panel-row-gap\)/, 'blocked layout shares the row gap');
 assert.match(layoutRule[1], /column-gap:\s*0/, 'blocked layout has no dead intercolumn gap');
-assert.match(layoutRule[1], /padding-top:\s*0/, 'divider reaches the header hairline');
-assert.match(layoutRule[1], /align-items:\s*stretch/, 'columns stretch so the divider spans the taller side');
+assert.match(layoutRule[1], /padding-top:\s*0/, 'layout column sits flush with the header');
+assert.match(layoutRule[1], /align-items:\s*stretch/, 'columns stretch to span the taller side');
 assert.doesNotMatch(layoutRule[1], /max-width|height:\s*|overflow/, 'blocked layout has no width cap or clipping');
 
 assert.match(
@@ -54,7 +54,7 @@ assert.match(
 );
 const unblockRule = css.match(/html\[data-design="modernist"\] \[data-surface="blocked"\] \.unblock-col \{\n([^}]*)\}/);
 assert.ok(unblockRule, 'blocked unblock-col default rule exists');
-assert.match(unblockRule[1], /border-top:\s*1px solid var\(--border\)/, 'stacked rail gets a top divider');
+assert.match(unblockRule[1], /border-top:\s*0/, 'stacked rail separates with spacing, not a horizontal rule');
 assert.match(unblockRule[1], /border-left:\s*0/, 'stacked rail has no side divider');
 assert.match(unblockRule[1], /padding:\s*var\(--modernist-panel-pad\) 0 0/, 'stacked rail pads top only');
 assert.match(unblockRule[1], /margin-top:\s*0/, 'stacked rail margin cleared');
@@ -64,7 +64,7 @@ assert.ok(media1024, '1024px blocked columns media exists');
 assert.match(media1024[1], /\.layout\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s, 'blocked splits into two equal tracks at 1024');
 assert.match(media1024[1], /\.work-col\s*\{[^}]*padding-right:\s*var\(--modernist-rail-pad\)/s, 'work column gets balanced right padding');
 const unblock1024 = media1024[1].match(/\.unblock-col\s*\{([^}]*)\}/);
-assert.match(unblock1024[1], /border-top:\s*0/, 'rail top divider drops at 1024');
+assert.match(unblock1024[1], /border-top:\s*0/, 'rail gains its side rule only at 1024');
 assert.match(unblock1024[1], /border-left:\s*1px solid var\(--border\)/, 'rail side divider appears at 1024');
 assert.match(unblock1024[1], /padding-left:\s*var\(--modernist-rail-pad\)/, 'rail left padding matches work right padding');
 
@@ -79,13 +79,13 @@ assert.match(mobileBlock, /\[data-surface="blocked"\]\s+\.section-header\s+h2\s*
 
 assert.match(
   css,
-  /\[data-surface="blocked"\]\s+\.header\s*\{[^}]*margin-bottom:\s*0[^}]*border-bottom:\s*1px solid var\(--foreground\)/s,
-  'blocked header keeps the masthead hairline'
+  /\[data-surface="blocked"\]\s+\.header\s*\{[^}]*margin-bottom:\s*0[^}]*border-bottom:\s*0/s,
+  'blocked header separates with whitespace'
 );
 assert.match(
   css,
-  /\[data-surface="blocked"\]\s+\.header-top\s*\{[^}]*border-bottom:\s*1px solid var\(--foreground\)/s,
-  'blocked header-top gains the masthead divider'
+  /\[data-surface="blocked"\]\s+\.header-top\s*\{[^}]*border-bottom:\s*0/s,
+  'blocked header-top separates with whitespace'
 );
 assert.match(
   css,

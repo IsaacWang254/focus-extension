@@ -16,6 +16,12 @@ const rulesSlice = sliceBetween(
   '/**\n * Handle messages from other parts'
 );
 
+const tabsSlice = [
+  sliceBetween('function getHistoryTrackableDomain', '/**\n * Check if current time'),
+  sliceBetween('async function redirectTabsThatShouldNowBeBlocked', 'function getOriginalUrlFromBlockedPage'),
+  sliceBetween('async function redirectTabIfNeeded', '/**\n * Handle tab activation')
+].join('\n');
+
 const incrementSlice = sliceBetween(
   'async function incrementBlockAttempts',
   '/**\n * Check blocking-related achievements'
@@ -31,32 +37,20 @@ async function flush(times = 8) {
   for (let i = 0; i < times; i++) await tick();
 }
 
-function makeRulesHarness({ settings, tempUnblocks = {}, ...extras } = {}) {
-  const store = { tempUnblocks };
+function makeRulesHarness({ existingRules = [], reevaluateCalls = [], ...extras } = {}) {
   const dnr = { pending: [], applied: [], active: 0, maxActive: 0 };
 
   const context = vm.createContext({
     ...extras,
-    console: { log() {}, error() {}, warn() {} },
+    console: { log() {}, error() {}, warn() {}, debug() {} },
     isUpdatingRules: false,
     pendingUpdate: false,
     ruleUpdatePromise: null,
-    RULE_ID_START: 1000,
-    BLOCKED_RESOURCE_TYPES: ['main_frame'],
-    TEMP_UNBLOCK_ALL_KEY: '__all__',
-    getSettings: async () => settings,
-    getAllBlockedDomains: (s) => s.blockedSites || [],
-    extractDomain: (d) => d,
-    isInAllowedTimeWindow: () => true,
-    isTempUnblockActive: (expiry, now) => expiry > now,
-    hasEffectiveGlobalTempUnblock: () => false,
-    isOnFocusBreak: async () => false,
-    buildAllowedUrlRegex: (url) => `^${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+    redirectTabsThatShouldNowBeBlocked: async (reason) => { reevaluateCalls.push(reason); },
     chrome: {
       runtime: { getURL: (p) => `chrome-extension://test/${p}` },
-      storage: { local: { get: async (k) => ({ [k]: store[k] }), set: async (o) => Object.assign(store, o) } },
       declarativeNetRequest: {
-        getDynamicRules: async () => [],
+        getDynamicRules: async () => existingRules,
         updateDynamicRules(args) {
           dnr.active += 1;
           dnr.maxActive = Math.max(dnr.maxActive, dnr.active);
@@ -73,28 +67,18 @@ function makeRulesHarness({ settings, tempUnblocks = {}, ...extras } = {}) {
   });
 
   vm.runInContext(rulesSlice, context);
-  return { context, store, dnr };
+  return { context, dnr, reevaluateCalls };
 }
 
-const blocklistSettings = (overrides = {}) => ({
-  enabled: true,
-  mode: 'blocklist',
-  blockedSites: ['x.example'],
-  allowedUrls: [],
-  blockedKeywords: { enabled: false, keywords: [] },
-  allowedSites: [],
-  schedule: { enabled: false },
-  ...overrides
-});
-
 {
-  const { context, store, dnr } = makeRulesHarness({ settings: blocklistSettings() });
+  const { context, dnr, reevaluateCalls } = makeRulesHarness({
+    existingRules: [{ id: 1000 }, { id: 1001 }]
+  });
 
   const p1 = context.updateBlockingRules();
   await flush();
   assert.equal(dnr.pending.length, 1, 'first pass issues one DNR update');
 
-  store.tempUnblocks = { 'x.example': Date.now() + 60000 };
   const p2 = context.updateBlockingRules();
   assert.equal(typeof p2?.then, 'function', 'concurrent update must return the in-flight promise');
 
@@ -112,15 +96,14 @@ const blocklistSettings = (overrides = {}) => ({
   await p1;
   await p2;
 
-  const finalRules = dnr.applied.at(-1).addRules;
-  assert.ok(
-    !finalRules.some((r) => (r.condition.regexFilter || '').includes('x\\.example')),
-    'final rules must exclude the temporarily unblocked domain'
-  );
+  const finalUpdate = dnr.applied.at(-1);
+  assert.equal(finalUpdate.addRules.length, 0, 'no redirect rules are ever added');
+  assert.deepEqual([...finalUpdate.removeRuleIds], [1000, 1001], 'legacy dynamic rules are removed');
+  assert.deepEqual(reevaluateCalls, ['settings', 'settings'], 'each pass reevaluates open tabs');
 }
 
 {
-  const { context } = makeRulesHarness({ settings: blocklistSettings(), queueMicrotask });
+  const { context } = makeRulesHarness({ queueMicrotask });
   let applied = 0;
   let second;
   context.bump = () => { applied += 1; };
@@ -144,7 +127,7 @@ const blocklistSettings = (overrides = {}) => ({
 }
 
 {
-  const { context, dnr } = makeRulesHarness({ settings: blocklistSettings() });
+  const { context, dnr } = makeRulesHarness();
 
   const p1 = context.updateBlockingRules();
   await flush();
@@ -174,7 +157,7 @@ const blocklistSettings = (overrides = {}) => ({
 }
 
 {
-  const { context, dnr } = makeRulesHarness({ settings: blocklistSettings() });
+  const { context, dnr } = makeRulesHarness();
 
   const p1 = context.updateBlockingRules();
   await flush();
@@ -196,44 +179,100 @@ const blocklistSettings = (overrides = {}) => ({
 }
 
 {
-  const { context, dnr } = makeRulesHarness({ settings: blocklistSettings() });
-  const p = context.updateBlockingRules();
-  await flush();
-  dnr.pending.shift().resolve();
-  await p;
-
-  const rules = dnr.applied.at(-1).addRules;
-  assert.ok(
-    rules.some((r) => r.action.type === 'allow' && r.condition.regexFilter.includes('blocked/blocked\\.html')),
-    'blocklist mode still allows the blocked page itself'
-  );
-  assert.ok(
-    rules.some((r) =>
-      r.action.type === 'redirect'
-      && r.condition.regexFilter === '^https?://(www\\.)?x\\.example.*'
-      && r.action.redirect.regexSubstitution.includes('?url=')),
-    'blocklist mode still redirects the blocked domain to the blocked page'
-  );
-}
-
-{
-  const { context, dnr } = makeRulesHarness({
-    settings: blocklistSettings({ mode: 'allowlist', allowedSites: ['ok.example'] })
+  const { context, dnr, reevaluateCalls } = makeRulesHarness({
+    existingRules: [{ id: 7 }, { id: 9 }]
   });
   const p = context.updateBlockingRules();
   await flush();
   dnr.pending.shift().resolve();
   await p;
 
-  const rules = dnr.applied.at(-1).addRules;
-  assert.ok(
-    rules.some((r) => r.action.type === 'redirect' && r.condition.regexFilter === '^https?://.*'),
-    'allowlist mode still blocks everything'
-  );
-  assert.ok(
-    rules.some((r) => r.action.type === 'allow' && r.condition.urlFilter === '||ok.example^'),
-    'allowlist mode still allows the allowed domain'
-  );
+  assert.equal(dnr.applied.length, 1, 'exactly one DNR write per pass');
+  assert.equal(dnr.applied[0].addRules.length, 0, 'applyBlockingRules never adds redirect rules');
+  assert.deepEqual([...dnr.applied[0].removeRuleIds], [7, 9], 'all legacy dynamic rules are cleared');
+  assert.deepEqual(reevaluateCalls, ['settings'], 'tabs are asked to reevaluate after cleanup');
+}
+
+function makeTabsHarness({ tabs, failFirstSend = false, failInjection = false } = {}) {
+  const sent = [];
+  const injected = [];
+  const debugs = [];
+
+  const context = vm.createContext({
+    console: { log() {}, error() {}, warn() {}, debug: (...a) => debugs.push(a) },
+    URL,
+    shouldBlockUrl: async () => true,
+    chrome: {
+      runtime: { getURL: (p) => `chrome-extension://test/${p}` },
+      tabs: {
+        query: async () => tabs,
+        async sendMessage(tabId, message, options) {
+          sent.push({ tabId, message, options });
+          if (failFirstSend && sent.length === 1) {
+            throw new Error('no content script');
+          }
+          if (failInjection) {
+            throw new Error('no content script');
+          }
+          return true;
+        }
+      },
+      scripting: {
+        async executeScript(details) {
+          injected.push(details);
+          if (failInjection) {
+            throw new Error('cannot inject');
+          }
+        }
+      }
+    }
+  });
+
+  vm.runInContext(tabsSlice, context);
+  return { context, sent, injected, debugs };
+}
+
+{
+  const { context, sent } = makeTabsHarness({
+    tabs: [
+      { id: 1, url: 'https://x.example/feed' },
+      { id: 2, url: 'chrome://extensions' },
+      { id: 3, url: 'chrome-extension://test/blocked/blocked.html' },
+      { id: 4, url: 'https://ok.example/' }
+    ]
+  });
+
+  await context.redirectTabsThatShouldNowBeBlocked('expired');
+  const targets = sent.map((s) => s.tabId).sort();
+  assert.deepEqual(targets, [1, 4], 'only http(s) tabs are reevaluated');
+  assert.ok(sent.every((s) => s.message.type === 'REEVALUATE_BLOCKING'), 'tabs get a reevaluate nudge');
+  assert.ok(sent.every((s) => s.message.reason === 'expired'), 'reason is forwarded');
+  assert.ok(sent.every((s) => s.options.frameId === 0), 'nudge targets the top frame only');
+}
+
+{
+  const { context, sent, injected } = makeTabsHarness({
+    tabs: [{ id: 5, url: 'https://x.example/' }],
+    failFirstSend: true
+  });
+
+  await context.redirectTabsThatShouldNowBeBlocked('settings');
+  assert.equal(injected.length, 1, 'content script is injected when no listener answers');
+  assert.equal(injected[0].target.tabId, 5);
+  assert.deepEqual([...injected[0].files], ['content-redirect.js']);
+  assert.equal(sent.length, 2, 'the reevaluate nudge is retried after injection');
+}
+
+{
+  const { context, sent, injected, debugs } = makeTabsHarness({
+    tabs: [{ id: 6, url: 'https://x.example/' }],
+    failInjection: true
+  });
+
+  await context.redirectTabsThatShouldNowBeBlocked('settings');
+  assert.equal(injected.length, 1);
+  assert.equal(sent.length, 1, 'no retry loop when the tab cannot take the script');
+  assert.equal(debugs.length, 1, 'unavailable tabs are logged at debug level');
 }
 
 {

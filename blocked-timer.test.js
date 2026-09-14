@@ -28,6 +28,8 @@ const clickSlice = sliceBetween(
   'const whitelistButton'
 );
 
+const navigateSlice = sliceBetween('function isInPageBlocker', 'function getExactWhitelistTargetUrl');
+
 function makeEl(id = '') {
   const el = {
     id,
@@ -112,7 +114,7 @@ function makeHarness({ hidden = false, focused = true } = {}) {
   methodTimer.appendChild(Object.assign(makeEl('method-content'), { className: 'method-content' }));
 
   const windowObj = {
-    location: { href: '', replace() {} },
+    location: { href: '', search: '', replace(u) { this.href = u; } },
     addEventListener(type, fn) {
       const list = (windowListeners[type] ||= []);
       if (!list.includes(fn)) list.push(fn);
@@ -123,6 +125,7 @@ function makeHarness({ hidden = false, focused = true } = {}) {
       if (i >= 0) list.splice(i, 1);
     }
   };
+  windowObj.top = windowObj;
 
   let now = 0;
   const timers = [];
@@ -142,6 +145,8 @@ function makeHarness({ hidden = false, focused = true } = {}) {
     console,
     document,
     window: windowObj,
+    URL,
+    URLSearchParams,
     performance: { now: () => now },
     setTimeout: (fn, ms) => pushTimer(fn, ms, null),
     clearTimeout: clearTimer,
@@ -529,7 +534,7 @@ function makeClickHarness(sendMessage) {
   }
   ctx.chrome = { runtime: { sendMessage } };
   ctx.unblockButton = h.document.getElementById('unblock-button');
-  h.eval(clickSlice);
+  h.eval(navigateSlice + '\n' + clickSlice);
   return { h, ctx };
 }
 
@@ -589,6 +594,39 @@ for (const [label, result] of [
   assert.deepEqual(ctx._shown, ['showNuclearModeActive'], 'nuclear branch still renders');
   assert.equal(h.window.location.href, '', 'nuclear branch must not navigate');
   assert.equal(ctx.unblockButton.dataset.navigating, 'false');
+}
+
+{
+  const sent = [];
+  const { h, ctx } = makeClickHarness(async (msg) => {
+    sent.push(msg);
+    if (msg.type === 'TEMPORARY_UNBLOCK') return { success: true };
+    if (msg.type === 'BLOCKED_PAGE_NAVIGATE') return { success: true };
+    return {};
+  });
+  h.window.top = {};
+  h.window.location.search = '?embedded=1';
+  await ctx.unblockButton.listeners.click[0]();
+  const nav = sent.find((m) => m.type === 'BLOCKED_PAGE_NAVIGATE');
+  assert.ok(nav, 'embedded continue must go through the runtime bridge');
+  assert.equal(nav.type, 'BLOCKED_PAGE_NAVIGATE');
+  assert.equal(nav.action, 'continue');
+  assert.equal(nav.url, 'https://x.example/');
+  assert.equal(h.window.location.href, '', 'embedded continue must never navigate the iframe itself');
+  assert.equal(ctx.unblockButton.dataset.navigating, 'true', 'embedded continue keeps the button held');
+}
+
+{
+  const { h, ctx } = makeClickHarness(async (msg) => (
+    msg.type === 'TEMPORARY_UNBLOCK' ? { success: true } : { success: false }
+  ));
+  h.window.top = {};
+  h.window.location.search = '?embedded=1';
+  await assert.rejects(() => ctx.continueToBlockedTarget('https://x.example/'),
+    /Unable to continue/, 'a false bridge result surfaces as a rejection');
+  await ctx.unblockButton.listeners.click[0]();
+  assert.equal(h.window.location.href, '', 'a refused bridge continue must not navigate the iframe');
+  assert.equal(ctx.unblockButton.dataset.navigating, 'false', 'button restored after bridge refusal');
 }
 
 console.log('blocked timer tests passed');

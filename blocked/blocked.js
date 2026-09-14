@@ -292,6 +292,31 @@ function getBlockedPageTargetUrl() {
     : `https://${blockedDomain}`;
 }
 
+function isInPageBlocker() {
+  return window.top !== window && new URLSearchParams(window.location.search).get('embedded') === '1';
+}
+
+async function continueToBlockedTarget(targetUrl) {
+  if (isInPageBlocker()) {
+    const result = await chrome.runtime.sendMessage({ type: 'BLOCKED_PAGE_NAVIGATE', action: 'continue', url: targetUrl });
+    if (!result?.success) {
+      throw new Error('Unable to continue to site');
+    }
+    return;
+  }
+
+  window.location.replace(targetUrl);
+}
+
+function notifyInPageBlockerReady() {
+  if (!isInPageBlocker()) {
+    return;
+  }
+
+  chrome.runtime.sendMessage({ type: 'BLOCKED_PAGE_NAVIGATE', action: 'ready' })
+    .catch(() => {});
+}
+
 function getExactWhitelistTargetUrl() {
   return originalUrl.startsWith('http') ? originalUrl : '';
 }
@@ -519,6 +544,18 @@ async function whitelistExactLink(targetUrl, reason) {
 }
 
 async function redirectIfAlreadyTemporarilyUnblocked() {
+  const targetUrl = getBlockedPageTargetUrl();
+
+  if (isInPageBlocker()) {
+    const stillBlocked = await chrome.runtime.sendMessage({ type: 'SHOULD_BLOCK_URL', url: targetUrl });
+    if (stillBlocked !== false) {
+      return false;
+    }
+
+    await continueToBlockedTarget(targetUrl);
+    return true;
+  }
+
   const sessions = await chrome.runtime.sendMessage({ type: 'GET_TEMP_UNBLOCKS' });
   if (!Array.isArray(sessions) || sessions.length === 0) {
     return false;
@@ -537,7 +574,7 @@ async function redirectIfAlreadyTemporarilyUnblocked() {
     return false;
   }
 
-  window.location.replace(getBlockedPageTargetUrl());
+  await continueToBlockedTarget(targetUrl);
   return true;
 }
 
@@ -556,7 +593,7 @@ async function redirectIfUrlIsWhitelisted() {
     return false;
   }
 
-  window.location.replace(targetUrl);
+  await continueToBlockedTarget(targetUrl);
   return true;
 }
 
@@ -653,6 +690,7 @@ function updateThemeToggleIcon(themeValue = document.documentElement.getAttribut
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
+  notifyInPageBlockerReady();
   try {
     // Initialize SVG icons first
     initializeIcons();
@@ -2448,8 +2486,21 @@ function setupEventListeners() {
   document.getElementById('retry-button').addEventListener('click', loadTodos);
 
   // Go back
-  document.getElementById('go-back').addEventListener('click', (e) => {
+  document.getElementById('go-back').addEventListener('click', async (e) => {
     e.preventDefault();
+
+    if (isInPageBlocker()) {
+      try {
+        const result = await chrome.runtime.sendMessage({ type: 'BLOCKED_PAGE_NAVIGATE', action: 'back' });
+        if (!result?.success) {
+          console.warn('Focus Extension: no earlier history entry to return to');
+        }
+      } catch (error) {
+        console.warn('Focus Extension: could not navigate back', error);
+      }
+      return;
+    }
+
     history.back();
   });
 
@@ -2615,7 +2666,7 @@ function setupEventListeners() {
     // Prevent double-clicks
     if (unblockButton.dataset.navigating === 'true') return;
     unblockButton.dataset.navigating = 'true';
-    unblockButton.textContent = 'Redirecting...';
+    unblockButton.textContent = 'Opening...';
 
     // Get the selected time limit
     const minutes = getSelectedTimeLimit();
@@ -2667,7 +2718,7 @@ function setupEventListeners() {
       }
 
       // Navigate to the original URL (full URL if available, otherwise just domain)
-      window.location.href = getBlockedPageTargetUrl();
+      await continueToBlockedTarget(getBlockedPageTargetUrl());
     } catch (error) {
       console.error('Failed to unblock:', error);
       unblockButton.dataset.navigating = 'false';
@@ -2714,7 +2765,7 @@ function setupEventListeners() {
 
       whitelistButton.textContent = 'Opening...';
       await new Promise(resolve => setTimeout(resolve, 200));
-      window.location.href = targetUrl;
+      await continueToBlockedTarget(targetUrl);
     } catch (error) {
       console.error('Failed to whitelist exact link:', error);
       whitelistButton.dataset.navigating = 'false';

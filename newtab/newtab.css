@@ -503,8 +503,8 @@ body {
 
 .bedtime-reminder-divider {
   width: 32px;
-  height: 1px;
-  background: var(--border);
+  height: 0;
+  background: transparent;
   margin: 0 auto 20px;
 }
 
@@ -960,11 +960,11 @@ body {
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
 }
 
 .event-item:last-child {
-  border-bottom: none;
+  border-bottom: 0;
 }
 
 .event-color-dot {
@@ -1029,12 +1029,12 @@ body {
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   transition: opacity var(--transition-normal);
 }
 
 .todo-item:last-child {
-  border-bottom: none;
+  border-bottom: 0;
 }
 
 .todo-item.completing {
@@ -1144,7 +1144,7 @@ body {
 /* Subtasks */
 .todo-item.subtask {
   padding-left: 0;
-  border-bottom: none;
+  border-bottom: 0;
 }
 
 .todo-item.subtask .todo-checkbox {
@@ -1205,11 +1205,11 @@ body {
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
 }
 
 .completed-item:last-child {
-  border-bottom: none;
+  border-bottom: 0;
 }
 
 .completed-item-check {
@@ -1516,7 +1516,7 @@ body {
 
   .focus-snapshot-metric + .focus-snapshot-metric {
     border-left: 0;
-    border-top: 1px solid color-mix(in srgb, var(--border) 78%, transparent 22%);
+    border-top: 0;
     padding-left: 0;
     padding-top: 14px;
   }
@@ -1562,7 +1562,7 @@ body {
     grid-column: 1;
     border-left: 0;
     padding-left: 0;
-    border-top: 1px solid var(--border);
+    border-top: 0;
     padding-top: var(--space-4);
     gap: var(--space-6);
   }

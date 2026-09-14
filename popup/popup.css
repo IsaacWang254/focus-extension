@@ -219,7 +219,7 @@ body {
 /* Current site */
 .current-site {
   padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
+  border-top: 0;
 }
 
 .site-row {
@@ -297,7 +297,7 @@ body {
 /* Focus / Pomodoro section */
 .focus-section {
   padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
+  border-top: 0;
 }
 
 .focus-label {
@@ -424,7 +424,7 @@ body {
   align-items: center;
   justify-content: center;
   padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
+  border-top: 0;
   margin-top: auto;
 }
 

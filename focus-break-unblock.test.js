@@ -13,13 +13,31 @@ assert.match(
 assert.match(
   contentSource,
   /IS_ON_FOCUS_BREAK/,
-  'content redirect fallback should ask whether Pomodoro is currently on break'
+  'content script should ask whether Pomodoro is currently on break'
 );
 
 assert.match(
   contentSource,
-  /if \(isOnFocusBreak\) \{[\s\S]*?maybeRunCategoryScan\(settings, currentDomain, currentUrl\)[\s\S]*?return;/,
-  'content redirect fallback should skip blocking while focus session is on break'
+  /type: 'SHOULD_BLOCK_URL'/,
+  'top-level block decisions must defer to the authoritative background check'
+);
+
+assert.match(
+  backgroundSource,
+  /case 'SHOULD_BLOCK_URL':\s*return await shouldBlockUrl\(message\.url\);/,
+  'background should answer block-decision queries from content scripts'
+);
+
+assert.match(
+  backgroundSource,
+  /async function shouldBlockUrl\(url\) \{[\s\S]*?if \(await isOnFocusBreak\(\)\) return false;/,
+  'the shared block decision must release sites while a focus break is running'
+);
+
+assert.match(
+  contentSource,
+  /if \(!hasActiveExtensionContext\(\) \|\| blockedPageHost \|\| isOnFocusBreak\) \{\s*return;\s*\}[\s\S]*?maybeBlockEmbeddedContent/,
+  'embedded media blocking must also pause during a focus break'
 );
 
 assert.match(

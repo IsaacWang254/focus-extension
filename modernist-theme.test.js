@@ -312,8 +312,8 @@ assert.match(
 );
 assert.match(
   modernistCss,
-  /\[data-surface="popup"\]\s+\.header\s*\{[^}]*border-bottom:\s*1px solid var\(--foreground\)/s,
-  'popup header keeps its strong divider'
+  /\[data-surface="popup"\]\s+\.header\s*\{[^}]*border-bottom:\s*0/s,
+  'popup header separates with whitespace, no decorative divider'
 );
 assert.match(
   read('./popup/popup.css'),

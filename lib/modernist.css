@@ -273,7 +273,7 @@ html[data-design="modernist"] [data-surface="newtab"] .modernist-masthead {
   width: 100%;
   flex: 0 0 auto;
   padding: 0 100px 16px 0;
-  border-bottom: 1px solid var(--foreground);
+  border-bottom: 0;
   margin: 0;
 }
 
@@ -354,7 +354,7 @@ html[data-design="modernist"] [data-surface="newtab"] .content-panels {
   margin-top: var(--modernist-row-gap);
   padding-top: var(--modernist-panel-pad);
   column-gap: var(--modernist-column-gap);
-  border-top: 1px solid var(--foreground);
+  border-top: 0;
 }
 
 html[data-design="modernist"] [data-surface="newtab"] .panel-header {padding-bottom: 10px; flex-wrap: wrap;}
@@ -371,7 +371,7 @@ html[data-design="modernist"] [data-surface="newtab"] .focus-snapshot {
   grid-area: snapshot;
   margin: 0;
   padding-top: 12px;
-  border-top: 1px solid var(--border);
+  border-top: 0;
 }
 
 html[data-design="modernist"] [data-surface="newtab"] .focus-snapshot-inline-value {font-size: clamp(1.5rem, 4dvh, 2.25rem);}
@@ -409,7 +409,7 @@ html[data-design="modernist"] [data-surface="blocked"] .work-col {
 html[data-design="modernist"] [data-surface="blocked"] .unblock-col {
   min-width: 0;
   border-left: 0;
-  border-top: 1px solid var(--border);
+  border-top: 0;
   padding: var(--modernist-panel-pad) 0 0;
   margin-top: 0;
 }
@@ -417,13 +417,13 @@ html[data-design="modernist"] [data-surface="blocked"] .unblock-col {
 html[data-design="modernist"] [data-surface="blocked"] .header {
   margin-bottom: 0;
   padding-bottom: calc(2 * var(--modernist-row-gap));
-  border-bottom: 1px solid var(--foreground);
+  border-bottom: 0;
 }
 
 html[data-design="modernist"] [data-surface="blocked"] .header-top {
   margin-bottom: var(--modernist-section-gap);
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--foreground);
+  border-bottom: 0;
 }
 
 html[data-design="modernist"] [data-surface="blocked"] .header-eyebrow {
@@ -530,7 +530,7 @@ html[data-design="modernist"] [data-surface="popup"] .popup {
 
 html[data-design="modernist"] [data-surface="popup"] .header {
   padding-bottom: 14px;
-  border-bottom: 1px solid var(--foreground);
+  border-bottom: 0;
 }
 
 html[data-design="modernist"] [data-surface="popup"] .header h1 {
@@ -578,7 +578,7 @@ html[data-design="modernist"] [data-surface="popup"] .focus-preset-btn {
 
 html[data-design="modernist"] [data-surface="stats"] .header {
   padding: 12px 0 28px;
-  border-bottom: 1px solid var(--foreground);
+  border-bottom: 0;
   align-items: flex-start;
 }
 
@@ -712,7 +712,7 @@ html[data-design="modernist"] [data-surface="stats"] .section-title {
     width: 100%;
     display: flex;
     border-right: 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 0;
     margin-bottom: 24px;
   }
 

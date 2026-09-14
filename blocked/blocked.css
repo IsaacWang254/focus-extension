@@ -5,12 +5,18 @@
 
 @import '../lib/common.css';
 
+html {
+  overflow-y: auto;
+  overscroll-behavior: none;
+}
+
 /* ============================================
    Layout
    ============================================ */
 
 body {
   display: flex;
+  overscroll-behavior: none;
   align-items: flex-start;
   justify-content: flex-start;
   min-height: 100vh;
@@ -277,7 +283,7 @@ body::before {
   justify-content: space-between;
   margin-bottom: var(--space-4);
   padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
 }
 
 .section-header h2 {
@@ -331,13 +337,13 @@ body::before {
   padding: var(--space-3) 0;
   background-color: transparent;
   border: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   position: relative;
   cursor: default;
 }
 
 .todos-list > .todo-item:last-child {
-  border-bottom: none;
+  border-bottom: 0;
 }
 
 .todo-item.completed .todo-checkbox {
@@ -1127,7 +1133,7 @@ body::before {
 .time-limit-section {
   margin-top: var(--space-5);
   padding-top: var(--space-5);
-  border-top: 1px solid var(--border);
+  border-top: 0;
 }
 
 .time-limit-label {
@@ -1227,7 +1233,7 @@ input[type="number"].custom-time-input {
 .whitelist-link-action {
   margin-top: var(--space-5);
   padding-top: var(--space-5);
-  border-top: 1px solid var(--border);
+  border-top: 0;
 }
 
 .whitelist-link-card {
@@ -1466,7 +1472,7 @@ input[type="number"].custom-time-input {
   .unblock-col {
     border-left: 0;
     padding-left: 0;
-    border-top: 1px solid var(--border);
+    border-top: 0;
     padding-top: var(--space-6);
     margin-top: var(--space-8);
   }
