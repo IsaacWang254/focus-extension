@@ -30,7 +30,11 @@ function compile(gl, type, src, label) {
 function buildProgram(gl, fragSrc, label) {
   const vs = compile(gl, gl.VERTEX_SHADER, VERT_SRC, label);
   const fs = compile(gl, gl.FRAGMENT_SHADER, fragSrc, label);
-  if (!vs || !fs) return null;
+  if (!vs || !fs) {
+    if (vs) gl.deleteShader(vs);
+    if (fs) gl.deleteShader(fs);
+    return null;
+  }
 
   const prog = gl.createProgram();
   gl.attachShader(prog, vs);
@@ -77,13 +81,23 @@ export function createGlBackground(canvas, {
   const gl = canvas.getContext('webgl', { antialias: false, premultipliedAlpha: false });
   if (!gl) return null;
 
-  const programs = {
-    normal: buildProgram(gl, fragNormal, `${label} (normal)`),
-    saver: buildProgram(gl, fragSaver, `${label} (saver)`)
-  };
-  if (!programs.normal || !programs.saver) {
-    if (programs.normal) gl.deleteProgram(programs.normal.prog);
-    if (programs.saver) gl.deleteProgram(programs.saver.prog);
+  const programs = { normal: null, saver: null };
+
+  function getProgram(name) {
+    if (!programs[name]) {
+      programs[name] = buildProgram(
+        gl,
+        name === 'saver' ? fragSaver : fragNormal,
+        `${label} (${name})`
+      );
+    }
+    return programs[name];
+  }
+
+  const initialTier = powerSave ? 'saver' : 'normal';
+  if (!getProgram(initialTier)) {
+    const lose = gl.getExtension('WEBGL_lose_context');
+    if (lose) lose.loseContext();
     return null;
   }
 
@@ -99,14 +113,14 @@ export function createGlBackground(canvas, {
     mode: mode | 0,
     speed: 1,
     powerSave: !!powerSave,
-    needsResize: false,
+    needsResize: true,
     // Tracks the last size uploaded to iResolution so the uniform is only
     // re-sent when the canvas actually changed size.
     uploadedW: -1,
     uploadedH: -1
   };
 
-  let active = state.powerSave ? programs.saver : programs.normal;
+  let active = getProgram(state.powerSave ? 'saver' : 'normal');
   let tier = state.powerSave ? tiers.saver : tiers.normal;
 
   function useActiveProgram() {
@@ -146,7 +160,9 @@ export function createGlBackground(canvas, {
     // Resizing and drawing must stay in the same task: assigning canvas.width
     // clears the drawing buffer, so any gap between the two lets the compositor
     // show an empty canvas.
-    resize();
+    if (state.needsResize || state.uploadedW < 0 || state.uploadedH < 0) {
+      resize();
+    }
     if (canvas.width !== state.uploadedW || canvas.height !== state.uploadedH) {
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.uniform2f(active.uRes, canvas.width, canvas.height);
@@ -175,6 +191,8 @@ export function createGlBackground(canvas, {
 
   function start() {
     if (state.running) return;
+    if (document.visibilityState === 'hidden') return;
+    state.needsResize = true;
     state.running = true;
     state.lastTickMs = performance.now();
     state.rafId = requestAnimationFrame(frame);
@@ -203,8 +221,10 @@ export function createGlBackground(canvas, {
   function setBatterySaver(enabled) {
     const next = !!enabled;
     if (next === state.powerSave) return;
+    const program = getProgram(next ? 'saver' : 'normal');
+    if (!program) return;
     state.powerSave = next;
-    active = next ? programs.saver : programs.normal;
+    active = program;
     tier = next ? tiers.saver : tiers.normal;
     useActiveProgram();
     if (state.running) state.lastTickMs = performance.now();
@@ -233,8 +253,8 @@ export function createGlBackground(canvas, {
     window.removeEventListener('resize', onResize);
     document.removeEventListener('visibilitychange', onVisibility);
     gl.deleteBuffer(buf);
-    gl.deleteProgram(programs.normal.prog);
-    gl.deleteProgram(programs.saver.prog);
+    if (programs.normal) gl.deleteProgram(programs.normal.prog);
+    if (programs.saver) gl.deleteProgram(programs.saver.prog);
     // Frees the context immediately rather than waiting for GC, so switching
     // backgrounds cannot pile up contexts against the browser's hard limit.
     const lose = gl.getExtension('WEBGL_lose_context');

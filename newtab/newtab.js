@@ -14,9 +14,8 @@ import {
 } from '../lib/theme.js';
 import { setIconButtonLabel } from '../lib/design-theme.js';
 import { getDailyQuote } from './quotes.js';
-import { initOceanShader } from './ocean-shader.js';
-import { initDitherShader } from './dither-shader.js';
 import { resolveNewtabBackground } from '../lib/newtab-background.js';
+import { getCachedResource, withSharedLock } from '../lib/request-cache.js';
 import { runWhenVisible } from '../lib/when-visible.js';
 
 // =============================================================================
@@ -47,7 +46,12 @@ const DEFAULTS = {
 };
 
 let reminderIntervalId = null;
+let dashboardSettings = { ...DEFAULTS };
 let lastFocusedElement = null;
+
+function isWidgetVisible(key) {
+  return document.visibilityState === 'visible' && dashboardSettings[key] !== false;
+}
 let completedToday = [];
 let allTasks = [];
 let tasksExpanded = false;
@@ -156,8 +160,8 @@ function setupThemeToggle() {
 const SHADER_MODE = { DAY: 2, NIGHT: 1 };
 
 const BACKGROUND_SHADERS = {
-  ocean: { canvasId: 'bg-ocean', init: initOceanShader },
-  dither: { canvasId: 'bg-dither', init: initDitherShader }
+  ocean: { canvasId: 'bg-ocean', load: () => import('./ocean-shader.js').then(module => module.initOceanShader) },
+  dither: { canvasId: 'bg-dither', load: () => import('./dither-shader.js').then(module => module.initDitherShader) }
 };
 
 function getShaderModeForTheme() {
@@ -170,6 +174,9 @@ let backgroundInitFailed = false; // WebGL unavailable or shader failed to build
 let backgroundThemeObserver = null;
 let backgroundBatterySaver = false;
 let backgroundSpeed = 0.8;
+let backgroundGeneration = 0;
+let pendingBackgroundLoad = null;
+let requestedBackgroundKind = 'none';
 
 function prefersReducedMotion() {
   return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -196,26 +203,64 @@ function teardownActiveBackground() {
   hideAllBackgroundCanvases();
 }
 
-function applyBackgroundSetting(kind) {
+async function applyBackgroundSetting(kind) {
+  requestedBackgroundKind = kind;
+  const generation = ++backgroundGeneration;
+  if (pendingBackgroundLoad) {
+    pendingBackgroundLoad();
+    pendingBackgroundLoad = null;
+  }
+
   const shader = BACKGROUND_SHADERS[kind];
   const active = !!shader && !prefersReducedMotion() && !backgroundInitFailed;
 
   document.body.classList.toggle('bg-active', active);
   document.body.classList.toggle('bg-dither-active', active && kind === 'dither');
 
+  if (!active) {
+    teardownActiveBackground();
+    return;
+  }
+
+  if (document.visibilityState === 'hidden') {
+    pendingBackgroundLoad = runWhenVisible(() => {
+      pendingBackgroundLoad = null;
+      applyBackgroundSetting(requestedBackgroundKind);
+    });
+    return;
+  }
+
   if (activeBackground && activeBackground.kind === kind) {
     activeBackground.handle.start();
     return;
   }
 
-  teardownActiveBackground();
-  if (!active) return;
-
   const canvas = document.getElementById(shader.canvasId);
   if (!canvas) return;
+
+  let init;
+  try {
+    init = await shader.load();
+  } catch (error) {
+    console.error('Failed to load background shader:', error);
+    if (generation === backgroundGeneration) {
+      backgroundInitFailed = true;
+      document.body.classList.remove('bg-active', 'bg-dither-active');
+    }
+    return;
+  }
+
+  if (generation !== backgroundGeneration ||
+      document.visibilityState === 'hidden' ||
+      prefersReducedMotion() ||
+      backgroundInitFailed) {
+    return;
+  }
+
+  teardownActiveBackground();
   canvas.style.display = 'block';
 
-  const handle = shader.init(canvas, {
+  const handle = init(canvas, {
     mode: getShaderModeForTheme(),
     powerSave: backgroundBatterySaver
   });
@@ -296,10 +341,18 @@ function setupIcons() {
 // CLOCK & GREETING
 // =============================================================================
 
+let clockIntervalId = null;
+let lastRenderedClockTime = '';
+
 function updateClock() {
   const now = new Date();
   const hours = now.getHours().toString().padStart(2, '0');
   const minutes = now.getMinutes().toString().padStart(2, '0');
+  const rendered = `${hours}:${minutes}`;
+  if (rendered === lastRenderedClockTime) {
+    return;
+  }
+  lastRenderedClockTime = rendered;
   document.getElementById('clock').innerHTML = `
     <span class="clock-part">${hours}</span>
     <span class="clock-separator" aria-hidden="true">:</span>
@@ -308,10 +361,20 @@ function updateClock() {
 }
 
 function startClock() {
+  stopClock();
   updateClock();
   updateDate();
   // Update every second for the clock
-  setInterval(updateClock, 1000);
+  if (document.visibilityState !== 'hidden') {
+    clockIntervalId = setInterval(updateClock, 1000);
+  }
+}
+
+function stopClock() {
+  if (clockIntervalId) {
+    clearInterval(clockIntervalId);
+    clockIntervalId = null;
+  }
 }
 
 function parseTimeString(timeString) {
@@ -461,6 +524,9 @@ function startBedtimeReminderRefresh() {
   }
 
   reminderIntervalId = window.setInterval(() => {
+    if (document.visibilityState !== 'visible') {
+      return;
+    }
     refreshBedtimeReminder().catch(error => {
       console.error('Failed to refresh bedtime reminder:', error);
     });
@@ -529,40 +595,123 @@ function getWeatherInfo(code, isDay) {
 }
 
 async function getCoordinates() {
-  // Try cached coordinates first
-  const cached = await getLocal(['weatherLat', 'weatherLon']);
-  if (cached.weatherLat != null && cached.weatherLon != null) {
-    return { lat: cached.weatherLat, lon: cached.weatherLon };
-  }
-
-  // Request geolocation
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation not supported'));
-      return;
+  return withSharedLock('focus-weather-location', async () => {
+    // Try cached coordinates first
+    const cached = await getLocal(['weatherLat', 'weatherLon', 'weatherLocationRetryAt']);
+    if (cached.weatherLat != null && cached.weatherLon != null) {
+      return { lat: cached.weatherLat, lon: cached.weatherLon };
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        // Cache coordinates
-        await setLocal({ weatherLat: lat, weatherLon: lon });
-        resolve({ lat, lon });
-      },
-      (err) => {
-        reject(new Error(err.code === 1 ? 'Location permission denied' : 'Unable to get location'));
-      },
-      { timeout: 10000, maximumAge: 300000 }
-    );
+    if (cached.weatherLocationRetryAt > Date.now()) {
+      throw new Error('Unable to get location');
+    }
+
+    if (!isWidgetVisible('newtabShowWeather')) {
+      throw new Error('Unable to get location');
+    }
+
+    // Request geolocation
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation not supported'));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          try {
+            // Cache coordinates
+            await setLocal({ weatherLat: lat, weatherLon: lon, weatherLocationRetryAt: 0 });
+            resolve({ lat, lon });
+          } catch (err) {
+            reject(err);
+          }
+        },
+        async (err) => {
+          try {
+            await setLocal({ weatherLocationRetryAt: Date.now() + 5 * 60 * 1000 });
+          } catch {}
+          reject(new Error(err.code === 1 ? 'Location permission denied' : 'Unable to get location'));
+        },
+        { timeout: 10000, maximumAge: 300000 }
+      );
+    });
   });
 }
 
 async function fetchWeather(lat, lon) {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Weather API error: ${res.status}`);
+  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  if (!res.ok) {
+    const error = new Error(`Weather API error: ${res.status}`);
+    error.status = res.status;
+    const retryAfter = res.headers.get('Retry-After');
+    if (retryAfter) {
+      const seconds = Number(retryAfter);
+      error.retryAfterMs = Number.isFinite(seconds)
+        ? seconds * 1000
+        : Math.max(0, Date.parse(retryAfter) - Date.now());
+    }
+    throw error;
+  }
   return res.json();
+}
+
+function setWeatherStatus(message) {
+  const errorEl = document.getElementById('weather-error');
+  const errorTextEl = document.getElementById('weather-error-text');
+  if (!errorEl || !errorTextEl) return;
+  if (message) {
+    errorTextEl.textContent = message;
+    errorTextEl.title = message;
+    errorEl.classList.remove('hidden');
+  } else {
+    errorTextEl.textContent = '';
+    errorTextEl.title = '';
+    errorEl.classList.add('hidden');
+  }
+}
+
+async function renderWeather(data) {
+  const loadingEl = document.getElementById('weather-loading');
+  const contentEl = document.getElementById('weather-content');
+
+  // Parse data
+  const current = data.current;
+  const daily = data.daily;
+  const weatherCode = current.weather_code;
+  const isDay = current.is_day === 1;
+  const info = getWeatherInfo(weatherCode, isDay);
+
+  // Get temp unit preference
+  const unitResult = await getLocal('newtabTempUnit');
+  const unit = unitResult.newtabTempUnit || 'C';
+  const convert = unit === 'F' ? (c) => Math.round(c * 9 / 5 + 32) : (c) => Math.round(c);
+
+  const temp = convert(current.temperature_2m);
+  const high = convert(daily.temperature_2m_max[0]);
+  const low = convert(daily.temperature_2m_min[0]);
+
+  // Render
+  const iconHtml = Icons[info.icon] || Icons.cloud;
+  document.getElementById('weather-icon').innerHTML = iconHtml;
+  document.getElementById('weather-temp').textContent = `${temp}°`;
+  document.getElementById('weather-desc').textContent = info.desc;
+  document.getElementById('weather-highlow').textContent = `H:${high}° L:${low}°`;
+
+  loadingEl.classList.add('hidden');
+  contentEl.classList.remove('hidden');
+  setWeatherStatus(null);
+}
+
+function isValidWeatherData(data) {
+  return Number.isFinite(data?.current?.temperature_2m) &&
+    Number.isFinite(data?.current?.weather_code) &&
+    (data.current.is_day === 0 || data.current.is_day === 1) &&
+    Array.isArray(data?.daily?.temperature_2m_max) && Number.isFinite(data.daily.temperature_2m_max[0]) &&
+    Array.isArray(data?.daily?.temperature_2m_min) && Number.isFinite(data.daily.temperature_2m_min[0]);
 }
 
 async function loadWeather() {
@@ -570,6 +719,10 @@ async function loadWeather() {
   const contentEl = document.getElementById('weather-content');
   const errorEl = document.getElementById('weather-error');
   const errorTextEl = document.getElementById('weather-error-text');
+
+  if (!isWidgetVisible('newtabShowWeather')) {
+    return;
+  }
 
   try {
     if (!hasExtensionStorage()) {
@@ -580,51 +733,86 @@ async function loadWeather() {
     }
 
     // Check cache first
-    const cache = await getLocal(['weatherCache', 'weatherCacheTime']);
+    const cache = await getLocal(['weatherCache', 'weatherCacheTime', 'weatherCacheScope', 'weatherLat', 'weatherLon']);
     const now = Date.now();
+    const legacyAge = cache.weatherCacheTime ? now - cache.weatherCacheTime : Infinity;
+    const legacyScope = JSON.stringify([cache.weatherLat ?? null, cache.weatherLon ?? null, new Date().toDateString()]);
 
-    let data;
-    if (cache.weatherCache && cache.weatherCacheTime && (now - cache.weatherCacheTime < WEATHER_CACHE_TTL)) {
-      data = cache.weatherCache;
-    } else {
-      const coords = await getCoordinates();
-      data = await fetchWeather(coords.lat, coords.lon);
-
-      // Cache the result
+    if (isValidWeatherData(cache.weatherCache) && cache.weatherCacheScope == null &&
+        legacyAge >= 0 && legacyAge < WEATHER_CACHE_TTL &&
+        new Date(cache.weatherCacheTime).toDateString() === new Date().toDateString()) {
       await setLocal({
-        weatherCache: data,
-        weatherCacheTime: now,
+        weatherCacheScope: JSON.stringify([cache.weatherLat ?? null, cache.weatherLon ?? null, new Date().toDateString()])
       });
+      await renderWeather(cache.weatherCache);
+      return;
     }
 
-    // Parse data
-    const current = data.current;
-    const daily = data.daily;
-    const weatherCode = current.weather_code;
-    const isDay = current.is_day === 1;
-    const info = getWeatherInfo(weatherCode, isDay);
+    if (legacyScope && isValidWeatherData(cache.weatherCache) &&
+        cache.weatherCacheScope === legacyScope &&
+        legacyAge >= 0 && legacyAge < WEATHER_CACHE_TTL) {
+      await renderWeather(cache.weatherCache);
+      return;
+    }
 
-    // Get temp unit preference
-    const unitResult = await getLocal('newtabTempUnit');
-    const unit = unitResult.newtabTempUnit || 'C';
-    const convert = unit === 'F' ? (c) => Math.round(c * 9 / 5 + 32) : (c) => Math.round(c);
+    const staleCacheUsable = legacyScope && isValidWeatherData(cache.weatherCache) &&
+      cache.weatherCacheScope === legacyScope &&
+      legacyAge >= 0 && legacyAge < WEATHER_CACHE_TTL + 2 * 60 * 60 * 1000;
+    if (staleCacheUsable) {
+      await renderWeather(cache.weatherCache);
+      setWeatherStatus('Showing saved weather');
+    } else {
+      contentEl.classList.add('hidden');
+    }
 
-    const temp = convert(current.temperature_2m);
-    const high = convert(daily.temperature_2m_max[0]);
-    const low = convert(daily.temperature_2m_min[0]);
+    const coords = await getCoordinates();
+    const scope = JSON.stringify([coords.lat, coords.lon, new Date().toDateString()]);
+    await getCachedResource('focusCache:weather', {
+      scope, ttl: WEATHER_CACHE_TTL, maxStale: 2 * 60 * 60 * 1000,
+      load: async () => {
+        if (!isWidgetVisible('newtabShowWeather')) {
+          throw new Error('Unable to get location');
+        }
+        const fetched = await fetchWeather(coords.lat, coords.lon);
+        if (!isValidWeatherData(fetched)) throw new Error('Weather API error: malformed response');
+        return fetched;
+      },
+      isCurrent: async () => {
+        const current = await getLocal(['weatherLat', 'weatherLon']);
+        return current.weatherLat === coords.lat && current.weatherLon === coords.lon &&
+          scope === JSON.stringify([coords.lat, coords.lon, new Date().toDateString()]);
+      }
+    });
 
-    // Render
-    const iconHtml = Icons[info.icon] || Icons.cloud;
-    document.getElementById('weather-icon').innerHTML = iconHtml;
-    document.getElementById('weather-temp').textContent = `${temp}°`;
-    document.getElementById('weather-desc').textContent = info.desc;
-    document.getElementById('weather-highlow').textContent = `H:${high}° L:${low}°`;
-
-    loadingEl.classList.add('hidden');
-    contentEl.classList.remove('hidden');
+    const record = (await getLocal('focusCache:weather'))['focusCache:weather'];
+    const currentCoords = await getLocal(['weatherLat', 'weatherLon']);
+    if (!record || record.scope !== scope ||
+        currentCoords.weatherLat !== coords.lat || currentCoords.weatherLon !== coords.lon ||
+        scope !== JSON.stringify([coords.lat, coords.lon, new Date().toDateString()])) {
+      return;
+    }
+    if (cache.weatherCacheTime !== record.updatedAt || cache.weatherCacheScope !== record.scope) {
+      // Cache the result
+      await setLocal({ weatherCache: record.value, weatherCacheTime: record.updatedAt, weatherCacheScope: record.scope });
+    }
+    await renderWeather(record.value);
+    if (Date.now() - record.updatedAt >= WEATHER_CACHE_TTL) {
+      setWeatherStatus('Showing saved weather');
+    }
   } catch (err) {
     console.error('Failed to load weather:', err);
     loadingEl.classList.add('hidden');
+    const cache = await getLocal(['weatherCache', 'weatherCacheTime', 'weatherCacheScope', 'weatherLat', 'weatherLon']);
+    const age = cache.weatherCacheTime ? Date.now() - cache.weatherCacheTime : Infinity;
+    const fallbackScope = JSON.stringify([cache.weatherLat ?? null, cache.weatherLon ?? null, new Date().toDateString()]);
+    if (fallbackScope && isValidWeatherData(cache.weatherCache) &&
+        cache.weatherCacheScope === fallbackScope && age >= 0 &&
+        age < WEATHER_CACHE_TTL + 2 * 60 * 60 * 1000) {
+      await renderWeather(cache.weatherCache);
+      setWeatherStatus('Showing saved weather');
+      return;
+    }
+    contentEl.classList.add('hidden');
     errorEl.classList.remove('hidden');
     errorTextEl.textContent = err.message === 'Location permission denied'
       ? 'Enable location to see weather'
@@ -643,6 +831,8 @@ async function loadSettings() {
     ...(await sendRuntimeMessage({ type: 'GET_SETTINGS' }))
   };
 
+  dashboardSettings = settings;
+
   // Apply visibility
   applyVisibility(settings);
   applyBackgroundBatterySaver(settings.newtabOceanBatterySaver === true);
@@ -653,6 +843,8 @@ async function loadSettings() {
   const bgImageKey = getBgImageStorageKey();
   const bgImage = settings[bgImageKey] || '';
   applyBackgroundAppearance(bgImage);
+
+  return settings;
 }
 
 function applyVisibility(settings) {
@@ -813,6 +1005,10 @@ async function loadCalendar() {
   const emptyTextEl = document.getElementById('calendar-empty-text');
   const listEl = document.getElementById('event-list');
 
+  if (!isWidgetVisible('newtabShowCalendar')) {
+    return;
+  }
+
   try {
     // Check if calendar is connected
     const status = await sendRuntimeMessage({ type: 'GET_CALENDAR_STATUS' });
@@ -821,13 +1017,17 @@ async function loadCalendar() {
       connectEl.classList.remove('hidden');
       reconnectEl.classList.add('hidden');
       loadingEl.classList.add('hidden');
+      emptyEl.classList.add('hidden');
+      listEl.innerHTML = '';
       return;
     }
 
     // Connected — hide prompts, show loading
     connectEl.classList.add('hidden');
     reconnectEl.classList.add('hidden');
-    loadingEl.classList.remove('hidden');
+    if (listEl.children.length === 0) {
+      loadingEl.classList.remove('hidden');
+    }
 
     // Fetch the new tab display payload so passed events disappear and
     // the card can roll forward to tomorrow when today is done.
@@ -868,13 +1068,28 @@ async function loadCalendar() {
   } catch (err) {
     console.error('Failed to load calendar:', err);
     loadingEl.classList.add('hidden');
+    if (err.status === 401 || err.status === 403) {
+      reconnectEl.classList.remove('hidden');
+      emptyEl.classList.add('hidden');
+      listEl.innerHTML = '';
+      return;
+    }
+    if (emptyTextEl) {
+      emptyTextEl.textContent = listEl.children.length > 0
+        ? 'Showing saved schedule'
+        : 'Calendar unavailable';
+    }
     emptyEl.classList.remove('hidden');
   }
 }
 
 async function getCalendarDisplayPayload() {
   try {
-    return await sendRuntimeMessage({ type: 'GET_NEWTAB_EVENTS' });
+    const payload = await sendRuntimeMessage({ type: 'GET_NEWTAB_EVENTS' });
+    if (payload?.error) {
+      throw Object.assign(new Error(payload.error), { status: payload.status });
+    }
+    return payload;
   } catch (error) {
     const message = String(error?.message || error || '');
     const shouldFallback =
@@ -1006,21 +1221,25 @@ async function fetchCompletedToday() {
   const loadingEl = document.getElementById('completed-loading');
   const emptyEl = document.getElementById('completed-empty');
 
+  if (!isWidgetVisible('newtabShowTodos')) {
+    return;
+  }
+
   try {
     if (!hasExtensionRuntime()) return;
 
     const authenticated = await todoist.isAuthenticated();
-    if (!authenticated) return;
+    if (!authenticated) {
+      completedToday = [];
+      loadingEl.classList.add('hidden');
+      renderCompletedSection();
+      return;
+    }
 
     loadingEl.classList.remove('hidden');
     emptyEl.classList.add('hidden');
 
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const since = startOfDay.toISOString();
-    const until = now.toISOString();
-
-    const tasks = await todoist.getCompletedTasks({ since, until, limit: 50 });
+    const tasks = await todoist.getCompletedTasksToday({ limit: 50, staleWhileRevalidate: true });
     completedToday = tasks.map(t => ({
       id: t.id || t.task_id,
       content: t.content,
@@ -1084,6 +1303,10 @@ async function loadTodos() {
   const listEl = document.getElementById('todo-list');
   const showMoreBtn = document.getElementById('todos-show-more');
 
+  if (!isWidgetVisible('newtabShowTodos')) {
+    return;
+  }
+
   // Reset every state up front — loadTodos re-runs on refresh, and leaving a
   // previously shown connect prompt or empty state visible stacks it behind
   // the freshly rendered list.
@@ -1091,13 +1314,14 @@ async function loadTodos() {
   emptyEl.classList.add('hidden');
   loadingEl.classList.add('hidden');
   showMoreBtn.classList.add('hidden');
-  listEl.innerHTML = '';
 
   try {
     if (!hasExtensionRuntime()) {
       connectEl.classList.remove('hidden');
       loadingEl.classList.add('hidden');
       emptyEl.classList.remove('hidden');
+      allTasks = [];
+      listEl.innerHTML = '';
       return;
     }
 
@@ -1107,15 +1331,19 @@ async function loadTodos() {
     if (!authenticated) {
       connectEl.classList.remove('hidden');
       loadingEl.classList.add('hidden');
+      allTasks = [];
+      listEl.innerHTML = '';
       return;
     }
 
     // Authenticated — hide prompt, show loading
     connectEl.classList.add('hidden');
-    loadingEl.classList.remove('hidden');
+    if (allTasks.length === 0) {
+      loadingEl.classList.remove('hidden');
+    }
 
     // Fetch tasks
-    const tasks = await todoist.getTasksWithSubtasks();
+    const tasks = await todoist.getTasksWithSubtasks({ staleWhileRevalidate: true });
 
     loadingEl.classList.add('hidden');
 
@@ -1124,6 +1352,7 @@ async function loadTodos() {
 
     if (allTasks.length === 0) {
       emptyEl.classList.remove('hidden');
+      listEl.innerHTML = '';
       return;
     }
 
@@ -1133,9 +1362,13 @@ async function loadTodos() {
     loadingEl.classList.add('hidden');
 
     // If auth expired, show connect prompt
-    if (err.message && err.message.includes('Authentication expired')) {
+    const stillAuthed = hasExtensionRuntime() ? await todoist.isAuthenticated() : false;
+    if (err.status === 401 || err.status === 403 ||
+        (err.message && err.message.includes('Authentication expired')) || !stillAuthed) {
       connectEl.classList.remove('hidden');
-    } else {
+      allTasks = [];
+      listEl.innerHTML = '';
+    } else if (allTasks.length === 0) {
       emptyEl.classList.remove('hidden');
     }
   }
@@ -1312,15 +1545,8 @@ function setupShowMore() {
   });
 }
 
-async function loadFocusSnapshot(preloadedDisplaySettings = null) {
-  const displaySettings = preloadedDisplaySettings || {
-    ...DEFAULTS,
-    ...(await getLocal([
-      'newtabShowFocusSnapshot'
-    ]))
-  };
-
-  if (!displaySettings.newtabShowFocusSnapshot) {
+async function loadFocusSnapshot() {
+  if (!isWidgetVisible('newtabShowFocusSnapshot')) {
     return;
   }
 
@@ -1398,58 +1624,256 @@ function renderSavedTime(minutes) {
     .join('');
 }
 
+const DASHBOARD_WIDGETS = {
+  calendar: { key: 'newtabShowCalendar', load: loadCalendar },
+  weather: { key: 'newtabShowWeather', load: loadWeather },
+  todos: { key: 'newtabShowTodos', load: loadTodos },
+  completed: { key: 'newtabShowTodos', load: fetchCompletedToday },
+  focusSnapshot: { key: 'newtabShowFocusSnapshot', load: loadFocusSnapshot }
+};
+
+const widgetStates = {};
+let dashboardRefreshIntervalId = null;
+let dashboardRefreshStarted = false;
+let pendingDashboardStart = null;
+
+function refreshWidget(name) {
+  const widget = DASHBOARD_WIDGETS[name];
+  if (!widget || !isWidgetVisible(widget.key)) {
+    return Promise.resolve();
+  }
+  const state = widgetStates[name] || (widgetStates[name] = { running: false, queued: false });
+  if (state.running) {
+    state.queued = true;
+    return Promise.resolve();
+  }
+  state.running = true;
+  return Promise.resolve()
+    .then(() => widget.load())
+    .catch(error => console.error(`Failed to refresh ${name}:`, error))
+    .finally(() => {
+      state.running = false;
+      if (state.queued) {
+        state.queued = false;
+        refreshWidget(name);
+      }
+    });
+}
+
+function refreshDashboard() {
+  return Promise.allSettled(Object.keys(DASHBOARD_WIDGETS).map(refreshWidget));
+}
+
+function startDashboardRefresh() {
+  dashboardRefreshStarted = true;
+  stopDashboardRefresh();
+  refreshDashboard();
+  dashboardRefreshIntervalId = window.setInterval(() => {
+    if (document.visibilityState !== 'visible') {
+      return;
+    }
+    refreshDashboard();
+  }, 60000);
+}
+
+function stopDashboardRefresh() {
+  if (dashboardRefreshIntervalId) {
+    clearInterval(dashboardRefreshIntervalId);
+    dashboardRefreshIntervalId = null;
+  }
+}
+
+function clearAuthFailedWidget(name) {
+  if (name === 'todos') {
+    allTasks = [];
+    const listEl = document.getElementById('todo-list');
+    if (listEl) listEl.innerHTML = '';
+    document.getElementById('todos-connect')?.classList.remove('hidden');
+    document.getElementById('todos-empty')?.classList.add('hidden');
+    document.getElementById('todos-loading')?.classList.add('hidden');
+    document.getElementById('todos-show-more')?.classList.add('hidden');
+  } else if (name === 'completed') {
+    completedToday = [];
+    renderCompletedSection();
+    document.getElementById('completed-loading')?.classList.add('hidden');
+  } else if (name === 'calendar') {
+    const listEl = document.getElementById('event-list');
+    if (listEl) listEl.innerHTML = '';
+    document.getElementById('calendar-reconnect')?.classList.remove('hidden');
+    document.getElementById('calendar-empty')?.classList.add('hidden');
+    document.getElementById('calendar-loading')?.classList.add('hidden');
+  }
+}
+
+function setupVisibilityLifecycle() {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      startClock();
+      if (dashboardRefreshStarted) {
+        startDashboardRefresh();
+      }
+      if (!pendingBackgroundLoad) {
+        applyBackgroundSetting(requestedBackgroundKind);
+      }
+    } else {
+      backgroundGeneration++;
+      stopClock();
+      stopDashboardRefresh();
+    }
+  });
+
+  window.addEventListener('pagehide', () => {
+    stopClock();
+    stopDashboardRefresh();
+    if (reminderIntervalId) {
+      clearInterval(reminderIntervalId);
+      reminderIntervalId = null;
+    }
+    backgroundGeneration++;
+    if (pendingDashboardStart) {
+      pendingDashboardStart();
+      pendingDashboardStart = null;
+    }
+    if (pendingBackgroundLoad) {
+      pendingBackgroundLoad();
+      pendingBackgroundLoad = null;
+    }
+    teardownActiveBackground();
+  });
+}
+
+function setupReducedMotionListener() {
+  if (!window.matchMedia) return;
+  window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => {
+    applyBackgroundSetting(requestedBackgroundKind);
+  });
+}
+
 function setupStorageSync() {
   if (typeof chrome === 'undefined' || !chrome.storage?.onChanged) return;
 
-  chrome.storage.onChanged.addListener(async (changes, areaName) => {
+  const visibilityKeys = [
+    'newtabShowWeather',
+    'newtabShowQuotes',
+    'newtabShowCalendar',
+    'newtabShowTodos',
+    'newtabShowFocusSnapshot',
+    'newtabBackground',
+    'newtabShowOceanBackground',
+    'newtabOceanBatterySaver',
+    'newtabOceanWaveSpeed',
+    'bedtimeReminderEnabled',
+    'bedtimeReminderTime',
+    'bedtimeReminderEndTime',
+    'newtabBgImageLight',
+    'newtabBgImageDark'
+  ];
+
+  const WIDGET_SETTING_KEYS = {
+    newtabShowWeather: ['weather'],
+    newtabShowCalendar: ['calendar'],
+    newtabShowTodos: ['todos', 'completed'],
+    newtabShowFocusSnapshot: ['focusSnapshot'],
+    newtabTempUnit: ['weather'],
+    weatherLat: ['weather'],
+    weatherLon: ['weather'],
+    todoistToken: ['todos', 'completed'],
+    todoistCacheRevision: ['todos', 'completed'],
+    calendarSettings: ['calendar']
+  };
+
+  const CACHE_WIDGET_KEYS = {
+    'focusCache:todoist:tasks': 'todos',
+    'focusCache:todoist:completedToday': 'completed',
+    'focusCache:calendar:display': 'calendar',
+    'focusCache:weather': 'weather'
+  };
+
+  let settingsReloadNeeded = false;
+  let themeReloadNeeded = false;
+  const pendingWidgets = new Set();
+  const pendingAuthClears = new Set();
+  let flushQueued = false;
+
+  const flush = () => {
+    if (flushQueued) return;
+    flushQueued = true;
+    queueMicrotask(async () => {
+      flushQueued = false;
+      const reloadSettings = settingsReloadNeeded;
+      const reloadTheme = themeReloadNeeded;
+      const widgets = [...pendingWidgets];
+      const authClears = [...pendingAuthClears];
+      settingsReloadNeeded = false;
+      themeReloadNeeded = false;
+      pendingWidgets.clear();
+      pendingAuthClears.clear();
+
+      if (reloadSettings) {
+        await loadSettings();
+      }
+      if (reloadTheme) {
+        await loadTheme();
+        updateThemeToggleIcon();
+        await refreshBgColor();
+      }
+      for (const name of authClears) {
+        clearAuthFailedWidget(name);
+      }
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+      for (const name of widgets) {
+        refreshWidget(name);
+      }
+    });
+  };
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local') return;
 
     const changedKeys = Object.keys(changes);
-    const visibilityKeys = [
-      'newtabShowWeather',
-      'newtabShowQuotes',
-      'newtabShowCalendar',
-      'newtabShowTodos',
-      'newtabShowFocusSnapshot',
-      'newtabBackground',
-      'newtabShowOceanBackground',
-      'newtabOceanBatterySaver',
-      'newtabOceanWaveSpeed',
-      'bedtimeReminderEnabled',
-      'bedtimeReminderTime',
-      'bedtimeReminderEndTime',
-      'newtabBgImageLight',
-      'newtabBgImageDark'
-    ];
 
     if (changedKeys.some(key => visibilityKeys.includes(key))) {
-      await loadSettings();
+      settingsReloadNeeded = true;
     }
 
-    if (changedKeys.includes('newtabShowFocusSnapshot')) {
-      await loadFocusSnapshot();
+    for (const key of changedKeys) {
+      for (const widget of WIDGET_SETTING_KEYS[key] || []) {
+        pendingWidgets.add(widget);
+      }
+
+      const cacheWidget = CACHE_WIDGET_KEYS[key];
+      if (cacheWidget) {
+        const change = changes[key];
+        if (change?.newValue &&
+            (change.newValue.status === 401 || change.newValue.status === 403) &&
+            !Object.prototype.hasOwnProperty.call(change.newValue, 'value')) {
+          pendingAuthClears.add(cacheWidget);
+        } else if (change?.newValue &&
+            Object.prototype.hasOwnProperty.call(change.newValue, 'value') &&
+            change.newValue.updatedAt !== change.oldValue?.updatedAt) {
+          pendingWidgets.add(cacheWidget);
+        }
+      }
     }
 
-    if (changedKeys.includes('newtabShowCalendar')) {
-      await loadCalendar();
-    }
-
-    if (changedKeys.includes('newtabShowTodos')) {
-      await Promise.allSettled([
-        loadTodos(),
-        fetchCompletedToday()
-      ]);
-    }
-
-    if (changedKeys.includes('newtabTempUnit')) {
-      await loadWeather();
+    if (changes.settings) {
+      settingsReloadNeeded = true;
+      const oldSettings = changes.settings.oldValue || {};
+      const newSettings = changes.settings.newValue || {};
+      for (const [key, widgets] of Object.entries(WIDGET_SETTING_KEYS)) {
+        if (oldSettings[key] !== newSettings[key] && newSettings[key] !== false) {
+          widgets.forEach(widget => pendingWidgets.add(widget));
+        }
+      }
     }
 
     if (changedKeys.some(key => ['theme', 'themeSyncWithBrowser', 'accentColor'].includes(key))) {
-      await loadTheme();
-      updateThemeToggleIcon();
-      await refreshBgColor();
+      themeReloadNeeded = true;
     }
+
+    flush();
   });
 }
 
@@ -1467,11 +1891,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Setup interactions
   setupThemeToggle();
   setupBrowserThemeSyncListener();
+  setupReducedMotionListener();
   setupSettings();
   setupStorageSync();
   setupCalendarConnect();
   setupTodosConnect();
   setupShowMore();
+  setupVisibilityLifecycle();
 
   // Start clock
   startClock();
@@ -1482,21 +1908,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load settings and apply visibility
   await loadSettings();
-  await loadFocusSnapshot();
-
 
   // Load data (in parallel)
-  loadCalendar();
-  window.setInterval(() => {
-    loadCalendar().catch(error => {
-      console.error('Failed to refresh calendar:', error);
-    });
-  }, 60000);
-  loadWeather();
   // Chrome preloads and restores new tabs that are never looked at; both of
   // these hit Todoist, so hold them until the page is actually on screen.
-  runWhenVisible(() => {
-    loadTodos();
-    fetchCompletedToday();
+  pendingDashboardStart = runWhenVisible(() => {
+    pendingDashboardStart = null;
+    startDashboardRefresh();
   });
 });

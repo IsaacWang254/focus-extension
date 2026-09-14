@@ -3,6 +3,8 @@
  * Handles URL blocking using declarativeNetRequest and manages extension state
  */
 
+import { getCachedResource } from './lib/request-cache.js';
+
 // Predefined category templates
 const CATEGORY_TEMPLATES = {
   socialMedia: {
@@ -1053,7 +1055,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     .then(sendResponse)
     .catch(error => {
       console.error('Message handler error:', error);
-      sendResponse({ error: error.message });
+      sendResponse({ error: error.message, ...(error.status ? { status: error.status } : {}) });
     });
 
   // Return true to indicate async response
@@ -7083,7 +7085,8 @@ const DEFAULT_CALENDAR_SETTINGS = {
   lastSync: null,
   upcomingEvents: [], // Cached events
   calendarListCache: [],
-  calendarListCacheTime: null
+  calendarListCacheTime: null,
+  cacheRevision: null
 };
 
 /**
@@ -7164,8 +7167,14 @@ async function connectGoogleCalendar() {
       connected: true,
       accessToken: token,
       tokenExpiry: Date.now() + 3600000, // 1 hour
-      email: email
+      email: email,
+      cacheRevision: crypto.randomUUID(),
+      upcomingEvents: [],
+      lastSync: null,
+      calendarListCache: [],
+      calendarListCacheTime: null
     });
+    await chrome.storage.local.remove('focusCache:calendar:display');
 
     // Fetch available calendars
     const calendars = await fetchCalendarList(token);
@@ -7263,8 +7272,12 @@ async function disconnectGoogleCalendar() {
       email: null,
       selectedCalendars: [],
       upcomingEvents: [],
-      lastSync: null
+      lastSync: null,
+      calendarListCache: [],
+      calendarListCacheTime: null,
+      cacheRevision: crypto.randomUUID()
     });
+    await chrome.storage.local.remove('focusCache:calendar:display');
 
     // Clear calendar sync alarm
     await chrome.alarms.clear('calendar-sync');
@@ -7334,6 +7347,7 @@ async function getValidCalendarToken() {
         accessToken: null,
         tokenExpiry: null,
       });
+      await chrome.storage.local.remove('focusCache:calendar:display');
       return null;
     }
 
@@ -7394,6 +7408,7 @@ async function forceRefreshCalendarToken() {
         accessToken: null,
         tokenExpiry: null,
       });
+      await chrome.storage.local.remove('focusCache:calendar:display');
     }
   }
 
@@ -7405,7 +7420,10 @@ async function fetchWithRetry(url, options, maxRetries = 2) {
   while (attempts < maxRetries) {
     attempts++;
     try {
-      const response = await fetch(url, options);
+      const response = await fetch(url, {
+        ...options,
+        signal: options?.signal || AbortSignal.timeout(15000)
+      });
       return response;
     } catch (e) {
       if (attempts >= maxRetries) throw e;
@@ -7656,22 +7674,19 @@ async function getNewTabEvents() {
   tomorrowBase.setDate(tomorrowBase.getDate() + 1);
   const tomorrowInfo = getDayInfo(tomorrowBase);
 
-  const cachedEvents = await getCachedEvents();
   const settings = await getCalendarSettings();
-
-  let events = cachedEvents;
-  let payload = buildNewTabEventsPayload(events, todayInfo, tomorrowInfo, now);
-
-  const cacheStale = !settings.lastSync || Date.now() - settings.lastSync > 300000;
-  if (cacheStale || payload.events.length === 0) {
-    const freshEvents = await fetchEventsForDisplayRange(todayInfo.startOfDay, tomorrowInfo.endOfDay);
-    if (!freshEvents.error) {
-      events = freshEvents;
-      payload = buildNewTabEventsPayload(events, todayInfo, tomorrowInfo, now);
-    }
-  }
-
-  return payload;
+  if (!settings.connected) return buildNewTabEventsPayload([], todayInfo, tomorrowInfo, now);
+  const scopeFor = value => JSON.stringify([
+    value.cacheRevision || '', value.email || '', [...value.selectedCalendars].sort(),
+    todayInfo.startOfDay.toISOString(), tomorrowInfo.endOfDay.toISOString()
+  ]);
+  const scope = scopeFor(settings);
+  const events = await getCachedResource('focusCache:calendar:display', {
+    scope, ttl: 5 * 60 * 1000, maxStale: 24 * 60 * 60 * 1000, staleWhileRevalidate: true,
+    isCurrent: async () => { const current = await getCalendarSettings(); return current.connected && scopeFor(current) === scope; },
+    load: () => fetchEventsForDisplayRange(todayInfo.startOfDay, tomorrowInfo.endOfDay)
+  });
+  return buildNewTabEventsPayload(events, todayInfo, tomorrowInfo, new Date());
 }
 
 /**
@@ -7688,7 +7703,7 @@ async function fetchTodayEventsWithToken(token, todayStr, startOfDay, endOfDay) 
 async function fetchEventsForDisplayRange(startOfRange, endOfRange) {
   let token = await getValidCalendarToken();
   if (!token) {
-    return { error: 'Not connected to Google Calendar' };
+    throw Object.assign(new Error('Not connected to Google Calendar'), { status: 401 });
   }
 
   let result = await fetchEventsForRangeWithToken(token, startOfRange, endOfRange, {
@@ -7709,8 +7724,13 @@ async function fetchEventsForDisplayRange(startOfRange, endOfRange) {
   const events = result.events || [];
   events.sort((a, b) => new Date(a.start) - new Date(b.start));
 
-  if (events.length > 0 || !result.failed) {
-    await saveCalendarSettings({ upcomingEvents: events, lastSync: Date.now() });
+  if (result.failed) {
+    const error = new Error(`Calendar events fetch failed${result.status ? `: ${result.status}` : ''}`);
+    error.status = result.status;
+    if (result.retryAfterMs) {
+      error.retryAfterMs = result.retryAfterMs;
+    }
+    throw error;
   }
 
   return events;
@@ -7735,6 +7755,8 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
   const allEvents = [];
   let fetchFailed = false;
   let got401 = false;
+  const failureStatuses = [];
+  let failureRetryAfterMs = 0;
   await Promise.allSettled(calendarsToFetch.map(async (calendarId) => {
     try {
       const params = new URLSearchParams({
@@ -7753,12 +7775,24 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
       if (response.status === 401) {
         got401 = true;
         fetchFailed = true;
+        failureStatuses.push(401);
         return;
       }
 
       if (!response.ok) {
         console.error(`Failed to fetch ${logLabel} from calendar ${calendarId}:`, response.status);
         fetchFailed = true;
+        failureStatuses.push(response.status);
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('Retry-After');
+          if (retryAfter) {
+            const seconds = Number(retryAfter);
+            const retryMs = Number.isFinite(seconds)
+              ? seconds * 1000
+              : Math.max(0, Date.parse(retryAfter) - Date.now());
+            failureRetryAfterMs = Math.max(failureRetryAfterMs, retryMs);
+          }
+        }
         return;
       }
 
@@ -7799,7 +7833,12 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
     }
   }));
 
-  return { events: allEvents, failed: fetchFailed, got401 };
+  const status = failureStatuses.includes(401) ? 401
+    : failureStatuses.includes(403) ? 403
+    : failureStatuses.includes(429) ? 429
+    : (failureStatuses[0] || 503);
+
+  return { events: allEvents, failed: fetchFailed, got401, status, retryAfterMs: failureRetryAfterMs };
 }
 
 /**
@@ -8142,7 +8181,16 @@ async function handleCalendarSyncAlarm() {
  * @param {Object} updates - Settings to update
  */
 async function updateCalendarSettings(updates) {
-  const updated = await saveCalendarSettings(updates);
+  const current = await getCalendarSettings();
+  const next = { ...updates };
+  if (updates.selectedCalendars &&
+      JSON.stringify([...updates.selectedCalendars].sort()) !== JSON.stringify([...current.selectedCalendars].sort())) {
+    next.cacheRevision = crypto.randomUUID();
+  }
+  const updated = await saveCalendarSettings(next);
+  if (next.cacheRevision) {
+    await chrome.storage.local.remove('focusCache:calendar:display');
+  }
 
   // Restart sync if enabled
   if (updated.syncEnabled) {

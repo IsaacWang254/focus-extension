@@ -243,8 +243,8 @@ assert.match(
 
 assert.match(
   newtabSource,
-  /runWhenVisible\(\(\) => \{\s*loadTodos\(\);\s*fetchCompletedToday\(\);/,
-  'the new tab must defer both Todoist fetches until the tab is visible'
+  /runWhenVisible\(\(\) => \{[\s\S]*?startDashboardRefresh\(\)/,
+  'the new tab must defer the dashboard scheduler — including both Todoist fetches — until the tab is visible'
 );
 
 assert.doesNotMatch(
