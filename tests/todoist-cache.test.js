@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const source = fs.readFileSync(new URL('./lib/todoist.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../lib/todoist.js', import.meta.url), 'utf8');
 const transformed = source
   .replace(/^import[^\n]*\n/gm, '')
   .replace(/^export /gm, '');
-const cacheSource = fs.readFileSync(new URL('./lib/request-cache.js', import.meta.url), 'utf8')
+const cacheSource = fs.readFileSync(new URL('../lib/request-cache.js', import.meta.url), 'utf8')
   .replace(/^export /gm, '');
 
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));

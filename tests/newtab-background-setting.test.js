@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { resolveNewtabBackground, NEWTAB_BACKGROUNDS } from './lib/newtab-background.js';
+import { resolveNewtabBackground, NEWTAB_BACKGROUNDS } from '../lib/newtab-background.js';
 
 const read = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8');
 
@@ -48,8 +48,8 @@ assert.deepEqual(
 // Options UI wiring
 // ---------------------------------------------------------------------------
 
-const optionsHtml = read('./options/options.html');
-const optionsSource = read('./options/options.js');
+const optionsHtml = read('../options/options.html');
+const optionsSource = read('../options/options.js');
 
 NEWTAB_BACKGROUNDS.forEach((value) => {
   assert.match(
@@ -93,9 +93,9 @@ assert.match(
 // Shader loop bounds — regression guard on the unrolled-loop perf bug
 // ---------------------------------------------------------------------------
 
-const oceanSource = read('./newtab/ocean-shader.js');
-const ditherSource = read('./newtab/dither-shader.js');
-const glSource = read('./newtab/gl-background.js');
+const oceanSource = read('../newtab/ocean-shader.js');
+const ditherSource = read('../newtab/dither-shader.js');
+const glSource = read('../newtab/gl-background.js');
 
 // GLSL ES 1.00 requires a constant loop bound, so `for(i<36) { if (i>=iters)
 // break; }` still compiles to 36 unrolled iterations — the battery-saver
@@ -182,9 +182,9 @@ assert.match(
 // New tab wiring
 // ---------------------------------------------------------------------------
 
-const newtabSource = read('./newtab/newtab.js');
-const newtabHtml = read('./newtab/newtab.html');
-const newtabCss = read('./newtab/newtab.css');
+const newtabSource = read('../newtab/newtab.js');
+const newtabHtml = read('../newtab/newtab.html');
+const newtabCss = read('../newtab/newtab.css');
 
 assert.match(
   newtabHtml,
@@ -226,8 +226,8 @@ assert.doesNotMatch(
 // Todoist calls must not fire on pages nobody is looking at
 // ---------------------------------------------------------------------------
 
-const blockedSource = read('./blocked/blocked.js');
-const whenVisibleSource = read('./lib/when-visible.js');
+const blockedSource = read('../blocked/blocked.js');
+const whenVisibleSource = read('../lib/when-visible.js');
 
 assert.match(
   whenVisibleSource,

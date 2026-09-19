@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const source = fs.readFileSync(new URL('./blocked/blocked.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../blocked/blocked.js', import.meta.url), 'utf8');
 
 // Scope to the DOMContentLoaded handler. The same helpers are awaited later in
 // the task-completion flow, where blocking is exactly what you want.

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const backgroundSource = fs.readFileSync(new URL('./background.js', import.meta.url), 'utf8');
-const contentSource = fs.readFileSync(new URL('./content-redirect.js', import.meta.url), 'utf8');
-const optionsHtml = fs.readFileSync(new URL('./options/options.html', import.meta.url), 'utf8');
-const manifestTemplate = JSON.parse(fs.readFileSync(new URL('./manifest.template.json', import.meta.url), 'utf8'));
+const backgroundSource = fs.readFileSync(new URL('../background.js', import.meta.url), 'utf8');
+const contentSource = fs.readFileSync(new URL('../content-redirect.js', import.meta.url), 'utf8');
+const optionsHtml = fs.readFileSync(new URL('../options/options.html', import.meta.url), 'utf8');
+const manifestTemplate = JSON.parse(fs.readFileSync(new URL('../manifest.template.json', import.meta.url), 'utf8'));
 
 assert.match(
   backgroundSource,

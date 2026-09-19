@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const backgroundSource = fs.readFileSync(new URL('./background.js', import.meta.url), 'utf8');
+const backgroundSource = fs.readFileSync(new URL('../background.js', import.meta.url), 'utf8');
 const start = backgroundSource.indexOf('const GOOGLE_CALENDAR_API =');
 const end = backgroundSource.indexOf('function scoreKeywordMatch(', start);
 assert.ok(start > 0 && end > start, 'calendar slice anchors moved');
@@ -13,7 +13,7 @@ const updateEnd = backgroundSource.indexOf('/**\n * Get calendar connection stat
 assert.ok(updateStart > 0 && updateEnd > updateStart, 'updateCalendarSettings anchors moved');
 const updateSlice = backgroundSource.slice(updateStart, updateEnd);
 
-const cacheSource = fs.readFileSync(new URL('./lib/request-cache.js', import.meta.url), 'utf8')
+const cacheSource = fs.readFileSync(new URL('../lib/request-cache.js', import.meta.url), 'utf8')
   .replace(/^export /gm, '');
 
 const FIXED_NOW = new Date(2026, 8, 13, 12).getTime();

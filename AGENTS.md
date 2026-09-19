@@ -2,7 +2,7 @@
 
 ## Verification
 
-- Node tests are plain `node <name>.test.js` files in the repo root (assert-based, no runner).
+- Node tests are plain `node tests/<name>.test.js` files (assert-based, no runner).
 - `npm run preview` serves all five surfaces at http://localhost:4173 with a `chrome.*` shim.
 - Browser checks can use the installed Google Chrome via `puppeteer-core` from a temp dir
   (`executablePath: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome`) — do not add

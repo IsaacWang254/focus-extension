@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const blockedSource = fs.readFileSync(new URL('./blocked/blocked.js', import.meta.url), 'utf8');
+const blockedSource = fs.readFileSync(new URL('../blocked/blocked.js', import.meta.url), 'utf8');
 
 assert.match(
   blockedSource,
