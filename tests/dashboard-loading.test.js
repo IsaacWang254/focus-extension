@@ -5,14 +5,14 @@ import vm from 'node:vm';
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8');
 const flush = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
 
-const whenVisibleSource = read('./lib/when-visible.js').replace(/^export /gm, '');
-const bgResolverSource = read('./lib/newtab-background.js').replace(/^export /gm, '');
-const cacheSource = read('./lib/request-cache.js').replace(/^export /gm, '');
-const todoistSource = read('./lib/todoist.js')
+const whenVisibleSource = read('../lib/when-visible.js').replace(/^export /gm, '');
+const bgResolverSource = read('../lib/newtab-background.js').replace(/^export /gm, '');
+const cacheSource = read('../lib/request-cache.js').replace(/^export /gm, '');
+const todoistSource = read('../lib/todoist.js')
   .replace(/^import[^\n]*\n/gm, '')
   .replace(/^export /gm, '');
 
-const newtabSource = read('./newtab/newtab.js')
+const newtabSource = read('../newtab/newtab.js')
   .replace(/^import[^;]*;\n/gm, '')
   .replace("import('./ocean-shader.js')", "__importShader('ocean')")
   .replace("import('./dither-shader.js')", "__importShader('dither')")

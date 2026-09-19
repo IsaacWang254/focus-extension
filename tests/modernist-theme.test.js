@@ -83,8 +83,8 @@ function installGlobals(doc, chrome, darkOS = false) {
   };
 }
 
-const design = await import('./lib/design-theme.js');
-const theme = await import('./lib/theme.js');
+const design = await import('../lib/design-theme.js');
+const theme = await import('../lib/theme.js');
 
 {
   const doc = makeDocument();
@@ -152,11 +152,11 @@ for (const [base, sync, darkOS, expected] of [
 }
 
 const surfaces = [
-  ['./newtab/newtab.html', 'newtab.css', 'newtab'],
-  ['./blocked/blocked.html', 'blocked.css', 'blocked'],
-  ['./options/options.html', 'options.css', 'options'],
-  ['./popup/popup.html', 'popup.css', 'popup'],
-  ['./stats/stats.html', 'stats.css', 'stats']
+  ['../newtab/newtab.html', 'newtab.css', 'newtab'],
+  ['../blocked/blocked.html', 'blocked.css', 'blocked'],
+  ['../options/options.html', 'options.css', 'options'],
+  ['../popup/popup.html', 'popup.css', 'popup'],
+  ['../stats/stats.html', 'stats.css', 'stats']
 ];
 
 for (const [file, pageCss, surface] of surfaces) {
@@ -170,17 +170,17 @@ for (const [file, pageCss, surface] of surfaces) {
   assert.match(html, new RegExp(`<body data-surface="${surface}"`), `${file} marks its body as ${surface}`);
 }
 
-const optionsHtml = read('./options/options.html');
-const optionsSource = read('./options/options.js');
+const optionsHtml = read('../options/options.html');
+const optionsSource = read('../options/options.js');
 assert.doesNotMatch(optionsHtml, /data-design-toggle|modernist-enabled|modernist-status|modernist-setting/, 'the options toggle markup must be gone');
 assert.doesNotMatch(optionsSource, /setupModernistToggle|setModernistDesign/, 'the options toggle wiring must be gone');
 
-for (const src of ['./lib/theme.js', './lib/design-theme.js', './newtab/newtab.js', './blocked/blocked.js']) {
+for (const src of ['../lib/theme.js', '../lib/design-theme.js', '../newtab/newtab.js', '../blocked/blocked.js']) {
   assert.doesNotMatch(read(src), /modernistEnabled/, `${src} must not depend on the retired flag`);
 }
 
-const newtabHtml = read('./newtab/newtab.html');
-const modernistCss = read('./lib/modernist.css');
+const newtabHtml = read('../newtab/newtab.html');
+const modernistCss = read('../lib/modernist.css');
 
 assert.doesNotMatch(newtabHtml, /modernist-caption|A space for/, 'the masthead tagline must be gone');
 assert.doesNotMatch(
@@ -230,8 +230,8 @@ assert.match(
   'highlighted select items keep the plain background for contrast'
 );
 
-const newtabSource = read('./newtab/newtab.js');
-const blockedSource = read('./blocked/blocked.js');
+const newtabSource = read('../newtab/newtab.js');
+const blockedSource = read('../blocked/blocked.js');
 for (const [file, src] of [['newtab/newtab.js', newtabSource], ['blocked/blocked.js', blockedSource]]) {
   assert.match(src, /setIconButtonLabel\(toggle/, `${file} must label the theme toggle through the design-aware helper`);
   assert.doesNotMatch(src, /toggle\.title\s*=/, `${file} must not assign native titles directly`);
@@ -250,9 +250,9 @@ assert.match(
 );
 
 for (const [file, w, h] of [
-  ['./icons/icon16.svg', 16, 16],
-  ['./icons/icon48.svg', 48, 48],
-  ['./icons/icon128.svg', 128, 128]
+  ['../icons/icon16.svg', 16, 16],
+  ['../icons/icon48.svg', 48, 48],
+  ['../icons/icon128.svg', 128, 128]
 ]) {
   const svg = read(file);
   assert.match(svg, /#E5342A/i, `${file} carries the brand red`);
@@ -261,7 +261,7 @@ for (const [file, w, h] of [
   assert.match(svg, new RegExp(`width="${w}" height="${h}"`), `${file} dimensions intact`);
 }
 
-const social = read('./icons/social-preview.svg');
+const social = read('../icons/social-preview.svg');
 for (const [from, to] of [
   ['#F5F5F4', '#F7F5EF'], ['#18181B', '#E5342A'], ['#F59E0B', '#F7F5EF'],
   ['#52525B', '#656259'], ['#D4D4D8', '#CBC6BA']
@@ -272,7 +272,7 @@ for (const [from, to] of [
 assert.match(social, /font-family="Hanken Grotesk, sans-serif"/, 'social preview uses the bundled face');
 assert.doesNotMatch(social, /font-weight="700"/, 'social heading drops to 500');
 
-const favicon = read('./icons/newtab-favicon.svg');
+const favicon = read('../icons/newtab-favicon.svg');
 assert.match(favicon, /#E5342A/i, 'sunrise favicon recolored to brand red');
 assert.match(favicon, /#F7F5EF/i, 'sunrise favicon carries paper');
 assert.doesNotMatch(favicon, /#F59E0B|#FBBF24|#0a0a0a/i, 'sunrise favicon keeps no amber/black');
@@ -283,22 +283,22 @@ const pngSize = (rel) => {
   return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
 };
 for (const [rel, w, h] of [
-  ['./icons/icon16.png', 16, 16],
-  ['./icons/icon48.png', 48, 48],
-  ['./icons/icon128.png', 128, 128],
-  ['./icons/social-preview.png', 1280, 640]
+  ['../icons/icon16.png', 16, 16],
+  ['../icons/icon48.png', 48, 48],
+  ['../icons/icon128.png', 128, 128],
+  ['../icons/social-preview.png', 1280, 640]
 ]) {
   const { w: pw, h: ph } = pngSize(rel);
   assert.equal(pw, w, `${rel} width`);
   assert.equal(ph, h, `${rel} height`);
 }
 
-assert.match(read('./manifest.json'), /icons\/icon128\.png/, 'manifest points at the regenerated PNG set');
-assert.match(read('./README.md'), /icons\/icon128\.png/, 'README points at the regenerated PNG set');
-assert.match(read('./README.md'), /Modernist-inspired design/, 'README describes the permanent design');
-assert.doesNotMatch(read('./README.md'), /preview-design/, 'README no longer documents the retired preview param');
+assert.match(read('../manifest.json'), /icons\/icon128\.png/, 'manifest points at the regenerated PNG set');
+assert.match(read('../README.md'), /icons\/icon128\.png/, 'README points at the regenerated PNG set');
+assert.match(read('../README.md'), /Modernist-inspired design/, 'README describes the permanent design');
+assert.doesNotMatch(read('../README.md'), /preview-design/, 'README no longer documents the retired preview param');
 
-const shim = read('./scripts/preview/shim.js');
+const shim = read('../scripts/preview/shim.js');
 assert.doesNotMatch(shim, /focus-preview-modernist|modernistEnabled|preview-design/, 'preview shim returns to pre-session state');
 
 const popupStatus = modernistCss.match(/\[data-surface="popup"\]\s+\.status\s*\{([^}]*)\}/s);
@@ -316,7 +316,7 @@ assert.match(
   'popup header separates with whitespace, no decorative divider'
 );
 assert.match(
-  read('./popup/popup.css'),
+  read('../popup/popup.css'),
   /\.focus-preset-btn\s*\{[^}]*border:\s*1px solid var\(--border\)/s,
   'preset buttons keep their visible outline'
 );

@@ -7,7 +7,7 @@ function assertMetadata(actual, expected) {
 }
 
 function loadBlockedContentMetadataHarness(historyItems) {
-  const source = fs.readFileSync(new URL('./background.js', import.meta.url), 'utf8');
+  const source = fs.readFileSync(new URL('../background.js', import.meta.url), 'utf8');
   const start = source.indexOf('function normalizeHistoryLookupUrl');
   const end = source.indexOf('/**\n * Get browsing patterns by day of week');
 

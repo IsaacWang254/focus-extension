@@ -3,13 +3,13 @@ import fs from 'node:fs';
 
 const read = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8');
 
-const common = read('./lib/common.css');
+const common = read('../lib/common.css');
 const pageStyles = {
-  'newtab/newtab.css': read('./newtab/newtab.css'),
-  'blocked/blocked.css': read('./blocked/blocked.css'),
-  'options/options.css': read('./options/options.css'),
-  'popup/popup.css': read('./popup/popup.css'),
-  'stats/stats.css': read('./stats/stats.css')
+  'newtab/newtab.css': read('../newtab/newtab.css'),
+  'blocked/blocked.css': read('../blocked/blocked.css'),
+  'options/options.css': read('../options/options.css'),
+  'popup/popup.css': read('../popup/popup.css'),
+  'stats/stats.css': read('../stats/stats.css')
 };
 
 // ---------------------------------------------------------------------------
@@ -25,14 +25,14 @@ assert.match(
 ['jetbrains-mono-latin-wght-normal.woff2', 'jetbrains-mono-latin-ext-wght-normal.woff2']
   .forEach((file) => {
     assert.ok(
-      fs.existsSync(new URL(`./lib/fonts/${file}`, import.meta.url)),
+      fs.existsSync(new URL(`../lib/fonts/${file}`, import.meta.url)),
       `${file} must be bundled — the extension cannot pull fonts from a CDN`
     );
     assert.match(common, new RegExp(file.replace(/\./g, '\\.')), `${file} must be referenced`);
   });
 
 assert.match(
-  read('./scripts/copy-fonts.js'),
+  read('../scripts/copy-fonts.js'),
   /jetbrains-mono-latin-wght-normal\.woff2/,
   'copy-fonts must reproduce the mono files, or a fresh clone loses them'
 );
@@ -160,7 +160,7 @@ Object.entries(pageStyles).forEach(([name, css]) => {
 // ---------------------------------------------------------------------------
 
 const blockedCss = pageStyles['blocked/blocked.css'];
-const blockedJs = read('./blocked/blocked.js');
+const blockedJs = read('../blocked/blocked.js');
 
 // The unblock rail was once dimmed to 0.55 opacity — a hidden affordance.
 assert.doesNotMatch(

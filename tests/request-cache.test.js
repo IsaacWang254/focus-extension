@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { getCachedResource, cacheScope, withSharedLock } from './lib/request-cache.js';
+import { getCachedResource, cacheScope, withSharedLock } from '../lib/request-cache.js';
 
 const store = {};
 globalThis.chrome = {

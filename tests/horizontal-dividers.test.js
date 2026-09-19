@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const dir = new URL('./', import.meta.url);
+const dir = new URL('../', import.meta.url);
 
 const files = [
   'lib/modernist.css',
@@ -15,7 +15,7 @@ const files = [
 
 let chartBaselines = 0;
 for (const file of files) {
-  const css = fs.readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
+  const css = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
   for (const [, selectors, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     for (const [, side, value] of body.matchAll(/\bborder-(top|bottom)\s*:\s*([^;]+);/g)) {
       const chartBaseline = file === 'stats/stats.css' && side === 'bottom'
@@ -35,11 +35,11 @@ for (const file of files) {
 }
 assert.equal(chartBaselines, 2, 'expected exactly the two chart baselines to keep their rule');
 
-const stats = fs.readFileSync(new URL('./stats/stats.css', import.meta.url), 'utf8');
-const common = fs.readFileSync(new URL('./lib/common.css', import.meta.url), 'utf8');
-const newtab = fs.readFileSync(new URL('./newtab/newtab.css', import.meta.url), 'utf8');
-const blocked = fs.readFileSync(new URL('./blocked/blocked.css', import.meta.url), 'utf8');
-const popup = fs.readFileSync(new URL('./popup/popup.css', import.meta.url), 'utf8');
+const stats = fs.readFileSync(new URL('../stats/stats.css', import.meta.url), 'utf8');
+const common = fs.readFileSync(new URL('../lib/common.css', import.meta.url), 'utf8');
+const newtab = fs.readFileSync(new URL('../newtab/newtab.css', import.meta.url), 'utf8');
+const blocked = fs.readFileSync(new URL('../blocked/blocked.css', import.meta.url), 'utf8');
+const popup = fs.readFileSync(new URL('../popup/popup.css', import.meta.url), 'utf8');
 
 function ruleBody(css, selector) {
   const match = css.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\{]*\\{([^{}]*)\\}`));
@@ -66,7 +66,7 @@ assert.match(bedtime, /width:\s*32px;/, 'bedtime divider width kept');
 assert.match(bedtime, /margin:\s*0 auto 20px;/, 'bedtime divider spacing kept');
 
 for (const file of files) {
-  const css = fs.readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
+  const css = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
   assert.doesNotMatch(css, /\*\s*\{[^}]*border/, `${file}: no blanket global border reset`);
 }
 

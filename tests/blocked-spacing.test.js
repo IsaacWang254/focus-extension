@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const css = fs.readFileSync(new URL('./lib/modernist.css', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../lib/modernist.css', import.meta.url), 'utf8');
 
 const rootBlock = css.match(/html\[data-design="modernist"\]\s*\{([\s\S]*?)\n\}/)[1];
 for (const token of [

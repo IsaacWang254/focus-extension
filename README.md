@@ -136,7 +136,7 @@ npm run preview   # http://localhost:4173
   (blocked page), `preview-bg=ocean|dither` (new tab), `shim=0` to disable.
 
 Design invariants (flat hairline surfaces and token-driven color) are
-enforced by `node design-tokens.test.js`.
+enforced by `node tests/design-tokens.test.js`.
 
 ### Performance and refresh behavior
 
@@ -216,10 +216,10 @@ the cache until it expires or is invalidated.
 
 #### Tests
 
-Root tests are plain Node scripts; run the whole suite with:
+Tests live in `tests/` and are plain Node scripts; run the whole suite with:
 
 ```bash
-for test in *.test.js; do printf '\n=== %s ===\n' "$test"; node "$test" || exit 1; done
+for test in tests/*.test.js; do printf '\n=== %s ===\n' "$test"; node "$test" || exit 1; done
 ```
 
 ### Privacy & data

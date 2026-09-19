@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const source = fs.readFileSync(new URL('./blocked/blocked.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../blocked/blocked.js', import.meta.url), 'utf8');
 
 function sliceBetween(startMarker, endMarker) {
   const start = source.indexOf(startMarker);

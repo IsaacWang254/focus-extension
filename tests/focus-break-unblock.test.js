@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const backgroundSource = fs.readFileSync(new URL('./background.js', import.meta.url), 'utf8');
-const contentSource = fs.readFileSync(new URL('./content-redirect.js', import.meta.url), 'utf8');
+const backgroundSource = fs.readFileSync(new URL('../background.js', import.meta.url), 'utf8');
+const contentSource = fs.readFileSync(new URL('../content-redirect.js', import.meta.url), 'utf8');
 
 assert.match(
   backgroundSource,

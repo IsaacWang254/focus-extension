@@ -4,13 +4,13 @@ import vm from 'node:vm';
 
 const read = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8');
 
-const iconsSource = read('./lib/icons.js');
+const iconsSource = read('../lib/icons.js');
 const iconSandbox = { window: {}, console };
 vm.createContext(iconSandbox);
 vm.runInContext(`${iconsSource}\nthis.icons = Icons;`, iconSandbox);
 const Icons = iconSandbox.icons;
 
-const newtabSource = read('./newtab/newtab.js');
+const newtabSource = read('../newtab/newtab.js');
 const wiStart = newtabSource.indexOf('function getWeatherInfo');
 const wiEnd = newtabSource.indexOf('async function getCoordinates');
 assert.notEqual(wiStart, -1, 'getWeatherInfo anchor missing');
@@ -72,7 +72,7 @@ assert.notEqual(Icons.partlyCloudy, Icons.partlyCloudyNight, 'day and night part
 assert.match(Icons.sun, /<circle/, 'Icons.sun baseline circle retained');
 assert.match(Icons.moon, /M21 12\.79A9 9 0 1 1 11\.21 3/, 'Icons.moon baseline path retained');
 
-const modernistCss = read('./lib/modernist.css');
+const modernistCss = read('../lib/modernist.css');
 assert.match(
   modernistCss,
   /\[data-surface="newtab"\]\s+\.weather-icon\s*\{[^}]*color:\s*var\(--foreground\)/s,
@@ -84,7 +84,7 @@ assert.match(
   'weather svg sized 32px at stroke 1.5'
 );
 
-const newtabHtml = read('./newtab/newtab.html');
+const newtabHtml = read('../newtab/newtab.html');
 assert.match(newtabHtml, /<span class="weather-icon" id="weather-icon" aria-hidden="true">/, 'weather icon span is aria-hidden');
 assert.doesNotMatch(newtabHtml, /weather-icon[^>]*title=/, 'weather icon has no title');
 

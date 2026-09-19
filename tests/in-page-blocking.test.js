@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const backgroundSource = fs.readFileSync(new URL('./background.js', import.meta.url), 'utf8');
-const contentSource = fs.readFileSync(new URL('./content-redirect.js', import.meta.url), 'utf8');
+const backgroundSource = fs.readFileSync(new URL('../background.js', import.meta.url), 'utf8');
+const contentSource = fs.readFileSync(new URL('../content-redirect.js', import.meta.url), 'utf8');
 
 function slice(source, startMarker, endMarker) {
   const start = source.indexOf(startMarker);
@@ -1041,7 +1041,7 @@ const snapshotDom = (h) => JSON.stringify({
 }
 
 {
-  const blockedSource = fs.readFileSync(new URL('./blocked/blocked.js', import.meta.url), 'utf8');
+  const blockedSource = fs.readFileSync(new URL('../blocked/blocked.js', import.meta.url), 'utf8');
   const notifySlice = slice(blockedSource, 'function isInPageBlocker', 'function getExactWhitelistTargetUrl');
   const makeReadyHarness = (embedded) => {
     const sent = [];
@@ -1223,7 +1223,7 @@ const snapshotDom = (h) => JSON.stringify({
 }
 
 {
-  const css = fs.readFileSync(new URL('./blocked/blocked.css', import.meta.url), 'utf8');
+  const css = fs.readFileSync(new URL('../blocked/blocked.css', import.meta.url), 'utf8');
   const htmlRule = css.match(/html\s*\{[^}]*\}/);
   assert.ok(htmlRule, 'blocked.css gains an html rule');
   assert.match(htmlRule[0], /overflow-y:\s*auto/, 'blocked page keeps its own vertical scrollbar');
@@ -1234,7 +1234,7 @@ const snapshotDom = (h) => JSON.stringify({
   assert.doesNotMatch(bodyRule[0], /overflow(-x|-y)?:\s*hidden/, 'blocked body still scrolls naturally');
   const layoutRule = css.match(/\.layout\s*\{[^}]*\}/);
   assert.match(layoutRule[0], /minmax\(0, 1\.5fr\)/, 'existing layout sizing untouched');
-  const source = fs.readFileSync(new URL('./content-redirect.js', import.meta.url), 'utf8');
+  const source = fs.readFileSync(new URL('../content-redirect.js', import.meta.url), 'utf8');
   const dialogStyle = source.match(/dialog\.style\.cssText = '[^']*'/);
   assert.match(dialogStyle[0], /overflow: hidden; overscroll-behavior: none/, 'dialog shell confines overscroll');
   const loadingStyle = source.match(/loading\.style\.cssText = '[^']*'/);

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const optionsSource = fs.readFileSync(new URL('./options/options.js', import.meta.url), 'utf8');
+const optionsSource = fs.readFileSync(new URL('../options/options.js', import.meta.url), 'utf8');
 
 assert.match(
   optionsSource,

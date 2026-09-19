@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const source = fs.readFileSync(new URL('./newtab/gl-background.js', import.meta.url), 'utf8')
+const source = fs.readFileSync(new URL('../newtab/gl-background.js', import.meta.url), 'utf8')
   .replace(/^export /gm, '');
 
 function harness({ visibility = 'visible', failLinks = [], failFrag = false } = {}) {
