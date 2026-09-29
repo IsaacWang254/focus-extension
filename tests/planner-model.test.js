@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   addLocalDays,
+  buildDayTimeline,
   flattenTasks,
   formatRelativeStart,
   groupTasks,
@@ -10,7 +11,8 @@ import {
   selectCurrentEvents,
   selectNextEvent,
   selectNowTask,
-  toLocalDateKey
+  toLocalDateKey,
+  validateProviderColor
 } from '../newtab/planner-model.js';
 import {
   clearCurrentTaskState,
@@ -60,6 +62,48 @@ assert.equal(safeExternalUrl('https://example.com/meeting'), 'https://example.co
 assert.equal(safeExternalUrl('javascript:alert(1)'), '');
 assert.equal(getMeetingUrl({ meetingLink: 'https://meet.google.com/abc', htmlLink: 'https://calendar.google.com/event' }), 'https://meet.google.com/abc');
 assert.equal(getMeetingUrl({ htmlLink: 'https://calendar.google.com/event' }), '', 'calendar event pages are not meeting links');
+
+const timelineNow = new Date(2026, 8, 29, 10, 0, 0);
+const timeline = buildDayTimeline([
+  { id: 'all-later', calendarId: 'work', title: 'All hands', isAllDay: true, start: '2026-09-29', end: '2026-09-30' },
+  { id: 'all-first', calendarId: 'personal', title: 'Birthday', isAllDay: true, start: '2026-09-28', end: '2026-09-30' },
+  { id: 'cross-midnight', calendarId: 'work', title: 'Overnight', start: '2026-09-28T23:30:00', end: '2026-09-29T00:30:00', color: '#a4BDFC' },
+  { id: 'past', calendarId: 'work', title: 'Ended', start: '2026-09-29T07:00:00', end: '2026-09-29T08:00:00' },
+  { id: 'current-long', calendarId: 'work', title: 'Long current', start: '2026-09-29T09:00:00', end: '2026-09-29T11:00:00' },
+  { id: 'current-short', calendarId: 'personal', title: 'Short current', start: '2026-09-29T09:30:00', end: '2026-09-29T10:30:00' },
+  { id: 'end-now', calendarId: 'work', title: 'Ends now', start: '2026-09-29T09:00:00', end: '2026-09-29T10:00:00' },
+  { id: 'start-now', calendarId: 'work', title: 'Starts now', start: '2026-09-29T10:00:00', end: '2026-09-29T11:00:00' },
+  { id: 'future', calendarId: 'work', title: 'Later', start: '2026-09-29T13:00:00', end: '2026-09-29T14:00:00' },
+  { id: 'bad-end', calendarId: 'work', title: 'Missing end', start: '2026-09-29T15:00:00', end: 'not-a-date' },
+  { id: 'unavailable', calendarId: 'work', title: 'No time', start: 'not-a-date', end: 'not-a-date' }
+], '2026-09-29', timelineNow);
+assert.deepEqual(timeline.allDay.map(row => row.id), ['all-first', 'all-later'], 'all-day rows use a stable identity order');
+assert.deepEqual(timeline.timed.map(row => row.id), ['cross-midnight', 'past', 'current-long', 'end-now', 'current-short', 'start-now', 'future', 'bad-end']);
+assert.deepEqual(timeline.timed.filter(row => row.state === 'current').map(row => row.id), ['current-long', 'current-short', 'start-now']);
+assert.equal(timeline.timed.find(row => row.id === 'end-now').state, 'past', 'end equals now is past');
+assert.equal(timeline.timed.find(row => row.id === 'bad-end').state, 'unknown', 'invalid intervals cannot become active');
+assert.equal(timeline.timed.find(row => row.id === 'cross-midnight').color, '#a4BDFC');
+assert.match(timeline.timed.find(row => row.id === 'cross-midnight').timeText, /Yesterday/, 'cross-midnight times retain date context');
+assert.equal(timeline.marker.index, 6, 'the marker follows every start at or before now');
+assert.equal(timeline.rows[6].type, 'now-marker');
+assert.deepEqual(timeline.unavailable.map(row => row.id), ['unavailable']);
+
+const fadeTimeline = buildDayTimeline([
+  { id: 'just-ended', start: '2026-09-29T08:00:00', end: '2026-09-29T10:00:00' },
+  { id: 'one-hour-old', start: '2026-09-29T07:00:00', end: '2026-09-29T09:00:00' },
+  { id: 'old', start: '2026-09-29T06:00:00', end: '2026-09-29T08:00:00' }
+], '2026-09-29', timelineNow);
+assert.equal(fadeTimeline.timed.find(row => row.id === 'just-ended').pastFade, 1);
+assert.equal(fadeTimeline.timed.find(row => row.id === 'one-hour-old').pastFade, 0.85);
+assert.equal(fadeTimeline.timed.find(row => row.id === 'old').pastFade, 0.7);
+
+const exclusiveAllDay = buildDayTimeline([
+  { id: 'ended-before-today', isAllDay: true, start: '2026-09-28', end: '2026-09-29' },
+  { id: 'invalid-earlier', isAllDay: true, start: '2026-09-28', end: '2026-09-28' }
+], '2026-09-29', timelineNow);
+assert.equal(exclusiveAllDay.allDay.length, 0, 'exclusive and invalid all-day end dates do not bleed into later days');
+assert.equal(validateProviderColor('#A4BDFC'), '#A4BDFC');
+assert.equal(validateProviderColor('rgb(0, 0, 0)'), '#73736c');
 
 const futureOnly = [{ id: 'future', content: 'Future', due: { date: '2026-10-01' } }];
 assert.equal(selectNowTask(futureOnly, '', now), null, 'future tasks are not suggested as current work');

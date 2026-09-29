@@ -1,4 +1,6 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
+export const TIMELINE_PAST_FADE_FLOOR = 0.7;
+export const TIMELINE_NEUTRAL_COLOR = '#73736c';
 
 export function toLocalDateKey(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
@@ -101,6 +103,164 @@ export function normalizeEvents(events = []) {
     end: event.end?.dateTime || event.end?.date || event.end,
     isAllDay: event.isAllDay ?? Boolean(event.start?.date && !event.start?.dateTime)
   })).filter(event => event.start);
+}
+
+export function validateProviderColor(value, fallback = TIMELINE_NEUTRAL_COLOR) {
+  const color = typeof value === 'string' ? value.trim() : '';
+  return /^#[0-9a-f]{6}$/i.test(color) ? color : fallback;
+}
+
+function eventValue(event, key) {
+  const value = event?.[key];
+  if (value && typeof value === 'object') return value.dateTime || value.date || '';
+  return typeof value === 'string' ? value : '';
+}
+
+function eventIsAllDay(event) {
+  return event?.isAllDay ?? Boolean(event?.start?.date && !event?.start?.dateTime);
+}
+
+function parseEventDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isDateKey(value) {
+  return Boolean(parseLocalDate(value));
+}
+
+function timelineEventKey(event, start) {
+  return [event?.calendarId || '', event?.id || '', start || ''].map(String).join('\u0000');
+}
+
+function compareTimelineIdentity(a, b) {
+  return String(a.event.calendarId || '').localeCompare(String(b.event.calendarId || '')) ||
+    String(a.event.id || '').localeCompare(String(b.event.id || '')) ||
+    String(a.start || '').localeCompare(String(b.start || ''));
+}
+
+function formatTimelineClock(date) {
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function relativeTimelineDate(date, localDate) {
+  const key = toLocalDateKey(date);
+  if (key === localDate) return 'Today';
+  if (key === addLocalDays(localDate, -1)) return 'Yesterday';
+  if (key === addLocalDays(localDate, 1)) return 'Tomorrow';
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function formatTimelineTimeRange(startDate, endDate, localDate, validInterval) {
+  if (!startDate) return 'Time unavailable';
+  const startText = formatTimelineClock(startDate);
+  if (!validInterval) return `${startText} · End time unavailable`;
+  const endText = formatTimelineClock(endDate);
+  if (toLocalDateKey(startDate) === toLocalDateKey(endDate)) return `${startText}–${endText}`;
+  return `${relativeTimelineDate(startDate, localDate)} · ${startText}–${relativeTimelineDate(endDate, localDate)} · ${endText}`;
+}
+
+function timelineEventDescriptor(event, localDate, now, dayStart, dayEnd, fadeFloor) {
+  const start = eventValue(event, 'start');
+  const end = eventValue(event, 'end');
+  const isAllDay = eventIsAllDay(event);
+  const descriptor = {
+    key: timelineEventKey(event, start),
+    event,
+    id: event?.id || '',
+    calendarId: event?.calendarId || '',
+    calendarName: event?.calendarName || '',
+    title: event?.title || event?.summary || 'Untitled event',
+    start,
+    end,
+    isAllDay,
+    color: validateProviderColor(event?.color),
+    state: 'unknown',
+    startDate: null,
+    endDate: null,
+    hasValidInterval: false,
+    pastFade: 1,
+    timeText: 'Time unavailable',
+    accessibleTimeText: 'Time unavailable'
+  };
+
+  if (isAllDay) {
+    const startDate = typeof start === 'string' ? start.slice(0, 10) : '';
+    const endDate = typeof end === 'string' ? end.slice(0, 10) : '';
+    if (!isDateKey(startDate)) return descriptor;
+    descriptor.hasValidInterval = isDateKey(endDate) && endDate > startDate;
+    if (descriptor.hasValidInterval && (startDate > localDate || endDate <= localDate)) return null;
+    if (!descriptor.hasValidInterval && startDate !== localDate) return null;
+    descriptor.state = 'all-day';
+    descriptor.timeText = 'All day';
+    descriptor.accessibleTimeText = `All day${descriptor.hasValidInterval ? '' : ' · End date unavailable'}`;
+    return descriptor;
+  }
+
+  const startDate = parseEventDate(start);
+  const endDate = parseEventDate(end);
+  descriptor.startDate = startDate;
+  descriptor.endDate = endDate;
+  descriptor.hasValidInterval = Boolean(startDate && endDate && endDate > startDate);
+  descriptor.timeText = formatTimelineTimeRange(startDate, endDate, localDate, descriptor.hasValidInterval);
+  descriptor.accessibleTimeText = descriptor.timeText;
+
+  if (!startDate) return descriptor;
+  if (descriptor.hasValidInterval && (startDate >= dayEnd || endDate <= dayStart)) return null;
+  if (!descriptor.hasValidInterval && (startDate < dayStart || startDate >= dayEnd)) return null;
+
+  if (!descriptor.hasValidInterval || !now) return descriptor;
+  if (now < startDate) {
+    descriptor.state = 'future';
+  } else if (now < endDate) {
+    descriptor.state = 'current';
+  } else {
+    descriptor.state = 'past';
+    const age = Math.max(0, Math.min(1, (now.getTime() - endDate.getTime()) / (2 * 60 * 60 * 1000)));
+    descriptor.pastFade = 1 - (1 - fadeFloor) * age;
+  }
+  return descriptor;
+}
+
+/**
+ * Build render-ready descriptors for one browser-local Calendar day.
+ * The caller supplies both the day key and now so minute updates stay local
+ * and deterministic without consulting provider data or the system clock.
+ */
+export function buildDayTimeline(events = [], localDate, now, options = {}) {
+  const dayStart = parseLocalDate(localDate);
+  const nowDate = now instanceof Date && !Number.isNaN(now.getTime()) ? now : null;
+  const fadeFloor = Math.max(TIMELINE_PAST_FADE_FLOOR, Math.min(1, Number(options.pastFadeFloor) || TIMELINE_PAST_FADE_FLOOR));
+  const result = {
+    date: localDate,
+    allDay: [],
+    timed: [],
+    unavailable: [],
+    rows: [],
+    marker: { index: 0, label: nowDate ? `Now · ${formatTimelineClock(nowDate)}` : 'Now', now: nowDate }
+  };
+  if (!dayStart) return result;
+
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+  for (const event of events || []) {
+    const descriptor = timelineEventDescriptor(event, localDate, nowDate, dayStart, dayEnd, fadeFloor);
+    if (!descriptor) continue;
+    if (descriptor.state === 'all-day') result.allDay.push(descriptor);
+    else if (descriptor.startDate) result.timed.push(descriptor);
+    else result.unavailable.push(descriptor);
+  }
+
+  result.allDay.sort(compareTimelineIdentity);
+  result.timed.sort((a, b) => a.startDate - b.startDate || compareTimelineIdentity(a, b));
+  result.unavailable.sort(compareTimelineIdentity);
+  result.marker.index = nowDate ? result.timed.filter(row => row.startDate <= nowDate).length : 0;
+  result.rows = [
+    ...result.timed.slice(0, result.marker.index),
+    { type: 'now-marker', key: 'now-marker', label: result.marker.label, now: nowDate },
+    ...result.timed.slice(result.marker.index)
+  ];
+  return result;
 }
 
 export function selectCurrentEvents(events = [], now = new Date()) {

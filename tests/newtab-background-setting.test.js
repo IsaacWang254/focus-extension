@@ -186,6 +186,7 @@ const newtabSource = read('../newtab/newtab.js');
 const plannerSource = read('../newtab/planner.js');
 const newtabHtml = read('../newtab/newtab.html');
 const newtabCss = read('../newtab/newtab.css');
+const packageSource = read('../package.json');
 
 assert.match(
   newtabHtml,
@@ -276,13 +277,12 @@ assert.doesNotMatch(
   'the daily brief must use whitespace instead of a decorative divider'
 );
 
-[['.feature-event-title', 'text-align: left'],
- ['.daily-header', 'align-items: flex-start']].forEach(([sel, decl]) => {
-  assert.match(
-    newtabCss,
-    new RegExp(`\\${sel} \\{[^}]*${decl.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}`),
-    `${sel} must be left aligned (${decl})`
-  );
-});
+assert.match(newtabHtml, /id="today-timeline-section"/, 'the homepage must expose one Today timeline');
+assert.match(newtabHtml, /id="add-task-btn"[^>]*aria-label="Add task"/, 'icon-only task actions need accessible names');
+assert.match(newtabHtml, /id="view-schedule-btn"[^>]*aria-label="View schedule"/, 'the schedule icon needs an accessible name');
+assert.doesNotMatch(newtabHtml, /product-mark|newtab-toolbar-root|settings-modal|radix-shell\.bundle/, 'retired homepage chrome must stay removed');
+assert.doesNotMatch(newtabSource, /setupThemeToggle|setupSettings/, 'removed homepage controls must not retain event wiring');
+assert.doesNotMatch(packageSource, /build:newtab|newtab\/radix-shell/, 'the retired new-tab bundle must stay out of build scripts');
+assert.match(newtabCss, /\.timeline-list::before\s*\{[^}]*background:/s, 'the Today timeline keeps a clear vertical time rail');
 
 console.log('newtab background setting tests passed');

@@ -51,7 +51,7 @@ function harness({ settings = {}, visibility = 'visible', summaryDelay = 0, cale
   completedItems = [{ id: 'c1', content: 'Done task' }], geo = 'ok', weatherFail = false,
   authenticated = true, coords = true, taskFailureStatus = 0, seed = {} } = {}) {
   const calls = {
-    tasks: 0, completed: 0, planner: 0, weather: 0, geolocation: 0,
+    tasks: 0, completed: 0, planner: 0, plannerTime: 0, weather: 0, geolocation: 0,
     messages: {}, shaderImports: [], shaderInits: []
   };
   let now = new Date(2026, 8, 13, 12, 0, 0).getTime();
@@ -236,6 +236,7 @@ function harness({ settings = {}, visibility = 'visible', summaryDelay = 0, cale
     getDailyQuote: () => ({ text: 'q', author: 'a' }),
     initPlannerDashboard: () => {},
     refreshPlannerDashboard: async () => { calls.planner++; },
+    refreshPlannerTime: () => { calls.plannerTime++; },
     handlePlannerStorageChange: () => {},
     TODOIST_CLIENT_ID: 'fixture', TOKEN_PROXY_URL: 'https://fixture.invalid/token',
     __importShader: (name) => {

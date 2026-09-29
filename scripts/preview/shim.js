@@ -67,13 +67,14 @@
     { id: 'relaxed', name: 'Relaxed', icon: 'R', color: '#d97706', blockedSites: SETTINGS.blockedSites.slice(0, 3), categories: [], unblockMethods: UNBLOCK_METHODS }
   ];
 
-  const at = (h, m = 0) => { const d = new Date(); d.setHours(h, m, 0, 0); return d.toISOString(); };
+  const aroundNow = minutes => new Date(now + minutes * 60 * 1000).toISOString();
+  const tomorrowIso = new Date(now + 864e5).toISOString().slice(0, 10);
 
   const EVENTS = [
-    { id: 'e1', title: 'Deep work: homepage direction', start: at(9, 30), end: at(11, 0), color: '#666666', calendarName: 'Work', location: 'Studio' },
-    { id: 'e2', title: 'Standup', start: at(11, 30), end: at(11, 45), color: '#666666', calendarName: 'Team', meetingUrl: 'https://meet.google.com/example' },
-    { id: 'e3', title: 'Review pull requests', start: at(14, 0), end: at(15, 0), color: '#999999', calendarName: 'Work' },
-    { id: 'e4', title: 'Ship day', start: `${todayIso}T00:00:00`, end: `${todayIso}T23:59:59`, isAllDay: true, color: '#999999', calendarName: 'Work' }
+    { id: 'e1', calendarId: 'work', title: 'Deep work: homepage direction', start: aroundNow(-150), end: aroundNow(-70), color: '#246fe0', calendarName: 'Work', location: 'Studio' },
+    { id: 'e2', calendarId: 'team', title: 'Product review', start: aroundNow(-25), end: aroundNow(35), color: '#dc4c3e', calendarName: 'Team', meetingUrl: 'https://meet.google.com/example' },
+    { id: 'e3', calendarId: 'work', title: 'Review pull requests', start: aroundNow(65), end: aroundNow(125), color: '#059669', calendarName: 'Work' },
+    { id: 'e4', calendarId: 'work', title: 'Ship day', start: todayIso, end: tomorrowIso, isAllDay: true, color: '#eb8909', calendarName: 'Work' }
   ];
 
   const due = (offsetDays, label) => ({ date: new Date(now + offsetDays * 864e5).toISOString().slice(0, 10), string: label, is_recurring: false });

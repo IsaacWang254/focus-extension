@@ -2,11 +2,8 @@ import * as todoist from '../lib/todoist.js';
 import {
   addLocalDays,
   flattenTasks,
-  formatRelativeStart,
   normalizeEvents,
   rankTasks,
-  selectCurrentEvents,
-  selectNextEvent,
   selectNowTask,
   safeExternalUrl,
   toLocalDateKey
@@ -14,6 +11,7 @@ import {
 import { clearCurrentTaskState, loadCurrentTaskState, PLANNER_STATE_KEY, saveCurrentTaskState } from './planner-state.js';
 import { createTaskRow, renderTaskGroups, taskMeta } from './planner-tasks.js';
 import { createEventRow, formatEventTime, getMeetingUrl, normalizePlannerEventsPayload, renderEventList } from './planner-calendar.js';
+import { centerTimelineOnNow, renderDayTimeline } from './planner-timeline.js';
 import {
   buildCreateTaskPayload,
   buildUpdateTaskPayload,
@@ -26,7 +24,6 @@ let tasks = [];
 let projects = new Map();
 let currentTaskId = '';
 let todayEvents = [];
-let tomorrowEvents = [];
 let plannerStarted = false;
 let activeDrawerTrigger = null;
 let selectedScheduleDate = toLocalDateKey();
@@ -36,7 +33,12 @@ let activeProjectId = '';
 let taskBrowseLimit = 30;
 const scheduleRequestGuard = createLatestRequestGuard();
 const taskRequestGuard = createLatestRequestGuard();
+const calendarRequestGuard = createLatestRequestGuard();
 const pendingTaskIds = new Set();
+const CALENDAR_REFRESH_INTERVAL = 5 * 60 * 1000;
+let lastCalendarAttemptAt = 0;
+let loadedCalendarDate = '';
+let timelineUserAnchored = false;
 
 const storage = {
   get: keys => typeof chrome !== 'undefined' && chrome.storage?.local ? chrome.storage.local.get(keys) : api.getLocal(keys),
@@ -63,18 +65,11 @@ function setPlannerStatus(kind, message = '') {
 }
 
 async function getPlannerEvents(date) {
-  try {
-    const payload = await api.sendRuntimeMessage({ type: 'GET_PLANNER_EVENTS', date });
-    if (payload?.error && !payload?.events?.length && !payload?.disconnected) {
-      throw Object.assign(new Error(payload.error), { status: payload.status });
-    }
-    return normalizePlannerEventsPayload(payload, date);
-  } catch (error) {
-    const message = String(error?.message || error || '');
-    if (!message.includes('Unknown message type') && !message.includes('Could not establish connection') && !message.includes('Receiving end does not exist')) throw error;
-    const payload = await api.sendRuntimeMessage({ type: 'GET_NEWTAB_EVENTS' });
-    return { date, events: payload?.events || [] };
+  const payload = await api.sendRuntimeMessage({ type: 'GET_PLANNER_EVENTS', date });
+  if (payload?.error && !payload?.events?.length && !payload?.disconnected) {
+    throw Object.assign(new Error(payload.error), { status: payload.status });
   }
+  return normalizePlannerEventsPayload(payload, date);
 }
 
 async function loadTaskData() {
@@ -118,44 +113,47 @@ async function loadTaskData() {
   }
 }
 
-async function loadCalendarData() {
+async function loadCalendarData({ force = false, recenter = false } = {}) {
   if (!api.isVisible('newtabShowCalendar')) return;
+  const today = toLocalDateKey();
+  if (!force && loadedCalendarDate === today && Date.now() - lastCalendarAttemptAt < CALENDAR_REFRESH_INTERVAL) {
+    renderCalendar({ recenter });
+    return;
+  }
+  const requestId = calendarRequestGuard.begin();
+  lastCalendarAttemptAt = Date.now();
   if (!todayEvents.length) setPlannerStatus('calendar', 'Loading schedule…');
   try {
     const status = await api.sendRuntimeMessage({ type: 'GET_CALENDAR_STATUS' });
+    if (!calendarRequestGuard.isLatest(requestId)) return;
     if (!status?.connected) {
       todayEvents = [];
-      tomorrowEvents = [];
-      setPlannerStatus('calendar', 'Connect Google Calendar to see what comes next.');
+      loadedCalendarDate = today;
+      setPlannerStatus('calendar', 'Connect Google Calendar to see today.');
       setHidden('calendar-connect-btn', false);
       setText('calendar-connect-btn', 'Connect Calendar');
-      renderCalendar();
+      renderCalendar({ recenter });
       return;
     }
     setHidden('calendar-connect-btn', true);
-    const today = toLocalDateKey();
     const todayPayload = await getPlannerEvents(today);
+    if (!calendarRequestGuard.isLatest(requestId) || today !== toLocalDateKey()) return;
     todayEvents = normalizeEvents(todayPayload.events);
+    loadedCalendarDate = today;
     if (todayPayload.disconnected) {
       setPlannerStatus('calendar', 'Your Calendar connection expired. Reconnect to refresh it.');
       setHidden('calendar-connect-btn', false);
       setText('calendar-connect-btn', 'Reconnect Calendar');
-      renderCalendar();
+      renderCalendar({ recenter });
       return;
     }
-    const next = selectNextEvent(todayEvents);
-    if (!next) {
-      const tomorrowPayload = await getPlannerEvents(addLocalDays(today, 1));
-      tomorrowEvents = normalizeEvents(tomorrowPayload.events);
-    } else {
-      tomorrowEvents = [];
-    }
     setPlannerStatus('calendar', todayPayload.stale ? 'Showing saved schedule.' : todayPayload.partial ? 'Some calendars are unavailable.' : '');
-    renderCalendar();
+    renderCalendar({ recenter });
   } catch (error) {
+    if (!calendarRequestGuard.isLatest(requestId)) return;
     console.error('Failed to load planner calendar:', error);
-    setPlannerStatus('calendar', todayEvents.length ? 'Showing saved schedule.' : 'Calendar is unavailable.');
-    renderCalendar();
+    setPlannerStatus('calendar', todayEvents.length ? 'Showing saved schedule.' : 'Calendar is unavailable. Reload the extension and try again.');
+    renderCalendar({ recenter });
   }
 }
 
@@ -195,52 +193,21 @@ function renderTasks() {
   setHidden('task-preview-empty', ranked.length > 1 || Boolean(element('tasks-status')?.textContent));
 }
 
-function renderCalendar() {
-  const now = new Date();
-  const currentEvents = selectCurrentEvents(todayEvents, now);
-  const next = selectNextEvent(todayEvents, now) || selectNextEvent(tomorrowEvents, now);
-  const nextContainer = element('next-event');
-  const preview = element('agenda-preview-list');
-  if (!nextContainer || !preview) return;
-  nextContainer.innerHTML = '';
-  preview.innerHTML = '';
-
-  if (!next) {
-    const empty = document.createElement('p');
-    empty.className = 'brief-empty';
-    empty.textContent = element('calendar-status')?.textContent
-      ? 'Schedule details will appear after Calendar connects.'
-      : currentEvents.length ? `${currentEvents.length} event${currentEvents.length === 1 ? '' : 's'} in progress.` : 'Nothing else is scheduled.';
-    nextContainer.appendChild(empty);
-  } else {
-    const time = document.createElement('p');
-    time.className = 'feature-kicker';
-    const tomorrow = toLocalDateKey(next.start) !== toLocalDateKey(now);
-    time.textContent = `${tomorrow ? 'Tomorrow · ' : ''}${formatEventTime(next)} · ${formatRelativeStart(next, now)}`;
-    const title = document.createElement('button');
-    title.type = 'button';
-    title.className = 'feature-event-title';
-    title.textContent = next.title;
-    title.addEventListener('click', event => openEventDetail(next, event.currentTarget));
-    nextContainer.append(time, title);
-    const meetingUrl = getMeetingUrl(next);
-    if (meetingUrl) {
-      const join = document.createElement('a');
-      join.className = 'text-action';
-      join.href = meetingUrl;
-      join.target = '_blank';
-      join.rel = 'noreferrer';
-      join.textContent = 'Join meeting';
-      nextContainer.appendChild(join);
-    }
+function renderCalendar({ recenter = false } = {}) {
+  const viewport = element('timeline-viewport');
+  const list = element('timeline-list');
+  const allDay = element('timeline-all-day');
+  const empty = element('timeline-empty');
+  if (!viewport || !list || !allDay || !empty) return;
+  const result = renderDayTimeline({ viewport, list, allDay, empty }, todayEvents, {
+    date: loadedCalendarDate || toLocalDateKey(),
+    now: new Date(),
+    hasStatus: Boolean(element('calendar-status')?.textContent),
+    onOpen: (event, trigger) => openEventDetail(event, trigger)
+  });
+  if (recenter && !timelineUserAnchored && element('planner-drawer')?.classList.contains('hidden')) {
+    requestAnimationFrame(() => centerTimelineOnNow(viewport, result.marker));
   }
-
-  const upcoming = normalizeEvents(todayEvents)
-    .filter(event => event.isAllDay || new Date(event.end || event.start) > now)
-    .sort((a, b) => new Date(a.start) - new Date(b.start))
-    .slice(0, 2);
-  for (const event of upcoming) preview.appendChild(createEventRow(event, { onOpen: selected => openEventDetail(selected) }));
-  setHidden('agenda-preview-empty', upcoming.length > 0 || Boolean(element('calendar-status')?.textContent));
 }
 
 async function makeTaskCurrent(task) {
@@ -567,7 +534,23 @@ function setupActions() {
   element('add-task-btn')?.addEventListener('click', event => openDrawer('add', event.currentTarget));
   element('view-schedule-btn')?.addEventListener('click', event => openDrawer('schedule', event.currentTarget));
   element('todos-connect-btn')?.addEventListener('click', async () => { await todoist.authenticate(); await loadTaskData(); });
-  element('calendar-connect-btn')?.addEventListener('click', async () => { await api.sendRuntimeMessage({ type: 'CONNECT_GOOGLE_CALENDAR' }); await loadCalendarData(); });
+  element('calendar-connect-btn')?.addEventListener('click', async () => { await api.sendRuntimeMessage({ type: 'CONNECT_GOOGLE_CALENDAR' }); await loadCalendarData({ force: true, recenter: true }); });
+  const viewport = element('timeline-viewport');
+  const backToNow = element('back-to-now-btn');
+  const anchorTimeline = () => {
+    timelineUserAnchored = true;
+    backToNow?.classList.remove('hidden');
+  };
+  viewport?.addEventListener('wheel', anchorTimeline, { passive: true });
+  viewport?.addEventListener('touchstart', anchorTimeline, { passive: true });
+  viewport?.addEventListener('keydown', event => {
+    if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) anchorTimeline();
+  });
+  backToNow?.addEventListener('click', () => {
+    timelineUserAnchored = false;
+    backToNow.classList.add('hidden');
+    centerTimelineOnNow(viewport, element('timeline-list')?.querySelector('[data-timeline-now="true"]'));
+  });
 }
 
 export function initPlannerDashboard(options) {
@@ -580,7 +563,20 @@ export function initPlannerDashboard(options) {
 
 export async function refreshPlannerDashboard() {
   if (!plannerStarted) return;
-  await Promise.allSettled([loadTaskData(), loadCalendarData()]);
+  await Promise.allSettled([loadTaskData(), loadCalendarData({ recenter: !loadedCalendarDate })]);
+}
+
+export function refreshPlannerTime({ recenter = false } = {}) {
+  if (!plannerStarted || !api.isVisible('newtabShowCalendar')) return;
+  const today = toLocalDateKey();
+  if (loadedCalendarDate && loadedCalendarDate !== today) {
+    loadedCalendarDate = '';
+    todayEvents = [];
+    lastCalendarAttemptAt = 0;
+    loadCalendarData({ force: true, recenter: true });
+    return;
+  }
+  renderCalendar({ recenter });
 }
 
 export function handlePlannerStorageChange(changes) {

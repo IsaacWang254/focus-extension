@@ -222,10 +222,9 @@ assert.match(
 
 const newtabSource = read('../newtab/newtab.js');
 const blockedSource = read('../blocked/blocked.js');
-for (const [file, src] of [['newtab/newtab.js', newtabSource], ['blocked/blocked.js', blockedSource]]) {
-  assert.match(src, /setIconButtonLabel\(toggle/, `${file} must label the theme toggle through the design-aware helper`);
-  assert.doesNotMatch(src, /toggle\.title\s*=/, `${file} must not assign native titles directly`);
-}
+assert.doesNotMatch(newtabSource, /setupThemeToggle|theme-toggle|setIconButtonLabel/, 'newtab must not retain the removed theme control');
+assert.match(blockedSource, /setIconButtonLabel\(toggle/, 'blocked/blocked.js must label the theme toggle through the design-aware helper');
+assert.doesNotMatch(blockedSource, /toggle\.title\s*=/, 'blocked/blocked.js must not assign native titles directly');
 assert.match(modernistCss, /\.settings-launch::after\s*\{[^}]*content:\s*none/s, 'the pseudo tooltip must be disabled');
 assert.match(
   modernistCss,

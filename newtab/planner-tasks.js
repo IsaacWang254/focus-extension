@@ -1,5 +1,16 @@
 import { getTaskDueKey, groupTasks, toLocalDateKey } from './planner-model.js';
 
+const PRIORITY_STYLES = {
+  4: { label: 'P1', color: '#dc4c3e' },
+  3: { label: 'P2', color: '#eb8909' },
+  2: { label: 'P3', color: '#246fe0' },
+  1: { label: 'P4', color: '#808080' }
+};
+
+export function taskPriorityStyle(priority) {
+  return PRIORITY_STYLES[Number(priority)] || PRIORITY_STYLES[1];
+}
+
 export function taskMeta(task, projects = new Map(), now = new Date()) {
   const parts = [];
   const due = getTaskDueKey(task);
@@ -20,11 +31,14 @@ export function createTaskRow(task, options = {}) {
   const row = document.createElement('li');
   row.className = `planner-task-row${options.current ? ' is-current' : ''}`;
   row.dataset.taskId = task.id;
+  const priority = taskPriorityStyle(task.priority);
+  row.style.setProperty('--task-priority-color', priority.color);
+  row.dataset.priority = priority.label;
 
   const complete = document.createElement('button');
   complete.type = 'button';
   complete.className = 'planner-check';
-  complete.setAttribute('aria-label', `Complete ${task.content}`);
+  complete.setAttribute('aria-label', `Complete ${task.content}, ${priority.label} priority`);
   complete.disabled = options.pending === true;
   complete.classList.toggle('is-pending', options.pending === true);
   complete.addEventListener('click', () => options.onComplete?.(task, complete));

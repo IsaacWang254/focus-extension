@@ -6,19 +6,17 @@
 import { createRuntimeMessenger, hasExtensionRuntime } from '../lib/runtime.js';
 import {
   applyAccentColorFromStorage,
-  getEffectiveThemeBase,
   isThemeSyncEnabled,
-  loadTheme,
-  resolveThemeVariant
+  loadTheme
 } from '../lib/theme.js';
-import { setIconButtonLabel } from '../lib/design-theme.js';
 import { resolveNewtabBackground } from '../lib/newtab-background.js';
 import { getCachedResource, withSharedLock } from '../lib/request-cache.js';
 import { runWhenVisible } from '../lib/when-visible.js';
 import {
   handlePlannerStorageChange,
   initPlannerDashboard,
-  refreshPlannerDashboard
+  refreshPlannerDashboard,
+  refreshPlannerTime
 } from './planner.js';
 
 // =============================================================================
@@ -46,7 +44,6 @@ const DEFAULTS = {
 
 let reminderIntervalId = null;
 let dashboardSettings = { ...DEFAULTS };
-let lastFocusedElement = null;
 
 function isWidgetVisible(key) {
   return document.visibilityState === 'visible' && dashboardSettings[key] !== false;
@@ -108,12 +105,6 @@ async function setLocal(values) {
   return undefined;
 }
 
-function getExtensionUrl(path) {
-  if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) return chrome.runtime.getURL(path);
-  return new URL(`../${path}`, import.meta.url).href;
-}
-
-
 function getCurrentTheme() {
   return document.documentElement.getAttribute('data-theme') || 'light';
 }
@@ -121,34 +112,6 @@ function getCurrentTheme() {
 function getBgImageStorageKey() {
   const theme = getCurrentTheme();
   return (theme === 'dark' || theme === 'dashboard-dark') ? 'newtabBgImageDark' : 'newtabBgImageLight';
-}
-
-function setupThemeToggle() {
-  const toggle = document.getElementById('theme-toggle');
-  toggle.addEventListener('click', async () => {
-    const root = document.documentElement;
-
-    // Read storage to get base theme
-    const result = await getLocal(['theme', 'themeSyncWithBrowser']);
-    const storedBase = result.theme || 'light';
-    const syncWithBrowser = isThemeSyncEnabled(result.themeSyncWithBrowser);
-    const currentBase = getEffectiveThemeBase(storedBase, syncWithBrowser);
-
-    // Toggle the base theme
-    const newBase = currentBase === 'dark' ? 'light' : 'dark';
-
-    // Resolve the actual data-theme value
-    const resolved = resolveThemeVariant(newBase);
-    root.setAttribute('data-theme', resolved);
-    updateThemeToggleIcon(resolved);
-    await setLocal({ theme: newBase, themeSyncWithBrowser: false });
-
-    // Re-apply accent color for the new theme
-    await applyAccentColorFromStorage();
-
-    // Refresh background color for the new theme
-    await refreshBgColor();
-  });
 }
 
 // Light themes get the "day" variant, dark themes the night variant. Both
@@ -295,7 +258,6 @@ function setupBrowserThemeSyncListener() {
     const result = await getLocal('themeSyncWithBrowser');
     if (!isThemeSyncEnabled(result.themeSyncWithBrowser)) return;
     await loadTheme();
-    updateThemeToggleIcon();
     await refreshBgColor();
   });
 }
@@ -304,31 +266,12 @@ function setupBrowserThemeSyncListener() {
 // ICONS
 // =============================================================================
 
-function updateThemeToggleIcon(themeValue = document.documentElement.getAttribute('data-theme')) {
-  const themeIconLight = document.getElementById('theme-icon-light');
-  const themeIconDark = document.getElementById('theme-icon-dark');
-  const toggle = document.getElementById('theme-toggle');
-  const isDark = themeValue === 'dashboard-dark' || themeValue === 'dark';
-
-  if (themeIconLight) {
-    themeIconLight.innerHTML = isDark ? '' : Icons.moon;
-    themeIconLight.setAttribute('aria-hidden', isDark ? 'true' : 'false');
-  }
-
-  if (themeIconDark) {
-    themeIconDark.innerHTML = isDark ? Icons.sun : '';
-    themeIconDark.setAttribute('aria-hidden', isDark ? 'false' : 'true');
-  }
-
-  setIconButtonLabel(toggle, isDark ? 'Switch to light mode' : 'Switch to dark mode');
-}
-
 function setupIcons() {
-  updateThemeToggleIcon();
   const icons = {
-    'settings-icon': Icons.settings,
-    'settings-close-icon': Icons.x,
-    'bedtime-reminder-icon': Icons.moon
+    'bedtime-reminder-icon': Icons.moon,
+    'add-task-icon': Icons.plus,
+    'view-tasks-icon': Icons.list,
+    'view-schedule-icon': Icons.calendar
   };
   for (const [id, markup] of Object.entries(icons)) {
     const target = document.getElementById(id);
@@ -359,6 +302,7 @@ function updateClock() {
     <span class="clock-separator" aria-hidden="true">:</span>
     <span class="clock-part">${minutes}</span>
   `;
+  refreshPlannerTime();
 }
 
 function startClock() {
@@ -811,10 +755,6 @@ async function loadWeather() {
   }
 }
 
-// =============================================================================
-// SETTINGS
-// =============================================================================
-
 async function loadSettings() {
   const settings = {
     ...DEFAULTS,
@@ -843,68 +783,7 @@ function applyVisibility(settings) {
   weatherSection?.classList.toggle('hidden', !settings.newtabShowWeather);
   document.getElementById('brief-now')?.classList.toggle('hidden', !settings.newtabShowTodos);
   document.getElementById('tasks-preview')?.classList.toggle('hidden', !settings.newtabShowTodos);
-  document.getElementById('brief-next')?.classList.toggle('hidden', !settings.newtabShowCalendar);
-  document.getElementById('agenda-preview')?.classList.toggle('hidden', !settings.newtabShowCalendar);
-}
-
-function setupSettings() {
-  const settingsBtn = document.getElementById('settings-btn');
-  const modal = document.getElementById('settings-modal');
-  const backdrop = document.getElementById('settings-modal-backdrop');
-  const dialog = document.getElementById('settings-dialog');
-  const closeBtn = document.getElementById('settings-close-btn');
-  const frame = document.getElementById('settings-frame');
-
-  if (!settingsBtn || !modal || !backdrop || !dialog || !closeBtn || !frame) {
-    return;
-  }
-
-  const settingsUrl = getExtensionUrl('options/options.html?embedded=popup');
-  let settingsFrameLoaded = false;
-
-  const closeSettings = () => {
-    modal.classList.add('hidden');
-    modal.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('settings-open');
-    if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
-      lastFocusedElement.focus();
-    }
-  };
-
-  const openSettings = () => {
-    if (!settingsFrameLoaded) {
-      frame.src = settingsUrl;
-      settingsFrameLoaded = true;
-    }
-    lastFocusedElement = document.activeElement;
-    modal.classList.remove('hidden');
-    modal.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('settings-open');
-    closeBtn.focus();
-  };
-
-  settingsBtn.addEventListener('click', () => {
-    openSettings();
-  });
-
-  closeBtn.addEventListener('click', closeSettings);
-  backdrop.addEventListener('click', closeSettings);
-
-  dialog.addEventListener('click', (event) => {
-    event.stopPropagation();
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
-      closeSettings();
-    }
-  });
-
-  window.addEventListener('message', (event) => {
-    if (event.source !== frame.contentWindow) return;
-    if (event.data?.type !== 'FOCUS_CLOSE_SETTINGS') return;
-    closeSettings();
-  });
+  document.getElementById('today-timeline-section')?.classList.toggle('hidden', !settings.newtabShowCalendar);
 }
 
 // =============================================================================
@@ -1032,6 +911,7 @@ function setupVisibilityLifecycle() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       startClock();
+      refreshPlannerTime({ recenter: true });
       if (dashboardRefreshStarted) {
         startDashboardRefresh();
       }
@@ -1132,7 +1012,6 @@ function setupStorageSync() {
       }
       if (reloadTheme) {
         await loadTheme();
-        updateThemeToggleIcon();
         await refreshBgColor();
       }
       for (const name of authClears) {
@@ -1208,10 +1087,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupIcons();
 
   // Setup interactions
-  setupThemeToggle();
   setupBrowserThemeSyncListener();
   setupReducedMotionListener();
-  setupSettings();
   setupStorageSync();
   setupVisibilityLifecycle();
   initPlannerDashboard({
