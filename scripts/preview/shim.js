@@ -112,6 +112,7 @@
     weatherCacheTime: now,
     quoteOfDay: { date: todayIso, quote: QUOTE }
   };
+  if (params.get('preview-state') === 'todoist-disconnected') delete store.todoistToken;
 
   const changeListeners = [];
   const normalize = (keys) => {
@@ -179,20 +180,32 @@
       case 'TRACK_BLOCK_ATTEMPT': return 34;
       case 'SAVE_UNBLOCK_REASON': case 'TEMPORARY_UNBLOCK': case 'END_TEMP_UNBLOCK': return { success: true };
       case 'ADD_EARNED_TIME': return { added: message.minutes || 5, minutes: 20 };
-      case 'GET_CALENDAR_STATUS': return { connected: true, email: 'preview@example.com' };
+      case 'GET_CALENDAR_STATUS': return {
+        connected: previewState !== 'calendar-disconnected',
+        email: 'preview@example.com'
+      };
       case 'GET_NEWTAB_EVENTS': return {
         title: "Today's Schedule",
         displayDate: new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }),
         events: structuredClone(EVENTS)
       };
-      case 'GET_PLANNER_EVENTS': return {
-        date: message.date,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        events: previewState === 'empty' ? [] : structuredClone(EVENTS),
-        stale: false,
-        partial: false,
-        updatedAt: Date.now()
-      };
+      case 'GET_PLANNER_EVENTS': {
+        const base = {
+          date: message.date,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          events: previewState === 'empty' ? [] : structuredClone(EVENTS),
+          stale: previewState === 'calendar-stale',
+          partial: previewState === 'calendar-stale',
+          updatedAt: Date.now()
+        };
+        if (previewState === 'calendar-expired') {
+          return { ...base, events: [], disconnected: true, status: 401, error: 'Not connected to Google Calendar' };
+        }
+        if (previewState === 'calendar-error') {
+          return { ...base, events: [], partial: true, status: 503, error: 'Calendar refresh temporarily unavailable' };
+        }
+        return base;
+      }
       case 'GET_TODAY_EVENTS': case 'GET_UPCOMING_EVENTS': return structuredClone(EVENTS);
       case 'GET_CALENDAR_LIST': return [{ id: 'primary', name: 'Personal', selected: true }, { id: 'team', name: 'Team', selected: false }];
       case 'GET_BLOCKING_SUMMARY': return { blockedSiteCount: SETTINGS.blockedSites.length, totalBlockAttempts: 34, lifetimeBlockAttempts: 210, totalUnblocks: 7, resistedCount: 27, topUnblockedDomain: 'youtube.com' };
@@ -300,6 +313,7 @@
       if (url.includes('/tasks/completed')) return json({ items: previewState === 'empty' ? [] : structuredClone(COMPLETED) });
       const closeMatch = /\/tasks\/([^/]+)\/(close|reopen)/.exec(url);
       if (closeMatch) {
+        if (previewState === 'mutation-error') return json({ error: 'Preview mutation failed' }, 503);
         if (closeMatch[2] === 'close') {
           const index = TASKS.findIndex(task => task.id === closeMatch[1]);
           if (index >= 0) TASKS.splice(index, 1);
@@ -308,11 +322,13 @@
       }
       const taskMatch = /\/tasks\/([^/?]+)$/.exec(url);
       if (taskMatch && method === 'POST') {
+        if (previewState === 'mutation-error') return json({ error: 'Preview mutation failed' }, 503);
         const task = TASKS.find(item => item.id === taskMatch[1]);
         if (task) Object.assign(task, JSON.parse(init?.body || '{}'));
         return Promise.resolve(new Response(null, { status: 204 }));
       }
       if (url.includes('/tasks') && method === 'POST') {
+        if (previewState === 'mutation-error') return json({ error: 'Preview mutation failed' }, 503);
         const body = JSON.parse(init?.body || '{}');
         const created = { id: `preview-${Date.now()}`, order: TASKS.length + 1, ...body, due: body.due_date ? { date: body.due_date, is_recurring: false } : null };
         TASKS.push(created);

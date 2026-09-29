@@ -10,7 +10,7 @@ export function formatEventTime(event) {
 }
 
 export function getMeetingUrl(event) {
-  const candidates = [event.meetingUrl, event.hangoutLink, event.htmlLink, ...(event.conferenceData?.entryPoints || []).map(point => point.uri)];
+  const candidates = [event.meetingLink, event.meetingUrl, event.hangoutLink, ...(event.conferenceData?.entryPoints || []).map(point => point.uri)];
   return candidates.map(safeExternalUrl).find(Boolean) || '';
 }
 
@@ -18,6 +18,8 @@ export function createEventRow(event, options = {}) {
   const item = document.createElement('li');
   item.className = 'planner-event-row';
   item.tabIndex = 0;
+  item.setAttribute('role', 'button');
+  item.dataset.start = event.start || '';
 
   const time = document.createElement('span');
   time.className = 'planner-event-time';

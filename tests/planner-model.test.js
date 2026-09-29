@@ -17,6 +17,7 @@ import {
   loadCurrentTaskState,
   saveCurrentTaskState
 } from '../newtab/planner-state.js';
+import { getMeetingUrl } from '../newtab/planner-calendar.js';
 
 const now = new Date(2026, 8, 29, 9, 0, 0);
 assert.equal(toLocalDateKey(now), '2026-09-29');
@@ -57,6 +58,16 @@ assert.equal(selectNextEvent(events, now).id, 'next');
 assert.equal(formatRelativeStart(selectNextEvent(events, now), now), 'in 1 hr 15 min');
 assert.equal(safeExternalUrl('https://example.com/meeting'), 'https://example.com/meeting');
 assert.equal(safeExternalUrl('javascript:alert(1)'), '');
+assert.equal(getMeetingUrl({ meetingLink: 'https://meet.google.com/abc', htmlLink: 'https://calendar.google.com/event' }), 'https://meet.google.com/abc');
+assert.equal(getMeetingUrl({ htmlLink: 'https://calendar.google.com/event' }), '', 'calendar event pages are not meeting links');
+
+const futureOnly = [{ id: 'future', content: 'Future', due: { date: '2026-10-01' } }];
+assert.equal(selectNowTask(futureOnly, '', now), null, 'future tasks are not suggested as current work');
+const unsortedUpcoming = [
+  { id: 'later-high', content: 'Later high', priority: 4, due: { date: '2026-10-03' } },
+  { id: 'tomorrow-low', content: 'Tomorrow low', priority: 1, due: { date: '2026-09-30' } }
+];
+assert.deepEqual(groupTasks(unsortedUpcoming, 'upcoming', '2026-09-29').map(group => group.key), ['2026-09-30', '2026-10-03']);
 
 const data = {};
 const storage = {

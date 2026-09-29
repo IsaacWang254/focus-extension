@@ -33,8 +33,10 @@ export function flattenTasks(tasks = []) {
 }
 
 export function getTaskDueKey(task) {
-  const raw = task?.due?.date || task?.due?.datetime || '';
-  return typeof raw === 'string' ? raw.slice(0, 10) : '';
+  const raw = task?.due?.datetime || task?.due?.date || '';
+  if (typeof raw !== 'string') return '';
+  if (raw.includes('T')) return toLocalDateKey(new Date(raw));
+  return raw.slice(0, 10);
 }
 
 export function rankTasks(tasks = [], now = new Date()) {
@@ -65,7 +67,7 @@ export function groupTasks(tasks = [], view = 'day', selectedDate = toLocalDateK
       if (!byDate.has(due)) byDate.set(due, []);
       byDate.get(due).push(task);
     }
-    return [...byDate].map(([key, grouped]) => ({
+    return [...byDate].sort(([a], [b]) => a.localeCompare(b)).map(([key, grouped]) => ({
       key,
       label: parseLocalDate(key)?.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) || key,
       tasks: grouped
@@ -82,7 +84,13 @@ export function groupTasks(tasks = [], view = 'day', selectedDate = toLocalDateK
 
 export function selectNowTask(tasks = [], storedTaskId = '', now = new Date()) {
   const ranked = rankTasks(flattenTasks(tasks), now);
-  return ranked.find(task => String(task.id) === String(storedTaskId)) || ranked[0] || null;
+  const stored = ranked.find(task => String(task.id) === String(storedTaskId));
+  if (stored) return stored;
+  const today = toLocalDateKey(now);
+  return ranked.find(task => {
+    const due = getTaskDueKey(task);
+    return due && due <= today;
+  }) || null;
 }
 
 export function normalizeEvents(events = []) {

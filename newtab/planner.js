@@ -14,6 +14,12 @@ import {
 import { clearCurrentTaskState, loadCurrentTaskState, PLANNER_STATE_KEY, saveCurrentTaskState } from './planner-state.js';
 import { createTaskRow, renderTaskGroups, taskMeta } from './planner-tasks.js';
 import { createEventRow, formatEventTime, getMeetingUrl, renderEventList } from './planner-calendar.js';
+import {
+  buildCreateTaskPayload,
+  buildUpdateTaskPayload,
+  createLatestRequestGuard,
+  nextCurrentTaskIdAfterCompletion
+} from './planner-actions.js';
 
 let api;
 let tasks = [];
@@ -25,6 +31,10 @@ let plannerStarted = false;
 let activeDrawerTrigger = null;
 let selectedScheduleDate = toLocalDateKey();
 let activeTaskView = 'day';
+let selectedTaskDate = toLocalDateKey();
+let activeProjectId = '';
+let taskBrowseLimit = 30;
+const scheduleRequestGuard = createLatestRequestGuard();
 
 const storage = {
   get: keys => typeof chrome !== 'undefined' && chrome.storage?.local ? chrome.storage.local.get(keys) : api.getLocal(keys),
@@ -53,7 +63,9 @@ function setPlannerStatus(kind, message = '') {
 async function getPlannerEvents(date) {
   try {
     const payload = await api.sendRuntimeMessage({ type: 'GET_PLANNER_EVENTS', date });
-    if (payload?.error) throw Object.assign(new Error(payload.error), { status: payload.status });
+    if (payload?.error && !payload?.events?.length && !payload?.disconnected) {
+      throw Object.assign(new Error(payload.error), { status: payload.status });
+    }
     if (Array.isArray(payload)) return { date, events: payload };
     return { date, events: payload?.events || [], stale: payload?.stale, partial: payload?.partial };
   } catch (error) {
@@ -66,7 +78,7 @@ async function getPlannerEvents(date) {
 
 async function loadTaskData() {
   if (!api.isVisible('newtabShowTodos')) return;
-  setPlannerStatus('tasks', 'Loading tasks…');
+  if (!tasks.length) setPlannerStatus('tasks', 'Loading tasks…');
   try {
     const authenticated = await todoist.isAuthenticated();
     if (!authenticated) {
@@ -103,7 +115,7 @@ async function loadTaskData() {
 
 async function loadCalendarData() {
   if (!api.isVisible('newtabShowCalendar')) return;
-  setPlannerStatus('calendar', 'Loading schedule…');
+  if (!todayEvents.length) setPlannerStatus('calendar', 'Loading schedule…');
   try {
     const status = await api.sendRuntimeMessage({ type: 'GET_CALENDAR_STATUS' });
     if (!status?.connected) {
@@ -111,6 +123,7 @@ async function loadCalendarData() {
       tomorrowEvents = [];
       setPlannerStatus('calendar', 'Connect Google Calendar to see what comes next.');
       setHidden('calendar-connect-btn', false);
+      setText('calendar-connect-btn', 'Connect Calendar');
       renderCalendar();
       return;
     }
@@ -118,6 +131,13 @@ async function loadCalendarData() {
     const today = toLocalDateKey();
     const todayPayload = await getPlannerEvents(today);
     todayEvents = normalizeEvents(todayPayload.events);
+    if (todayPayload.disconnected) {
+      setPlannerStatus('calendar', 'Your Calendar connection expired. Reconnect to refresh it.');
+      setHidden('calendar-connect-btn', false);
+      setText('calendar-connect-btn', 'Reconnect Calendar');
+      renderCalendar();
+      return;
+    }
     const next = selectNextEvent(todayEvents);
     if (!next) {
       const tomorrowPayload = await getPlannerEvents(addLocalDays(today, 1));
@@ -164,7 +184,7 @@ function renderTasks() {
   for (const task of ranked.filter(task => String(task.id) !== String(current?.id)).slice(0, 2)) {
     preview.appendChild(createTaskRow(task, { projects, now, onComplete: completeTask }));
   }
-  setHidden('task-preview-empty', ranked.length > 1);
+  setHidden('task-preview-empty', ranked.length > 1 || Boolean(element('tasks-status')?.textContent));
 }
 
 function renderCalendar() {
@@ -210,7 +230,7 @@ function renderCalendar() {
     .sort((a, b) => new Date(a.start) - new Date(b.start))
     .slice(0, 2);
   for (const event of upcoming) preview.appendChild(createEventRow(event, { onOpen: selected => openEventDetail(selected) }));
-  setHidden('agenda-preview-empty', upcoming.length > 0);
+  setHidden('agenda-preview-empty', upcoming.length > 0 || Boolean(element('calendar-status')?.textContent));
 }
 
 async function makeTaskCurrent(task) {
@@ -228,8 +248,9 @@ async function completeTask(task, button) {
   try {
     await todoist.completeTask(task.id);
     await api.sendRuntimeMessage({ type: 'ADD_EARNED_TIME', taskCount: 1 }).catch(() => null);
-    if (String(task.id) === String(currentTaskId)) {
-      currentTaskId = '';
+    const nextCurrentTaskId = nextCurrentTaskIdAfterCompletion(currentTaskId, task.id);
+    if (nextCurrentTaskId !== currentTaskId) {
+      currentTaskId = nextCurrentTaskId;
       await clearCurrentTaskState(storage);
     }
     await loadTaskData();
@@ -243,7 +264,7 @@ async function completeTask(task, button) {
 
 function openDrawer(mode, trigger) {
   const drawer = element('planner-drawer');
-  activeDrawerTrigger = trigger || document.activeElement;
+  if (drawer.classList.contains('hidden')) activeDrawerTrigger = trigger || document.activeElement;
   drawer.dataset.mode = mode;
   drawer.classList.remove('hidden');
   drawer.setAttribute('aria-hidden', 'false');
@@ -291,11 +312,39 @@ function renderTaskDrawer() {
   add.textContent = 'Add task';
   add.addEventListener('click', event => openDrawer('add', event.currentTarget));
   toolbar.append(tabs, add);
+  const filters = document.createElement('div');
+  filters.className = 'drawer-filters';
+  const projectFilter = document.createElement('select');
+  projectFilter.className = 'field-input';
+  projectFilter.setAttribute('aria-label', 'Filter tasks by project');
+  projectFilter.append(new Option('All projects', ''));
+  for (const project of projects.values()) projectFilter.append(new Option(project.name, project.id));
+  projectFilter.value = activeProjectId;
+  projectFilter.addEventListener('change', () => {
+    activeProjectId = projectFilter.value;
+    taskBrowseLimit = 30;
+    renderTaskDrawer();
+  });
+  filters.appendChild(projectFilter);
+  if (activeTaskView === 'day') {
+    const dateFilter = document.createElement('input');
+    dateFilter.className = 'field-input';
+    dateFilter.type = 'date';
+    dateFilter.value = selectedTaskDate;
+    dateFilter.setAttribute('aria-label', 'Task date');
+    dateFilter.addEventListener('change', () => {
+      selectedTaskDate = dateFilter.value || toLocalDateKey();
+      renderTaskDrawer();
+    });
+    filters.appendChild(dateFilter);
+  }
   const list = document.createElement('div');
   list.className = 'drawer-task-groups';
-  renderTaskGroups(list, tasks, {
+  const filteredTasks = flattenTasks(tasks).filter(task => !activeProjectId || String(task.project_id) === activeProjectId);
+  const visibleTasks = filteredTasks.slice(0, taskBrowseLimit);
+  renderTaskGroups(list, visibleTasks, {
     view: activeTaskView,
-    selectedDate: toLocalDateKey(),
+    selectedDate: selectedTaskDate,
     currentTaskId,
     projects,
     now: new Date(),
@@ -303,36 +352,51 @@ function renderTaskDrawer() {
     onMakeCurrent: makeTaskCurrent,
     onEdit: renderTaskEditForm
   });
-  body.append(toolbar, list);
+  body.append(toolbar, filters, list);
+  if (visibleTasks.length < filteredTasks.length) {
+    const showMore = document.createElement('button');
+    showMore.type = 'button';
+    showMore.className = 'text-action';
+    showMore.textContent = `Show ${Math.min(30, filteredTasks.length - visibleTasks.length)} more`;
+    showMore.addEventListener('click', () => { taskBrowseLimit += 30; renderTaskDrawer(); });
+    body.appendChild(showMore);
+  }
 }
 
 function renderTaskEditForm(task) {
   const body = drawerShell('Edit task', 'Task');
   const recurring = Boolean(task.due?.is_recurring || task.due?.recurring);
   const dueValue = task.due?.date?.slice(0, 10) || task.due?.datetime?.slice(0, 10) || '';
+  const timed = Boolean(task.due?.datetime || task.due?.date?.includes?.('T'));
+  const preserveDue = recurring || timed;
   const form = document.createElement('form');
   form.className = 'task-form';
   form.innerHTML = `
     <label class="field-label" for="planner-edit-title">Task</label>
     <input class="task-title-input" id="planner-edit-title" name="content" autocomplete="off" required>
     <div class="task-details-grid">
-      <label class="field-label">Due date<input class="field-input" type="date" name="due_date" ${recurring ? 'disabled' : ''}></label>
+      <label class="field-label">Due date<input class="field-input" type="date" name="due_date" ${preserveDue ? 'disabled' : ''}></label>
       <label class="field-label">Priority<select class="field-input" name="priority"><option value="1">Normal</option><option value="2">Medium</option><option value="3">High</option><option value="4">Urgent</option></select></label>
     </div>
-    ${recurring ? '<p class="form-status">Edit recurring dates in Todoist.</p>' : '<p class="form-status" aria-live="polite"></p>'}
+    ${preserveDue ? `<p class="form-status">Edit ${recurring ? 'recurring' : 'timed'} dates in Todoist.</p>` : '<p class="form-status" aria-live="polite"></p>'}
     <button class="primary-action" type="submit">Save changes</button>`;
   form.elements.content.value = task.content || '';
   form.elements.priority.value = String(task.priority || 1);
-  if (!recurring) form.elements.due_date.value = dueValue;
+  if (!preserveDue) form.elements.due_date.value = dueValue;
   form.addEventListener('submit', async event => {
     event.preventDefault();
     const submit = form.querySelector('[type="submit"]');
     const status = form.querySelector('.form-status');
     submit.disabled = true;
-    if (!recurring) status.textContent = 'Saving changes…';
+    if (!preserveDue) status.textContent = 'Saving changes…';
     const data = new FormData(form);
-    const changes = { content: String(data.get('content')).trim(), priority: Number(data.get('priority')) };
-    if (!recurring) changes.due_date = data.get('due_date') || null;
+    const changes = buildUpdateTaskPayload({
+      content: data.get('content'),
+      dueDate: data.get('due_date'),
+      originalDueDate: dueValue,
+      priority: data.get('priority'),
+      preserveDue
+    });
     try {
       await todoist.updateTask(task.id, changes);
       await loadTaskData();
@@ -356,12 +420,16 @@ function renderTaskForm() {
     <input class="task-title-input" id="planner-task-title" name="content" autocomplete="off" required placeholder="What needs to happen?">
     <details class="task-details"><summary>Add details</summary>
       <div class="task-details-grid">
+        <label class="field-label">Project<select class="field-input" name="project_id"></select></label>
         <label class="field-label">Due date<input class="field-input" type="date" name="due_date" value="${toLocalDateKey()}"></label>
         <label class="field-label">Priority<select class="field-input" name="priority"><option value="1">Normal</option><option value="2">Medium</option><option value="3">High</option><option value="4">Urgent</option></select></label>
       </div>
     </details>
     <p class="form-status" aria-live="polite"></p>
     <button class="primary-action" type="submit">Add task</button>`;
+  const projectSelect = form.elements.project_id;
+  projectSelect.append(new Option('Inbox', ''));
+  for (const project of projects.values()) projectSelect.append(new Option(project.name, project.id));
   form.addEventListener('submit', async event => {
     event.preventDefault();
     const submit = form.querySelector('[type="submit"]');
@@ -369,8 +437,12 @@ function renderTaskForm() {
     submit.disabled = true;
     status.textContent = 'Adding task…';
     const data = new FormData(form);
-    const task = { content: String(data.get('content')).trim(), priority: Number(data.get('priority')) };
-    if (data.get('due_date')) task.due_date = data.get('due_date');
+    const task = buildCreateTaskPayload({
+      content: data.get('content'),
+      dueDate: data.get('due_date'),
+      priority: data.get('priority')
+    });
+    if (data.get('project_id')) task.project_id = data.get('project_id');
     try {
       await todoist.createTask(task);
       await loadTaskData();
@@ -386,6 +458,7 @@ function renderTaskForm() {
 }
 
 async function renderScheduleDrawer() {
+  const requestId = scheduleRequestGuard.begin();
   const body = drawerShell('Your schedule', 'Agenda');
   const nav = document.createElement('div');
   nav.className = 'schedule-nav';
@@ -408,10 +481,19 @@ async function renderScheduleDrawer() {
   body.append(nav, status, list);
   try {
     const payload = await getPlannerEvents(selectedScheduleDate);
+    if (!scheduleRequestGuard.isLatest(requestId) || element('planner-drawer')?.dataset.mode !== 'schedule') return;
     status.textContent = payload.stale ? 'Showing saved schedule.' : '';
     const count = renderEventList(list, payload.events, { onOpen: event => openEventDetail(event) });
+    if (selectedScheduleDate === toLocalDateKey() && count) {
+      const marker = document.createElement('li');
+      marker.className = 'schedule-now-marker';
+      marker.textContent = `Now · ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+      const nextRow = [...list.children].find(row => row.dataset.start && new Date(row.dataset.start) >= new Date());
+      list.insertBefore(marker, nextRow || null);
+    }
     if (!count) status.textContent = 'Nothing scheduled for this day.';
   } catch (error) {
+    if (!scheduleRequestGuard.isLatest(requestId) || element('planner-drawer')?.dataset.mode !== 'schedule') return;
     console.error('Failed to load schedule:', error);
     status.textContent = 'Schedule is unavailable.';
   }
@@ -451,7 +533,7 @@ function setupDrawer() {
     if (drawer?.classList.contains('hidden')) return;
     if (event.key === 'Escape') closeDrawer();
     if (event.key === 'Tab') {
-      const focusable = [...drawer.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), summary')];
+      const focusable = [...drawer.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), summary, [tabindex="0"]')];
       if (!focusable.length) return;
       const first = focusable[0]; const last = focusable.at(-1);
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }

@@ -2147,3 +2147,24 @@ body.planner-open {
     grid-row: 1;
   }
 }
+
+.drawer-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.7fr);
+  gap: 12px;
+  margin-bottom: 30px;
+}
+
+@media (max-width: 520px) {
+  .drawer-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+.schedule-now-marker {
+  margin: 10px 0;
+  color: var(--modernist-signal, #d8372f);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  list-style: none;
+}

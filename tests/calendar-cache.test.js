@@ -339,6 +339,7 @@ for (const status of [500, 503]) {
   assert.equal(stale.events[0].id, first.events[0].id, 'a temporary failure preserves valid planner data');
   assert.equal(stale.stale, true);
   assert.equal(stale.partial, true);
+  assert.equal(stale.error, undefined, 'usable saved data is returned without a fatal error');
 }
 
 {

@@ -183,6 +183,7 @@ assert.match(
 // ---------------------------------------------------------------------------
 
 const newtabSource = read('../newtab/newtab.js');
+const plannerSource = read('../newtab/planner.js');
 const newtabHtml = read('../newtab/newtab.html');
 const newtabCss = read('../newtab/newtab.css');
 
@@ -253,12 +254,10 @@ assert.doesNotMatch(
   'loadTodos must not also be called unconditionally at startup'
 );
 
-// loadTodos re-runs on refresh; leaving a previously shown connect prompt or
-// empty state visible stacks it behind the freshly rendered list.
 assert.match(
-  newtabSource,
-  /connectEl\.classList\.add\('hidden'\);\s*emptyEl\.classList\.add\('hidden'\);/,
-  'loadTodos must reset panel states on entry'
+  plannerSource,
+  /if \(!tasks\.length\) setPlannerStatus\('tasks', 'Loading tasks…'\)/,
+  'planner refreshes must not flash loading state over visible tasks'
 );
 
 // ---------------------------------------------------------------------------
@@ -267,19 +266,18 @@ assert.match(
 
 assert.match(
   newtabCss,
-  /\.center-stage \{[^}]*align-items: flex-start/,
-  'the content column must stack flush left'
+  /\.daily-hero \{[^}]*align-items: flex-end/,
+  'the daily context must keep its deliberate reading alignment'
 );
 
 assert.doesNotMatch(
   newtabCss,
-  /\.center-stage \{[^}]*margin: 0 auto/,
-  'the content column must not re-centre itself'
+  /\.daily-brief \{[^}]*border/,
+  'the daily brief must use whitespace instead of a decorative divider'
 );
 
-[['.hero', 'text-align: left'],
- ['.quote-section', 'text-align: left'],
- ['.weather-section', 'justify-content: flex-start']].forEach(([sel, decl]) => {
+[['.feature-event-title', 'text-align: left'],
+ ['.daily-header', 'align-items: flex-start']].forEach(([sel, decl]) => {
   assert.match(
     newtabCss,
     new RegExp(`\\${sel} \\{[^}]*${decl.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}`),

@@ -3,7 +3,7 @@
  * Handles URL blocking using declarativeNetRequest and manages extension state
  */
 
-import { getCachedResource } from './lib/request-cache.js';
+import { getCachedResource, withSharedLock } from './lib/request-cache.js';
 
 // Predefined category templates
 const CATEGORY_TEMPLATES = {
@@ -1182,15 +1182,6 @@ async function handleMessage(message, sender) {
 
     case 'ADD_EARNED_TIME':
       return await rewardCompletedTasks(message.taskCount || 1);
-
-    case 'UPDATE_TODOIST_TASK': {
-      if (typeof message.taskId !== 'string' || !message.taskId ||
-          !message.changes || typeof message.changes !== 'object' || Array.isArray(message.changes)) {
-        throw new Error('A task ID and changes object are required');
-      }
-      const todoist = await import('./lib/todoist.js');
-      return await todoist.updateTask(message.taskId, message.changes);
-    }
 
     case 'USE_EARNED_TIME':
       return await useEarnedTime(message.minutes);
@@ -7166,15 +7157,17 @@ async function getPlannerCacheEntry(scope) {
 }
 
 async function savePlannerCacheEntry(scope, entry) {
-  const stored = await chrome.storage.local.get(PLANNER_EVENTS_CACHE_KEY);
-  const entries = {
-    ...(stored[PLANNER_EVENTS_CACHE_KEY]?.entries || {}),
-    [scope]: entry
-  };
-  const boundedEntries = Object.fromEntries(Object.entries(entries)
-    .sort(([, a], [, b]) => (b.updatedAt || 0) - (a.updatedAt || 0))
-    .slice(0, PLANNER_EVENTS_CACHE_LIMIT));
-  await chrome.storage.local.set({ [PLANNER_EVENTS_CACHE_KEY]: { entries: boundedEntries } });
+  await withSharedLock('planner-events-cache-write', async () => {
+    const stored = await chrome.storage.local.get(PLANNER_EVENTS_CACHE_KEY);
+    const entries = {
+      ...(stored[PLANNER_EVENTS_CACHE_KEY]?.entries || {}),
+      [scope]: entry
+    };
+    const boundedEntries = Object.fromEntries(Object.entries(entries)
+      .sort(([, a], [, b]) => (b.updatedAt || 0) - (a.updatedAt || 0))
+      .slice(0, PLANNER_EVENTS_CACHE_LIMIT));
+    await chrome.storage.local.set({ [PLANNER_EVENTS_CACHE_KEY]: { entries: boundedEntries } });
+  });
 }
 
 function buildPlannerEventsPayload(dayInfo, timeZone, entry, { stale = false, partial = false, disconnected = false, error, status } = {}) {
@@ -7226,7 +7219,7 @@ async function getPlannerEvents(dateString) {
         return buildPlannerEventsPayload(dayInfo, timeZone, cached, {
           stale: true,
           partial: true,
-          error: 'Calendar authentication is unavailable',
+          disconnected: true,
           status: 401
         });
       }
@@ -7257,7 +7250,6 @@ async function getPlannerEvents(dateString) {
         return buildPlannerEventsPayload(dayInfo, timeZone, cached, {
           stale: true,
           partial: true,
-          error: 'Calendar refresh temporarily unavailable',
           status: result.status
         });
       }
@@ -7268,9 +7260,27 @@ async function getPlannerEvents(dateString) {
       });
     }
 
-    const entry = { events, partial: result.failed, updatedAt: Date.now() };
+    if (result.failed) {
+      const merged = new Map();
+      for (const event of [...(cached?.events || []), ...events]) {
+        const key = event.id || `${event.start || ''}:${event.title || ''}`;
+        merged.set(key, event);
+      }
+      const partialEntry = {
+        events: [...merged.values()],
+        partial: true,
+        updatedAt: cached?.updatedAt || Date.now()
+      };
+      return buildPlannerEventsPayload(dayInfo, timeZone, partialEntry, {
+        stale: Boolean(cached),
+        partial: true,
+        status: result.status
+      });
+    }
+
+    const entry = { events, partial: false, updatedAt: Date.now() };
     await savePlannerCacheEntry(scope, entry);
-    return buildPlannerEventsPayload(dayInfo, timeZone, entry, { partial: result.failed });
+    return buildPlannerEventsPayload(dayInfo, timeZone, entry);
   })();
 
   plannerEventRequests.set(scope, request);
