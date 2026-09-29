@@ -260,6 +260,7 @@ const plannerSource = fs.readFileSync(new URL('../newtab/planner.js', import.met
 function plannerHarness() {
   let date = '2026-09-29';
   let now = new Date(2026, 8, 29, 10, 0, 0).getTime();
+  let pendingTimer = null;
   const calls = { status: 0, events: 0, renders: 0, centers: 0 };
   const elementsById = new Map();
   const documentListeners = new Map();
@@ -307,6 +308,8 @@ function plannerHarness() {
       static now() { return now; }
     },
     requestAnimationFrame: callback => callback(),
+    setTimeout: callback => { pendingTimer = callback; return 1; },
+    clearTimeout: () => { pendingTimer = null; },
     queueMicrotask,
     toLocalDateKey: () => date,
     createLatestRequestGuard: () => {
@@ -331,6 +334,7 @@ function plannerHarness() {
     api, calls, element,
     exports: sandbox.__plannerExports,
     advance(milliseconds) { now += milliseconds; },
+    runTimer() { const callback = pendingTimer; pendingTimer = null; callback?.(); },
     setDate(value) { date = value; }
   };
 }
@@ -353,9 +357,12 @@ assert.equal(planner.calls.events, 1, 'visibility-resume rendering uses loaded e
 assert.equal(planner.calls.centers, 2, 'visibility resume recenters the existing marker');
 
 planner.element('timeline-viewport').fire('wheel');
+assert.equal(planner.element('timeline-viewport').classList.contains('timeline-scrolling'), true, 'timeline scrolling reveals its scrollbar');
 planner.exports.refreshPlannerTime();
 assert.equal(planner.calls.centers, 2, 'manual timeline scrolling preserves the user anchor');
 assert.equal(planner.element('back-to-now-btn').classList.contains('hidden'), false, 'manual scrolling reveals Back to now');
+planner.runTimer();
+assert.equal(planner.element('timeline-viewport').classList.contains('timeline-scrolling'), false, 'the scrollbar hides after scrolling stops');
 planner.element('back-to-now-btn').fire('click');
 assert.equal(planner.calls.centers, 3, 'Back to now explicitly recenters the marker');
 assert.equal(planner.element('back-to-now-btn').classList.contains('hidden'), true);

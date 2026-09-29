@@ -1403,7 +1403,7 @@ body[data-surface="newtab"] textarea {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--foreground) 28%, transparent) transparent;
+  scrollbar-color: transparent transparent;
   scroll-padding-block: 36%;
   border-block: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
   background: var(--background);
@@ -1421,11 +1421,21 @@ body[data-surface="newtab"] textarea {
   min-height: 36px;
   border: 2px solid transparent;
   border-radius: 999px;
+  background: transparent;
+  background-clip: padding-box;
+  transition: background-color 160ms ease;
+}
+
+.timeline-viewport.timeline-scrolling {
+  scrollbar-color: color-mix(in srgb, var(--foreground) 28%, transparent) transparent;
+}
+
+.timeline-viewport.timeline-scrolling::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--foreground) 28%, transparent);
   background-clip: padding-box;
 }
 
-.timeline-viewport::-webkit-scrollbar-thumb:hover {
+.timeline-viewport.timeline-scrolling::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--foreground) 46%, transparent);
   background-clip: padding-box;
 }

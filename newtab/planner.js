@@ -569,10 +569,25 @@ function setupActions() {
   element('calendar-connect-btn')?.addEventListener('click', async () => { await api.sendRuntimeMessage({ type: 'CONNECT_GOOGLE_CALENDAR' }); await loadCalendarData({ force: true, recenter: true }); });
   const viewport = element('timeline-viewport');
   const backToNow = element('back-to-now-btn');
+  let scrollbarHideTimer;
+  let scrollbarActive = false;
+  const revealTimelineScrollbar = () => {
+    scrollbarActive = true;
+    viewport?.classList.add('timeline-scrolling');
+    clearTimeout(scrollbarHideTimer);
+    scrollbarHideTimer = setTimeout(() => {
+      scrollbarActive = false;
+      viewport?.classList.remove('timeline-scrolling');
+    }, 800);
+  };
   const anchorTimeline = () => {
     timelineUserAnchored = true;
     backToNow?.classList.remove('hidden');
+    revealTimelineScrollbar();
   };
+  viewport?.addEventListener('scroll', () => {
+    if (scrollbarActive) revealTimelineScrollbar();
+  }, { passive: true });
   viewport?.addEventListener('wheel', anchorTimeline, { passive: true });
   viewport?.addEventListener('touchstart', anchorTimeline, { passive: true });
   viewport?.addEventListener('pointerdown', event => {
