@@ -1153,13 +1153,6 @@ body[data-surface="newtab"] .weather-icon svg {
 }
 
 body.planner-open {
-  position: fixed;
-  inset: var(--planner-scroll-top, 0px) 0 auto;
-  width: 100%;
-  overflow: hidden;
-}
-
-html.planner-open {
   overflow: hidden;
 }
 
