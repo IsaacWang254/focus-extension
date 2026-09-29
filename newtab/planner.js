@@ -26,6 +26,7 @@ let currentTaskId = '';
 let todayEvents = [];
 let plannerStarted = false;
 let activeDrawerTrigger = null;
+let plannerScrollPosition = 0;
 let selectedScheduleDate = toLocalDateKey();
 let activeTaskView = 'day';
 let selectedTaskDate = toLocalDateKey();
@@ -261,11 +262,16 @@ async function completeTask(task, button) {
 
 function openDrawer(mode, trigger) {
   const drawer = element('planner-drawer');
-  if (drawer.classList.contains('hidden')) activeDrawerTrigger = trigger || document.activeElement;
+  if (drawer.classList.contains('hidden')) {
+    activeDrawerTrigger = trigger || document.activeElement;
+    plannerScrollPosition = window.scrollY;
+    document.body.style.setProperty('--planner-scroll-top', `${-plannerScrollPosition}px`);
+  }
   drawer.dataset.mode = mode;
   drawer.classList.remove('hidden');
   drawer.setAttribute('aria-hidden', 'false');
   document.body.classList.add('planner-open');
+  document.documentElement.classList.add('planner-open');
   if (mode === 'tasks') renderTaskDrawer();
   if (mode === 'add') renderTaskForm();
   if (mode === 'schedule') renderScheduleDrawer();
@@ -278,6 +284,9 @@ function closeDrawer() {
   drawer.setAttribute('aria-hidden', 'true');
   drawer.dataset.mode = '';
   document.body.classList.remove('planner-open');
+  document.documentElement.classList.remove('planner-open');
+  document.body.style.removeProperty('--planner-scroll-top');
+  window.scrollTo(0, plannerScrollPosition);
   const fallback = element('view-schedule-btn');
   const restoreTarget = activeDrawerTrigger?.isConnected ? activeDrawerTrigger : fallback;
   restoreTarget?.focus?.();
