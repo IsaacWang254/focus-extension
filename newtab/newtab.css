@@ -1012,11 +1012,8 @@ body[data-surface="newtab"] .weather-icon svg {
 }
 
 .drawer-close {
-  padding: 4px 0;
-  border: 0;
-  background: none;
+  flex: 0 0 auto;
   color: var(--muted-foreground);
-  cursor: pointer;
 }
 
 .drawer-toolbar,

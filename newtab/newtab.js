@@ -271,7 +271,8 @@ function setupIcons() {
     'bedtime-reminder-icon': Icons.moon,
     'add-task-icon': Icons.plus,
     'view-tasks-icon': Icons.list,
-    'view-schedule-icon': Icons.calendar
+    'view-schedule-icon': Icons.calendar,
+    'planner-drawer-close-icon': Icons.x
   };
   for (const [id, markup] of Object.entries(icons)) {
     const target = document.getElementById(id);
