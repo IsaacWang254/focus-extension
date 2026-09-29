@@ -70,10 +70,10 @@
   const at = (h, m = 0) => { const d = new Date(); d.setHours(h, m, 0, 0); return d.toISOString(); };
 
   const EVENTS = [
-    { title: 'Deep work: extension restyle', start: at(9, 30), end: at(11, 0), color: '#666666' },
-    { title: 'Standup', start: at(11, 30), end: at(11, 45), color: '#666666' },
-    { title: 'Review pull requests', start: at(14, 0), end: at(15, 0), color: '#999999' },
-    { title: 'Ship day', isAllDay: true, color: '#999999' }
+    { id: 'e1', title: 'Deep work: homepage direction', start: at(9, 30), end: at(11, 0), color: '#666666', calendarName: 'Work', location: 'Studio' },
+    { id: 'e2', title: 'Standup', start: at(11, 30), end: at(11, 45), color: '#666666', calendarName: 'Team', meetingUrl: 'https://meet.google.com/example' },
+    { id: 'e3', title: 'Review pull requests', start: at(14, 0), end: at(15, 0), color: '#999999', calendarName: 'Work' },
+    { id: 'e4', title: 'Ship day', start: `${todayIso}T00:00:00`, end: `${todayIso}T23:59:59`, isAllDay: true, color: '#999999', calendarName: 'Work' }
   ];
 
   const due = (offsetDays, label) => ({ date: new Date(now + offsetDays * 864e5).toISOString().slice(0, 10), string: label, is_recurring: false });
@@ -185,6 +185,14 @@
         displayDate: new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }),
         events: structuredClone(EVENTS)
       };
+      case 'GET_PLANNER_EVENTS': return {
+        date: message.date,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        events: previewState === 'empty' ? [] : structuredClone(EVENTS),
+        stale: false,
+        partial: false,
+        updatedAt: Date.now()
+      };
       case 'GET_TODAY_EVENTS': case 'GET_UPCOMING_EVENTS': return structuredClone(EVENTS);
       case 'GET_CALENDAR_LIST': return [{ id: 'primary', name: 'Personal', selected: true }, { id: 'team', name: 'Team', selected: false }];
       case 'GET_BLOCKING_SUMMARY': return { blockedSiteCount: SETTINGS.blockedSites.length, totalBlockAttempts: 34, lifetimeBlockAttempts: 210, totalUnblocks: 7, resistedCount: 27, topUnblockedDomain: 'youtube.com' };
@@ -288,9 +296,29 @@
   window.fetch = (input, init) => {
     const url = typeof input === 'string' ? input : input.url;
     if (url.includes('api.todoist.com')) {
+      const method = String(init?.method || 'GET').toUpperCase();
       if (url.includes('/tasks/completed')) return json({ items: previewState === 'empty' ? [] : structuredClone(COMPLETED) });
-      if (/\/tasks\/[^/]+\/(close|reopen)/.test(url)) return Promise.resolve(new Response(null, { status: 204 }));
-      if (url.includes('/tasks')) return json({ results: previewState === 'empty' ? [] : structuredClone(TASKS) });
+      const closeMatch = /\/tasks\/([^/]+)\/(close|reopen)/.exec(url);
+      if (closeMatch) {
+        if (closeMatch[2] === 'close') {
+          const index = TASKS.findIndex(task => task.id === closeMatch[1]);
+          if (index >= 0) TASKS.splice(index, 1);
+        }
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      const taskMatch = /\/tasks\/([^/?]+)$/.exec(url);
+      if (taskMatch && method === 'POST') {
+        const task = TASKS.find(item => item.id === taskMatch[1]);
+        if (task) Object.assign(task, JSON.parse(init?.body || '{}'));
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      if (url.includes('/tasks') && method === 'POST') {
+        const body = JSON.parse(init?.body || '{}');
+        const created = { id: `preview-${Date.now()}`, order: TASKS.length + 1, ...body, due: body.due_date ? { date: body.due_date, is_recurring: false } : null };
+        TASKS.push(created);
+        return json(created);
+      }
+      if (url.includes('/tasks')) return json({ results: previewState === 'empty' ? [] : structuredClone(TASKS), next_cursor: null });
       if (url.includes('/labels')) return json({ results: [{ id: 'l1', name: 'deep-work', color: 'blue' }, { id: 'l2', name: 'quick', color: 'yellow' }] });
       if (url.includes('/projects')) return json({ results: [{ id: 'p1', name: 'Inbox' }] });
       return json({});

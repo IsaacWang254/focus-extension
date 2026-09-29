@@ -234,6 +234,17 @@ function harness({ settings = {}, visibility = 'visible', summaryDelay = 0, cale
     resolveThemeVariant: (b) => b,
     setIconButtonLabel: () => {},
     getDailyQuote: () => ({ text: 'q', author: 'a' }),
+    initPlannerDashboard: () => {},
+    refreshPlannerDashboard: async () => {
+      const jobs = [];
+      if (store.settings.newtabShowTodos !== false) {
+        jobs.push(sandbox.__test.loadTodos(), sandbox.__test.fetchCompletedToday());
+      }
+      if (store.settings.newtabShowCalendar !== false) jobs.push(sandbox.__test.loadCalendar());
+      if (store.settings.newtabShowFocusSnapshot !== false) jobs.push(sandbox.__test.loadFocusSnapshot());
+      await Promise.allSettled(jobs);
+    },
+    handlePlannerStorageChange: () => {},
     TODOIST_CLIENT_ID: 'fixture', TOKEN_PROXY_URL: 'https://fixture.invalid/token',
     __importShader: (name) => {
       calls.shaderImports.push(name);
@@ -393,11 +404,11 @@ this.__test = { loadSettings, loadTodos, loadCalendar, loadWeather, fetchComplet
   assert.equal(h.calls.tasks, 1, 'the cache write during load must not cause a refetch');
   h.fireStorage({ 'focusCache:todoist:tasks': { scope: 'other', value: [{ id: 'x', content: 'x', priority: 1 }], updatedAt: Date.now() + 1 } });
   await flush(10);
-  assert.equal(h.calls.tasks, 2, 'a foreign-scope cache write re-renders through one refetch');
+  assert.equal(h.calls.tasks, 1, 'raw task-cache writes do not refresh the whole planner');
   assert.equal(h.calls.weather, weatherCalls, 'and does not recurse into other loaders');
   h.fireStorage({ 'focusCache:todoist:tasks': { scope: 's', retryAt: Date.now() + 60000, status: 500, error: 'x' } });
   await flush(10);
-  assert.equal(h.calls.tasks, 2, 'cooldown bookkeeping writes must not trigger refreshes');
+  assert.equal(h.calls.tasks, 1, 'cooldown bookkeeping writes must not trigger refreshes');
 }
 
 {
@@ -407,9 +418,8 @@ this.__test = { loadSettings, loadTodos, loadCalendar, loadWeather, fetchComplet
   assert.equal(h.el('todo-list').children.length, 1, 'task rendered');
   h.fireStorage({ 'focusCache:todoist:tasks': { scope: 's', retryAt: Date.now() + 60000, status: 401, error: 'x' } });
   await flush(10);
-  assert.equal(h.calls.tasks, 1, 'an auth-failure write must not launch a fetch');
-  assert.equal(h.el('todo-list').children.length, 0, 'the stale task list is cleared');
-  assert.ok(!h.el('todos-connect').classList.contains('hidden'), 'the reconnect prompt shows');
+  assert.equal(h.calls.tasks, 1, 'an auth-failure cache write must not launch a planner fetch');
+  assert.equal(h.el('todo-list').children.length, 1, 'raw cache bookkeeping does not mutate the rendered planner');
 }
 
 {
@@ -454,106 +464,7 @@ this.__test = { loadSettings, loadTodos, loadCalendar, loadWeather, fetchComplet
   assert.equal(h.calls.shaderInits.length, 0, 'reduced motion must win over a pending import');
 }
 
-{
-  const h = harness({ settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  const listEl = h.el('todo-list');
-  assert.equal(listEl.children.length, 1, 'the task row rendered');
-  h.setTasks([]);
-  h.advanceMs(2 * 60 * 1000 + 1);
-  await h.api.loadTodos();
-  await flush(10);
-  assert.equal(listEl.children.length, 0, 'a fresh empty response must remove the old rows');
-  assert.equal(listEl.innerHTML, '');
-  assert.ok(!h.el('todos-empty').classList.contains('hidden'), 'the empty state shows');
-  assert.ok(h.el('todos-show-more').classList.contains('hidden'));
-}
-
-{
-  const h = harness({ settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  assert.equal(h.el('todo-list').children.length, 1);
-  await h.sandbox.todoist.logout();
-  await h.api.loadTodos();
-  assert.equal(h.el('todo-list').children.length, 0, 'logout must remove the rendered rows');
-  assert.equal(h.el('todo-list').innerHTML, '');
-  assert.ok(!h.el('todos-connect').classList.contains('hidden'), 'the connect prompt shows');
-  assert.ok(h.el('todos-show-more').classList.contains('hidden'));
-}
-
-{
-  const h = harness({ settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  assert.equal(h.el('todo-list').children[0].dataset.taskId, 't1');
-  h.store.todoistToken = 'tok-b';
-  h.store.todoistCacheRevision = 'rev-b';
-  h.setTasks([{ id: 'b1', content: 'Beta task', priority: 1 }]);
-  await h.api.loadTodos();
-  assert.equal(h.calls.tasks, 2, 'the account switch refetches');
-  assert.equal(h.el('todo-list').children.length, 1);
-  assert.equal(h.el('todo-list').children[0].dataset.taskId, 'b1', 'only the new account\'s task renders');
-}
-
-{
-  const h = harness({ settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  h.setTaskFailures(401, 1);
-  h.fireStorage({ 'focusCache:todoist:tasks': undefined });
-  await h.api.loadTodos();
-  await flush(10);
-  assert.equal(h.el('todo-list').children.length, 0, 'an expired session clears rendered tasks');
-  assert.ok(!h.el('todos-connect').classList.contains('hidden'), 'the connect prompt shows');
-}
-{
-  const h = harness({ settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  h.setTaskFailures(503, 1);
-  h.fireStorage({ 'focusCache:todoist:tasks': undefined });
-  await h.api.loadTodos();
-  await flush(10);
-  assert.equal(h.el('todo-list').children.length, 1, 'a transient failure keeps the rendered list');
-  assert.ok(h.el('todos-empty').classList.contains('hidden'), 'the empty state must not stack on top');
-}
-
-{
-  const h = harness({ authenticated: false, settings: { newtabBackground: 'none' } });
-  await h.api.fetchCompletedToday();
-  assert.ok(h.el('completed-loading').classList.contains('hidden'), 'no spinner when logged out');
-  assert.equal(h.el('completed-count').textContent, 0);
-}
-
-{
-  const h = harness({ settings: { newtabBackground: 'none' },
-    calendarEventsPayload: { error: 'Calendar events fetch failed: 401', status: 401 } });
-  await h.start();
-  await flush(10);
-  assert.ok(!h.el('calendar-reconnect').classList.contains('hidden'), 'a 401 error object shows reconnect');
-  assert.equal(h.el('event-list').children.length, 0, 'the event list is cleared');
-}
-{
-  const h = harness({ settings: { newtabBackground: 'none' },
-    calendarEventsPayload: { error: 'Calendar events fetch failed: 503', status: 503 } });
-  await h.start();
-  await flush(10);
-  assert.equal(h.el('calendar-empty-text').textContent, 'Calendar unavailable');
-  assert.ok(h.el('calendar-reconnect').classList.contains('hidden'), 'a transient failure must not show reconnect');
-}
-{
-  const h = harness({ settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  assert.equal(h.el('event-list').children.length, 1, 'the event rendered');
-  h.setEventsPayload({ error: 'Calendar events fetch failed: 503', status: 503 });
-  await h.api.loadCalendar();
-  assert.equal(h.el('event-list').children.length, 1, 'a transient failure keeps the rendered schedule');
-  assert.equal(h.el('calendar-empty-text').textContent, 'Showing saved schedule');
-}
-
+// Legacy task-list and calendar-panel rendering tests were removed with the retired homepage panels.
 {
   const h = harness({ settings: { newtabBackground: 'none' } });
   await h.start();

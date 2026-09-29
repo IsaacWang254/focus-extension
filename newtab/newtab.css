@@ -1572,3 +1572,578 @@ body {
     max-height: 200px;
   }
 }
+
+/* ============================================
+   Calm daily brief
+   ============================================ */
+
+body[data-surface="newtab"] {
+  min-height: 100vh;
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  align-items: stretch;
+}
+
+body[data-surface="newtab"] .main {
+  width: min(100% - clamp(40px, 8vw, 176px), 1264px);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: clamp(28px, 4.2vw, 60px) 0 clamp(72px, 8vw, 112px);
+  overflow: visible;
+}
+
+.daily-header {
+  min-height: 32px;
+  display: flex;
+  align-items: flex-start;
+}
+
+.product-mark {
+  width: 23px;
+  height: 23px;
+  opacity: 0.32;
+  filter: grayscale(1);
+}
+
+.daily-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: clamp(48px, 10vw, 160px);
+  margin-top: clamp(30px, 6vh, 66px);
+}
+
+body[data-surface="newtab"] .clock {
+  display: flex;
+  align-items: baseline;
+  color: var(--modernist-signal, #e5352c);
+  font-size: clamp(5.2rem, 8.5vw, 7.6rem);
+  font-weight: 400;
+  line-height: 0.88;
+  letter-spacing: -0.075em;
+}
+
+body[data-surface="newtab"] .clock-separator {
+  margin: 0 0.02em;
+}
+
+.full-date {
+  margin: clamp(14px, 2vh, 20px) 0 0;
+  color: var(--foreground);
+  font-size: clamp(1.1rem, 1.7vw, 1.45rem);
+  letter-spacing: -0.025em;
+}
+
+body[data-surface="newtab"] .weather-section {
+  min-width: 220px;
+  margin: 0 0 4px;
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+body[data-surface="newtab"] .weather-content {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+body[data-surface="newtab"] .weather-copy {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 14px;
+  align-items: baseline;
+}
+
+body[data-surface="newtab"] .weather-temp {
+  grid-row: span 2;
+  font-size: clamp(2rem, 3vw, 2.7rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+body[data-surface="newtab"] .weather-desc,
+body[data-surface="newtab"] .weather-highlow,
+body[data-surface="newtab"] .weather-error {
+  color: var(--muted-foreground);
+  font-size: 0.86rem;
+}
+
+body[data-surface="newtab"] .weather-icon {
+  display: flex;
+  color: var(--foreground);
+}
+
+body[data-surface="newtab"] .weather-icon svg {
+  width: 32px;
+  height: 32px;
+  stroke-width: 1.5;
+}
+
+.daily-brief {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(64px, 10vw, 150px);
+  margin-top: clamp(72px, 10vh, 118px);
+}
+
+.brief-feature {
+  min-width: 0;
+}
+
+.section-eyebrow {
+  margin: 0 0 18px;
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+}
+
+.feature-content {
+  min-height: 86px;
+}
+
+.planner-task-feature {
+  align-items: flex-start;
+}
+
+.planner-task-feature .planner-row-title,
+.feature-event-title {
+  font-size: clamp(1.65rem, 2.7vw, 2.25rem);
+  font-weight: 400;
+  line-height: 1.16;
+  letter-spacing: -0.04em;
+}
+
+.feature-event-title {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.feature-kicker,
+.brief-empty {
+  margin: 0 0 10px;
+  color: var(--muted-foreground);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.brief-actions {
+  display: flex;
+  gap: 24px;
+  margin-top: 22px;
+}
+
+.text-action,
+.quiet-action,
+.planner-row-action {
+  padding: 0 0 4px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--foreground);
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.text-action:hover,
+.quiet-action:hover,
+.planner-row-action:hover {
+  color: var(--modernist-signal, #d8372f);
+  text-decoration: underline;
+}
+
+.daily-previews {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(64px, 10vw, 150px);
+  margin-top: clamp(72px, 9vh, 104px);
+}
+
+.preview-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 12px;
+}
+
+.preview-heading h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.preview-list,
+.planner-drawer-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planner-task-row,
+.planner-event-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 10px 0;
+}
+
+.planner-event-row {
+  cursor: pointer;
+}
+
+.planner-check {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--foreground) 58%, transparent);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.planner-check:hover,
+.planner-check.is-pending {
+  border-color: var(--modernist-signal, #d8372f);
+}
+
+.planner-check.is-pending {
+  background: var(--modernist-signal, #d8372f);
+  opacity: 0.45;
+}
+
+.planner-row-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.planner-row-title {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planner-row-meta,
+.planner-event-time,
+.integration-status,
+.preview-empty,
+.drawer-loading,
+.planner-empty-copy,
+.form-status {
+  color: var(--muted-foreground);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.planner-event-time {
+  width: 86px;
+  flex: 0 0 86px;
+}
+
+.integration-status,
+.preview-empty {
+  margin: 8px 0;
+}
+
+/* Planner drawers keep controls out of the daily brief. */
+.planner-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+
+.planner-drawer.hidden {
+  display: none;
+}
+
+.planner-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, #000 22%, transparent);
+}
+
+.planner-drawer-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(560px, 100%);
+  height: 100%;
+  overflow-y: auto;
+  background: var(--background);
+  color: var(--foreground);
+  padding: clamp(28px, 4vw, 52px);
+}
+
+.planner-drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+.planner-drawer-header h2 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.45rem);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+
+.drawer-close {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.drawer-toolbar,
+.schedule-nav,
+.drawer-tabs,
+.event-detail-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.drawer-toolbar {
+  justify-content: space-between;
+  margin-bottom: 34px;
+}
+
+.drawer-tab,
+.schedule-nav button {
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.drawer-tab.is-active {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.planner-drawer-group {
+  margin-bottom: 38px;
+}
+
+.planner-drawer-group h3 {
+  margin: 0 0 12px;
+  color: var(--muted-foreground);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.planner-drawer-list .planner-task-row,
+.planner-drawer-list .planner-event-row {
+  padding: 13px 0;
+}
+
+.planner-row-action {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.task-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--muted-foreground);
+  font-size: 0.76rem;
+}
+
+.task-title-input,
+.field-input,
+.schedule-nav input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+}
+
+.task-title-input {
+  padding: 15px 0;
+  border-width: 0 0 1px;
+  font-size: 1.45rem;
+}
+
+.field-input,
+.schedule-nav input {
+  padding: 10px;
+}
+
+.task-details summary {
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.task-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  padding: 11px 16px;
+  border: 1px solid var(--foreground);
+  border-radius: 0;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 0.84rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.primary-action:disabled {
+  opacity: 0.5;
+}
+
+.event-detail-list {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 15px 22px;
+  margin: 0 0 34px;
+}
+
+.event-detail-list dt {
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+}
+
+.event-detail-list dd {
+  margin: 0;
+}
+
+body.planner-open {
+  overflow: hidden;
+}
+
+@media (max-width: 1000px) {
+  body[data-surface="newtab"] .main {
+    width: min(100% - 48px, 760px);
+  }
+
+  .daily-brief,
+  .daily-previews {
+    grid-template-columns: 1fr;
+    gap: 58px;
+  }
+
+  .daily-hero {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  body[data-surface="newtab"] .main {
+    width: calc(100% - 36px);
+    padding-top: 24px;
+  }
+
+  .daily-hero {
+    flex-direction: column;
+    gap: 32px;
+    margin-top: 32px;
+  }
+
+  body[data-surface="newtab"] .clock {
+    font-size: clamp(4.2rem, 22vw, 6rem);
+  }
+
+  body[data-surface="newtab"] .weather-section {
+    min-height: 0;
+    justify-content: flex-start;
+  }
+
+  .daily-brief,
+  .daily-previews {
+    margin-top: 60px;
+  }
+
+  .planner-drawer-panel {
+    width: 100%;
+    padding: 28px 22px;
+  }
+
+  .task-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.planner-row-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 14px;
+  margin-left: auto;
+}
+
+.planner-task-feature .planner-row-title {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.planner-event-time {
+  width: 100px;
+  flex-basis: 100px;
+  white-space: nowrap;
+}
+
+.schedule-nav {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto auto;
+  width: 100%;
+  margin-bottom: 26px;
+}
+
+.schedule-nav input {
+  width: auto;
+}
+
+@media (max-width: 520px) {
+  .schedule-nav {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .schedule-nav input {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+}

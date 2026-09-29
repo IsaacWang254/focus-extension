@@ -12,10 +12,8 @@
   <canvas class="bg-shader" id="bg-ocean" aria-hidden="true"></canvas>
   <canvas class="bg-shader bg-dither" id="bg-dither" aria-hidden="true"></canvas>
 
-  <!-- Top bar: settings + theme toggle -->
   <div class="top-bar" id="newtab-toolbar-root"></div>
 
-  <!-- Main content -->
   <main class="main">
     <section class="bedtime-reminder hidden" id="bedtime-reminder" aria-live="polite">
       <div class="bedtime-reminder-icon" id="bedtime-reminder-icon"></div>
@@ -25,166 +23,98 @@
       <p class="bedtime-reminder-sub" id="bedtime-reminder-sub"></p>
     </section>
 
-    <header class="modernist-masthead">
-      <div class="modernist-wordmark">Focus<br>Modern</div>
+    <header class="daily-header">
+      <img class="product-mark" src="../icons/icon48.svg" alt="Focus Extension">
     </header>
 
-    <div class="center-stage">
-      <!-- Motivational Quote -->
-      <div class="quote-section" id="quote-section">
-        <blockquote class="quote-text" id="quote-text"></blockquote>
-        <cite class="quote-author" id="quote-author"></cite>
-      </div>
-
-      <div class="hero">
+    <section class="daily-hero" aria-label="Current day">
+      <div>
         <div class="clock" id="clock" aria-label="Current time">
-          <span class="clock-part">00</span>
-          <span class="clock-separator" aria-hidden="true">:</span>
-          <span class="clock-part">00</span>
+          <span class="clock-part">00</span><span class="clock-separator" aria-hidden="true">:</span><span class="clock-part">00</span>
         </div>
+        <p class="full-date" id="full-date"></p>
       </div>
 
-      <div class="weather-section" id="weather-section">
-        <div class="weather-loading" id="weather-loading">
-          <div class="spinner spinner-sm"></div>
-        </div>
+      <div class="weather-section" id="weather-section" aria-label="Weather">
+        <div class="weather-loading" id="weather-loading"><div class="spinner spinner-sm"></div></div>
         <div class="weather-content hidden" id="weather-content">
           <span class="weather-icon" id="weather-icon" aria-hidden="true"></span>
-          <span class="weather-temp" id="weather-temp"></span>
-          <span class="weather-desc" id="weather-desc"></span>
-          <span class="weather-highlow" id="weather-highlow"></span>
+          <div class="weather-copy">
+            <span class="weather-temp" id="weather-temp"></span>
+            <span class="weather-desc" id="weather-desc"></span>
+            <span class="weather-highlow" id="weather-highlow"></span>
+          </div>
         </div>
-        <div class="weather-error hidden" id="weather-error">
-          <span class="text-muted text-sm" id="weather-error-text"></span>
-        </div>
+        <div class="weather-error hidden" id="weather-error"><span id="weather-error-text"></span></div>
       </div>
+    </section>
 
-      <!-- Content: tasks are the primary column, schedule + completed sit in
-           a quiet rail — the same composition as the blocked page. -->
-      <div class="content-panels" id="content-panels">
-        <!-- Todos panel -->
-        <div class="panel panel-todos" id="todos-panel">
-          <div class="panel-header">
-            <span class="panel-icon" id="todos-icon"></span>
-            <h3 class="panel-title">Tasks</h3>
-          </div>
-          <div class="panel-body" tabindex="0" aria-label="Tasks list">
-            <!-- Todoist not connected state -->
-            <div class="connect-prompt" id="todos-connect">
-              <p class="connect-text">Connect Todoist to see your tasks</p>
-              <button class="btn btn-secondary btn-small" id="todos-connect-btn">Connect Todoist</button>
-            </div>
-            <!-- Todos loading state -->
-            <div class="panel-loading hidden" id="todos-loading">
-              <div class="spinner"></div>
-            </div>
-            <!-- Todos empty state -->
-            <div class="panel-empty hidden" id="todos-empty">
-              <p class="text-muted text-sm">No tasks for today</p>
-            </div>
-            <!-- Todos list -->
-            <ul class="todo-list" id="todo-list"></ul>
-            <!-- Show more button -->
-            <button class="btn btn-ghost btn-small show-more-btn hidden" id="todos-show-more">Show more</button>
-          </div>
+    <section class="daily-brief" aria-label="Daily brief">
+      <article class="brief-feature brief-now" id="brief-now">
+        <p class="section-eyebrow" id="now-task-label">Current task</p>
+        <div id="now-task" class="feature-content"><p class="brief-empty">Loading your day…</p></div>
+        <div class="brief-actions">
+          <button class="text-action" id="add-task-btn" type="button">Add task</button>
+          <button class="text-action" id="view-tasks-btn" type="button">View tasks</button>
         </div>
+      </article>
 
-        <aside class="side-rail" id="side-rail">
-          <!-- Calendar panel -->
-          <div class="panel panel-calendar" id="calendar-panel">
-            <div class="panel-header">
-              <span class="panel-icon" id="calendar-icon"></span>
-              <div class="panel-header-text">
-                <h3 class="panel-title" id="calendar-title">Today's Schedule</h3>
-                <span class="panel-date" id="calendar-date"></span>
-              </div>
-            </div>
-            <div class="panel-body" tabindex="0" aria-label="Schedule">
-              <!-- Calendar not connected state -->
-              <div class="connect-prompt" id="calendar-connect">
-                <p class="connect-text">Connect Google Calendar to see your schedule</p>
-                <button class="btn btn-secondary btn-small" id="calendar-connect-btn">Connect Calendar</button>
-              </div>
-              <!-- Calendar session expired state -->
-              <div class="connect-prompt hidden" id="calendar-reconnect">
-                <p class="connect-text connect-text-warning">Calendar session expired. Please reconnect.</p>
-                <button class="btn btn-secondary btn-small" id="calendar-reconnect-btn">Reconnect Calendar</button>
-              </div>
-              <!-- Calendar loading state -->
-              <div class="panel-loading hidden" id="calendar-loading">
-                <div class="spinner"></div>
-              </div>
-              <!-- Calendar empty state -->
-              <div class="panel-empty hidden" id="calendar-empty">
-                <p class="text-muted text-sm" id="calendar-empty-text">No upcoming events</p>
-              </div>
-              <!-- Calendar events list -->
-              <ul class="event-list" id="event-list"></ul>
-            </div>
-          </div>
-
-          <!-- Completed panel -->
-          <div class="panel panel-completed" id="completed-panel">
-            <div class="panel-header">
-              <span class="panel-icon" id="completed-icon"></span>
-              <div class="panel-header-text">
-                <h3 class="panel-title">Completed</h3>
-                <span class="panel-count" id="completed-count">0</span>
-              </div>
-            </div>
-            <div class="panel-body" tabindex="0" aria-label="Completed tasks">
-              <!-- Completed loading state -->
-              <div class="panel-loading hidden" id="completed-loading">
-                <div class="spinner"></div>
-              </div>
-              <!-- Completed empty state -->
-              <div class="panel-empty" id="completed-empty">
-                <p class="text-muted text-sm">No tasks completed yet today</p>
-              </div>
-              <!-- Completed list -->
-              <ul class="completed-list" id="completed-list"></ul>
-            </div>
-          </div>
-        </aside>
-      </div>
-
-      <section class="focus-snapshot hidden" id="focus-snapshot">
-        <div class="focus-snapshot-inline">
-          <div class="focus-snapshot-metric">
-            <span class="focus-snapshot-inline-label">Sites blocked</span>
-            <span class="focus-snapshot-inline-value" id="focus-snapshot-blocked">0</span>
-          </div>
-          <div class="focus-snapshot-metric">
-            <span class="focus-snapshot-inline-label">Estimated time saved</span>
-            <span class="focus-snapshot-inline-value focus-snapshot-inline-value-saved" id="focus-snapshot-saved">
-              <span class="focus-snapshot-saved-number">0</span>
-              <span class="focus-snapshot-saved-unit">min</span>
-            </span>
-          </div>
+      <article class="brief-feature brief-next" id="brief-next">
+        <p class="section-eyebrow">Next</p>
+        <div id="next-event" class="feature-content"><p class="brief-empty">Loading your schedule…</p></div>
+        <div class="brief-actions">
+          <button class="text-action" id="view-schedule-btn" type="button">View schedule</button>
         </div>
-      </section>
-    </div>
+      </article>
+    </section>
+
+    <section class="daily-previews" aria-label="Task and schedule previews">
+      <article class="preview-column" id="tasks-preview">
+        <div class="preview-heading">
+          <h2>Tasks</h2>
+          <button class="quiet-action hidden" id="todos-connect-btn" type="button">Connect Todoist</button>
+        </div>
+        <p class="integration-status hidden" id="tasks-status" aria-live="polite"></p>
+        <ul class="preview-list" id="task-preview-list"></ul>
+        <p class="preview-empty hidden" id="task-preview-empty">Your task list is clear.</p>
+      </article>
+
+      <article class="preview-column" id="agenda-preview">
+        <div class="preview-heading">
+          <h2>Agenda</h2>
+          <button class="quiet-action hidden" id="calendar-connect-btn" type="button">Connect Calendar</button>
+        </div>
+        <p class="integration-status hidden" id="calendar-status" aria-live="polite"></p>
+        <ul class="preview-list" id="agenda-preview-list"></ul>
+        <p class="preview-empty hidden" id="agenda-preview-empty">Your schedule is clear.</p>
+      </article>
+    </section>
   </main>
+
+  <div class="planner-drawer hidden" id="planner-drawer" aria-hidden="true">
+    <div class="planner-drawer-backdrop" id="planner-drawer-backdrop"></div>
+    <section class="planner-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="planner-drawer-title">
+      <header class="planner-drawer-header">
+        <div>
+          <p class="section-eyebrow" id="planner-drawer-eyebrow"></p>
+          <h2 id="planner-drawer-title"></h2>
+        </div>
+        <button class="drawer-close" id="planner-drawer-close" type="button" aria-label="Close planner">Close</button>
+      </header>
+      <div class="planner-drawer-body" id="planner-drawer-body"></div>
+    </section>
+  </div>
 
   <div class="settings-modal hidden" id="settings-modal" aria-hidden="true">
     <div class="settings-modal-backdrop" id="settings-modal-backdrop"></div>
     <section class="settings-dialog" id="settings-dialog" role="dialog" aria-modal="true" aria-label="Settings">
       <div class="settings-dialog-header">
-        <button class="settings-dialog-close" id="settings-close-btn" type="button" aria-label="Close settings">
-          <span id="settings-close-icon"></span>
-        </button>
+        <button class="settings-dialog-close" id="settings-close-btn" type="button" aria-label="Close settings"><span id="settings-close-icon"></span></button>
       </div>
-
       <div class="settings-content">
         <div class="settings-stack">
           <section class="settings-section settings-section-frame">
-            <iframe
-              class="settings-frame"
-              id="settings-frame"
-              title="Focus Extension Settings"
-              loading="lazy"
-              scrolling="no"
-            ></iframe>
+            <iframe class="settings-frame" id="settings-frame" title="Focus Extension Settings" loading="lazy" scrolling="no"></iframe>
           </section>
         </div>
       </div>

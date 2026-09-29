@@ -19,11 +19,13 @@ const cacheSource = fs.readFileSync(new URL('../lib/request-cache.js', import.me
 const FIXED_NOW = new Date(2026, 8, 13, 12).getTime();
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
-function harness({ eventItems = [], failStatus = null, failCalendarIds = [] } = {}) {
+function harness({ eventItems = [], eventPages = null, failStatus = null, failCalendarIds = [] } = {}) {
   const counts = { calendarList: 0, calendarEvents: 0 };
+  const requests = [];
   let now = FIXED_NOW;
   let eventsGate = null;
   let nextItems = eventItems;
+  let nextFailStatus = failStatus;
 
   class Clock extends Date {
     constructor(...args) { super(...(args.length ? args : [now])); }
@@ -48,8 +50,9 @@ function harness({ eventItems = [], failStatus = null, failCalendarIds = [] } = 
   let authFailuresLeft = 0;
   let refreshedToken = null;
 
-  const fetch = async (input) => {
+  const fetch = async (input, options = {}) => {
     const url = new URL(String(input));
+    requests.push({ url: url.toString(), method: (options.method || 'GET').toUpperCase() });
     if (url.pathname.endsWith('/calendarList')) {
       counts.calendarList++;
       await flush();
@@ -67,8 +70,9 @@ function harness({ eventItems = [], failStatus = null, failCalendarIds = [] } = 
         authFailuresLeft--;
         return new Response('Unauthorized', { status: 401 });
       }
-      if (failStatus) return new Response('fail', { status: failStatus });
-      return new Response(JSON.stringify({ items: nextItems }));
+      if (nextFailStatus) return new Response('fail', { status: nextFailStatus });
+      const page = eventPages?.[calendarId]?.[url.searchParams.get('pageToken') || 'first'];
+      return new Response(JSON.stringify(page || { items: nextItems }));
     }
     if (url.hostname === 'www.googleapis.com' && url.pathname.includes('userinfo')) {
       return new Response(JSON.stringify({ email: 'fixture@example.com' }));
@@ -107,12 +111,14 @@ function harness({ eventItems = [], failStatus = null, failCalendarIds = [] } = 
   vm.runInContext(cacheSource, sandbox);
   vm.runInContext(`${slice}\n${updateSlice}
 this.api = { getNewTabEvents, connectGoogleCalendar, disconnectGoogleCalendar,
-  getCalendarSettings, saveCalendarSettings, updateCalendarSettings, getCachedEvents };`, sandbox);
+  getCalendarSettings, saveCalendarSettings, updateCalendarSettings, getCachedEvents,
+  getPlannerEvents, getPlannerDayInfo };`, sandbox);
 
   return {
-    api: sandbox.api, counts, store,
+    api: sandbox.api, counts, requests, store,
     setAuthFailures(n) { authFailuresLeft = n; },
     setEventItems(items) { nextItems = items; },
+    setFailStatus(status) { nextFailStatus = status; },
     advanceMs(ms) { now += ms; },
     nextDay() { now += 24 * 60 * 60 * 1000; },
     holdEvents() { let release; eventsGate = new Promise(r => { release = r; }); return () => { eventsGate = null; release(); }; }
@@ -271,6 +277,91 @@ for (const status of [500, 503]) {
   const payload = await h.api.getNewTabEvents();
   assert.equal(payload.title, "Tomorrow's Schedule", 'with today finished the card must roll forward');
   assert.equal(payload.events[0].id, 'tomorrow');
+}
+
+{
+  const h = harness({
+    eventPages: {
+      primary: {
+        first: {
+          items: [
+            { id: 'all-day', summary: 'Away', start: { date: '2026-09-13' }, end: { date: '2026-09-14' } },
+            { id: 'overlap', summary: 'Night shift', start: { dateTime: '2026-09-12T23:00:00.000Z' }, end: { dateTime: '2026-09-13T01:00:00.000Z' } }
+          ],
+          nextPageToken: 'next-page'
+        },
+        'next-page': {
+          items: [{
+            id: 'meeting', summary: 'Planning', location: 'Room 4', colorId: '11',
+            htmlLink: 'https://calendar.google.com/calendar/event?eid=fixture',
+            conferenceData: { entryPoints: [{ entryPointType: 'video', uri: 'https://meet.google.com/fixture' }] },
+            start: { dateTime: '2026-09-13T14:00:00.000Z' }, end: { dateTime: '2026-09-13T15:00:00.000Z' }
+          }]
+        }
+      }
+    }
+  });
+  const payload = await h.api.getPlannerEvents('2026-09-13');
+  assert.equal(h.counts.calendarEvents, 2, 'planner reads exhaust Google page tokens');
+  assert.deepEqual(new Set(payload.events.map(event => event.id)), new Set(['all-day', 'overlap', 'meeting']));
+  assert.equal(payload.events.find(event => event.id === 'all-day').isAllDay, true, 'all-day events remain in the planner response');
+  const meeting = payload.events.find(event => event.id === 'meeting');
+  assert.equal(meeting.calendarName, 'Fixture');
+  assert.equal(meeting.location, 'Room 4');
+  assert.equal(meeting.meetingLink, 'https://meet.google.com/fixture');
+  assert.equal(meeting.htmlLink, 'https://calendar.google.com/calendar/event?eid=fixture');
+  assert.equal(payload.partial, false, 'a complete empty/non-empty response is not partial');
+  assert.equal(payload.stale, false);
+  assert.equal(payload.cacheUpdatedAt, payload.updatedAt);
+  const firstEventRequest = new URL(h.requests.find(request => request.url.includes('/events?')).url);
+  assert.equal(firstEventRequest.searchParams.get('timeMin'), new Date(2026, 8, 13).toISOString(), 'range starts at browser-local midnight');
+  assert.equal(firstEventRequest.searchParams.get('timeMax'), new Date(2026, 8, 14).toISOString(), 'range ends at the next local midnight');
+  assert.ok(h.requests.every(request => request.method === 'GET'), 'planner calendar reads never issue write requests');
+  await h.api.getPlannerEvents('2026-09-13');
+  assert.equal(h.counts.calendarEvents, 2, 'a fresh planner date is served from its per-date cache');
+}
+
+{
+  const h = harness();
+  await assert.rejects(() => h.api.getPlannerEvents('2026-02-30'), err => err.status === 400);
+  await assert.rejects(() => h.api.getPlannerEvents('2026-2-03'), err => err.status === 400);
+}
+
+{
+  const h = harness({ eventItems: [{
+    id: 'saved', summary: 'Saved event',
+    start: { dateTime: '2026-09-13T14:00:00.000Z' }, end: { dateTime: '2026-09-13T15:00:00.000Z' }
+  }] });
+  const first = await h.api.getPlannerEvents('2026-09-13');
+  h.advanceMs(5 * 60 * 1000 + 1);
+  h.setFailStatus(503);
+  const stale = await h.api.getPlannerEvents('2026-09-13');
+  assert.equal(stale.events[0].id, first.events[0].id, 'a temporary failure preserves valid planner data');
+  assert.equal(stale.stale, true);
+  assert.equal(stale.partial, true);
+}
+
+{
+  const h = harness({
+    failCalendarIds: ['broken'],
+    eventItems: [{
+      id: 'available', summary: 'Available',
+      start: { dateTime: '2026-09-13T14:00:00.000Z' }, end: { dateTime: '2026-09-13T15:00:00.000Z' }
+    }]
+  });
+  await h.api.saveCalendarSettings({ selectedCalendars: ['primary', 'broken'], cacheRevision: 'two-calendars' });
+  const payload = await h.api.getPlannerEvents('2026-09-13');
+  assert.equal(payload.events[0].id, 'available');
+  assert.equal(payload.partial, true, 'a failed selected calendar is distinguishable from an empty day');
+}
+
+{
+  const h = harness();
+  for (let day = 1; day <= 15; day++) {
+    await h.api.getPlannerEvents(`2026-09-${String(day).padStart(2, '0')}`);
+  }
+  const entries = h.store['focusCache:calendar:planner:v1'].entries;
+  assert.equal(Object.keys(entries).length, 14, 'planner cache retains a bounded number of date entries');
 }
 
 console.log('calendar-cache tests passed');

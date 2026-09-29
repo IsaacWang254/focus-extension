@@ -1,0 +1,491 @@
+import * as todoist from '../lib/todoist.js';
+import {
+  addLocalDays,
+  flattenTasks,
+  formatRelativeStart,
+  normalizeEvents,
+  rankTasks,
+  selectCurrentEvents,
+  selectNextEvent,
+  selectNowTask,
+  safeExternalUrl,
+  toLocalDateKey
+} from './planner-model.js';
+import { clearCurrentTaskState, loadCurrentTaskState, PLANNER_STATE_KEY, saveCurrentTaskState } from './planner-state.js';
+import { createTaskRow, renderTaskGroups, taskMeta } from './planner-tasks.js';
+import { createEventRow, formatEventTime, getMeetingUrl, renderEventList } from './planner-calendar.js';
+
+let api;
+let tasks = [];
+let projects = new Map();
+let currentTaskId = '';
+let todayEvents = [];
+let tomorrowEvents = [];
+let plannerStarted = false;
+let activeDrawerTrigger = null;
+let selectedScheduleDate = toLocalDateKey();
+let activeTaskView = 'day';
+
+const storage = {
+  get: keys => typeof chrome !== 'undefined' && chrome.storage?.local ? chrome.storage.local.get(keys) : api.getLocal(keys),
+  set: values => typeof chrome !== 'undefined' && chrome.storage?.local ? chrome.storage.local.set(values) : api.setLocal(values),
+  remove: keys => typeof chrome !== 'undefined' && chrome.storage?.local ? chrome.storage.local.remove(keys) : api.setLocal({ [keys]: null })
+};
+
+function element(id) {
+  return document.getElementById(id);
+}
+
+function setHidden(id, hidden) {
+  element(id)?.classList.toggle('hidden', hidden);
+}
+
+function setText(id, value) {
+  const target = element(id);
+  if (target) target.textContent = value;
+}
+
+function setPlannerStatus(kind, message = '') {
+  setText(`${kind}-status`, message);
+  setHidden(`${kind}-status`, !message);
+}
+
+async function getPlannerEvents(date) {
+  try {
+    const payload = await api.sendRuntimeMessage({ type: 'GET_PLANNER_EVENTS', date });
+    if (payload?.error) throw Object.assign(new Error(payload.error), { status: payload.status });
+    if (Array.isArray(payload)) return { date, events: payload };
+    return { date, events: payload?.events || [], stale: payload?.stale, partial: payload?.partial };
+  } catch (error) {
+    const message = String(error?.message || error || '');
+    if (!message.includes('Unknown message type') && !message.includes('Could not establish connection') && !message.includes('Receiving end does not exist')) throw error;
+    const payload = await api.sendRuntimeMessage({ type: 'GET_NEWTAB_EVENTS' });
+    return { date, events: payload?.events || [] };
+  }
+}
+
+async function loadTaskData() {
+  if (!api.isVisible('newtabShowTodos')) return;
+  setPlannerStatus('tasks', 'Loading tasks…');
+  try {
+    const authenticated = await todoist.isAuthenticated();
+    if (!authenticated) {
+      tasks = [];
+      currentTaskId = '';
+      setPlannerStatus('tasks', 'Connect Todoist to plan your day.');
+      setHidden('todos-connect-btn', false);
+      renderTasks();
+      return;
+    }
+    setHidden('todos-connect-btn', true);
+    const [loadedTasks, loadedProjects, token] = await Promise.all([
+      todoist.getTasksWithSubtasks({ staleWhileRevalidate: true }),
+      todoist.getProjects().catch(() => []),
+      todoist.getToken()
+    ]);
+    tasks = loadedTasks;
+    projects = new Map(loadedProjects.map(project => [String(project.id), project]));
+    const state = await loadCurrentTaskState(storage, token);
+    currentTaskId = state?.taskId || '';
+    const flat = flattenTasks(tasks);
+    if (currentTaskId && !flat.some(task => String(task.id) === String(currentTaskId))) {
+      currentTaskId = '';
+      await clearCurrentTaskState(storage);
+    }
+    setPlannerStatus('tasks', '');
+    renderTasks();
+  } catch (error) {
+    console.error('Failed to load planner tasks:', error);
+    setPlannerStatus('tasks', tasks.length ? 'Showing saved tasks.' : 'Tasks are unavailable.');
+    renderTasks();
+  }
+}
+
+async function loadCalendarData() {
+  if (!api.isVisible('newtabShowCalendar')) return;
+  setPlannerStatus('calendar', 'Loading schedule…');
+  try {
+    const status = await api.sendRuntimeMessage({ type: 'GET_CALENDAR_STATUS' });
+    if (!status?.connected) {
+      todayEvents = [];
+      tomorrowEvents = [];
+      setPlannerStatus('calendar', 'Connect Google Calendar to see what comes next.');
+      setHidden('calendar-connect-btn', false);
+      renderCalendar();
+      return;
+    }
+    setHidden('calendar-connect-btn', true);
+    const today = toLocalDateKey();
+    const todayPayload = await getPlannerEvents(today);
+    todayEvents = normalizeEvents(todayPayload.events);
+    const next = selectNextEvent(todayEvents);
+    if (!next) {
+      const tomorrowPayload = await getPlannerEvents(addLocalDays(today, 1));
+      tomorrowEvents = normalizeEvents(tomorrowPayload.events);
+    } else {
+      tomorrowEvents = [];
+    }
+    setPlannerStatus('calendar', todayPayload.stale ? 'Showing saved schedule.' : todayPayload.partial ? 'Some calendars are unavailable.' : '');
+    renderCalendar();
+  } catch (error) {
+    console.error('Failed to load planner calendar:', error);
+    setPlannerStatus('calendar', todayEvents.length ? 'Showing saved schedule.' : 'Calendar is unavailable.');
+    renderCalendar();
+  }
+}
+
+function renderTasks() {
+  const now = new Date();
+  const ranked = rankTasks(flattenTasks(tasks), now);
+  const current = selectNowTask(tasks, currentTaskId, now);
+  const currentContainer = element('now-task');
+  const preview = element('task-preview-list');
+  if (!currentContainer || !preview) return;
+  currentContainer.innerHTML = '';
+  preview.innerHTML = '';
+
+  if (!current) {
+    const empty = document.createElement('p');
+    empty.className = 'brief-empty';
+    empty.textContent = 'No task needs your attention right now.';
+    currentContainer.appendChild(empty);
+  } else {
+    const row = createTaskRow(current, {
+      current: String(current.id) === String(currentTaskId), projects, now,
+      showCurrentAction: !currentTaskId,
+      onComplete: completeTask,
+      onMakeCurrent: makeTaskCurrent
+    });
+    row.classList.add('planner-task-feature');
+    currentContainer.appendChild(row);
+    setText('now-task-label', currentTaskId ? 'Current task' : 'Suggested task');
+  }
+
+  for (const task of ranked.filter(task => String(task.id) !== String(current?.id)).slice(0, 2)) {
+    preview.appendChild(createTaskRow(task, { projects, now, onComplete: completeTask }));
+  }
+  setHidden('task-preview-empty', ranked.length > 1);
+}
+
+function renderCalendar() {
+  const now = new Date();
+  const currentEvents = selectCurrentEvents(todayEvents, now);
+  const next = selectNextEvent(todayEvents, now) || selectNextEvent(tomorrowEvents, now);
+  const nextContainer = element('next-event');
+  const preview = element('agenda-preview-list');
+  if (!nextContainer || !preview) return;
+  nextContainer.innerHTML = '';
+  preview.innerHTML = '';
+
+  if (!next) {
+    const empty = document.createElement('p');
+    empty.className = 'brief-empty';
+    empty.textContent = currentEvents.length ? `${currentEvents.length} event${currentEvents.length === 1 ? '' : 's'} in progress.` : 'Nothing else is scheduled.';
+    nextContainer.appendChild(empty);
+  } else {
+    const time = document.createElement('p');
+    time.className = 'feature-kicker';
+    const tomorrow = toLocalDateKey(next.start) !== toLocalDateKey(now);
+    time.textContent = `${tomorrow ? 'Tomorrow · ' : ''}${formatEventTime(next)} · ${formatRelativeStart(next, now)}`;
+    const title = document.createElement('button');
+    title.type = 'button';
+    title.className = 'feature-event-title';
+    title.textContent = next.title;
+    title.addEventListener('click', event => openEventDetail(next, event.currentTarget));
+    nextContainer.append(time, title);
+    const meetingUrl = getMeetingUrl(next);
+    if (meetingUrl) {
+      const join = document.createElement('a');
+      join.className = 'text-action';
+      join.href = meetingUrl;
+      join.target = '_blank';
+      join.rel = 'noreferrer';
+      join.textContent = 'Join meeting';
+      nextContainer.appendChild(join);
+    }
+  }
+
+  const upcoming = normalizeEvents(todayEvents)
+    .filter(event => event.isAllDay || new Date(event.end || event.start) > now)
+    .sort((a, b) => new Date(a.start) - new Date(b.start))
+    .slice(0, 2);
+  for (const event of upcoming) preview.appendChild(createEventRow(event, { onOpen: selected => openEventDetail(selected) }));
+  setHidden('agenda-preview-empty', upcoming.length > 0);
+}
+
+async function makeTaskCurrent(task) {
+  const token = await todoist.getToken();
+  await saveCurrentTaskState(storage, token, task.id);
+  currentTaskId = String(task.id);
+  renderTasks();
+  if (!element('planner-drawer')?.classList.contains('hidden')) renderTaskDrawer();
+}
+
+async function completeTask(task, button) {
+  if (button.disabled) return;
+  button.disabled = true;
+  button.classList.add('is-pending');
+  try {
+    await todoist.completeTask(task.id);
+    await api.sendRuntimeMessage({ type: 'ADD_EARNED_TIME', taskCount: 1 }).catch(() => null);
+    if (String(task.id) === String(currentTaskId)) {
+      currentTaskId = '';
+      await clearCurrentTaskState(storage);
+    }
+    await loadTaskData();
+    if (!element('planner-drawer')?.classList.contains('hidden') && element('planner-drawer')?.dataset.mode === 'tasks') renderTaskDrawer();
+  } catch (error) {
+    console.error('Failed to complete task:', error);
+    button.disabled = false;
+    button.classList.remove('is-pending');
+  }
+}
+
+function openDrawer(mode, trigger) {
+  const drawer = element('planner-drawer');
+  activeDrawerTrigger = trigger || document.activeElement;
+  drawer.dataset.mode = mode;
+  drawer.classList.remove('hidden');
+  drawer.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('planner-open');
+  if (mode === 'tasks') renderTaskDrawer();
+  if (mode === 'add') renderTaskForm();
+  if (mode === 'schedule') renderScheduleDrawer();
+  element('planner-drawer-close')?.focus();
+}
+
+function closeDrawer() {
+  const drawer = element('planner-drawer');
+  drawer.classList.add('hidden');
+  drawer.setAttribute('aria-hidden', 'true');
+  drawer.dataset.mode = '';
+  document.body.classList.remove('planner-open');
+  activeDrawerTrigger?.focus?.();
+}
+
+function drawerShell(title, eyebrow = '') {
+  setText('planner-drawer-eyebrow', eyebrow);
+  setText('planner-drawer-title', title);
+  const body = element('planner-drawer-body');
+  body.innerHTML = '';
+  return body;
+}
+
+function renderTaskDrawer() {
+  const body = drawerShell('Your tasks', 'Plan');
+  const toolbar = document.createElement('div');
+  toolbar.className = 'drawer-toolbar';
+  const tabs = document.createElement('div');
+  tabs.className = 'drawer-tabs';
+  for (const [value, label] of [['day', 'Day'], ['upcoming', 'Upcoming'], ['all', 'All']]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `drawer-tab${activeTaskView === value ? ' is-active' : ''}`;
+    button.textContent = label;
+    button.addEventListener('click', () => { activeTaskView = value; renderTaskDrawer(); });
+    tabs.appendChild(button);
+  }
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'text-action';
+  add.textContent = 'Add task';
+  add.addEventListener('click', event => openDrawer('add', event.currentTarget));
+  toolbar.append(tabs, add);
+  const list = document.createElement('div');
+  list.className = 'drawer-task-groups';
+  renderTaskGroups(list, tasks, {
+    view: activeTaskView,
+    selectedDate: toLocalDateKey(),
+    currentTaskId,
+    projects,
+    now: new Date(),
+    onComplete: completeTask,
+    onMakeCurrent: makeTaskCurrent,
+    onEdit: renderTaskEditForm
+  });
+  body.append(toolbar, list);
+}
+
+function renderTaskEditForm(task) {
+  const body = drawerShell('Edit task', 'Task');
+  const recurring = Boolean(task.due?.is_recurring || task.due?.recurring);
+  const dueValue = task.due?.date?.slice(0, 10) || task.due?.datetime?.slice(0, 10) || '';
+  const form = document.createElement('form');
+  form.className = 'task-form';
+  form.innerHTML = `
+    <label class="field-label" for="planner-edit-title">Task</label>
+    <input class="task-title-input" id="planner-edit-title" name="content" autocomplete="off" required>
+    <div class="task-details-grid">
+      <label class="field-label">Due date<input class="field-input" type="date" name="due_date" ${recurring ? 'disabled' : ''}></label>
+      <label class="field-label">Priority<select class="field-input" name="priority"><option value="1">Normal</option><option value="2">Medium</option><option value="3">High</option><option value="4">Urgent</option></select></label>
+    </div>
+    ${recurring ? '<p class="form-status">Edit recurring dates in Todoist.</p>' : '<p class="form-status" aria-live="polite"></p>'}
+    <button class="primary-action" type="submit">Save changes</button>`;
+  form.elements.content.value = task.content || '';
+  form.elements.priority.value = String(task.priority || 1);
+  if (!recurring) form.elements.due_date.value = dueValue;
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const submit = form.querySelector('[type="submit"]');
+    const status = form.querySelector('.form-status');
+    submit.disabled = true;
+    if (!recurring) status.textContent = 'Saving changes…';
+    const data = new FormData(form);
+    const changes = { content: String(data.get('content')).trim(), priority: Number(data.get('priority')) };
+    if (!recurring) changes.due_date = data.get('due_date') || null;
+    try {
+      await todoist.updateTask(task.id, changes);
+      await loadTaskData();
+      renderTaskDrawer();
+    } catch (error) {
+      console.error('Failed to update task:', error);
+      status.textContent = 'The task was not updated. Try again.';
+      submit.disabled = false;
+    }
+  });
+  body.appendChild(form);
+  queueMicrotask(() => form.elements.content?.focus());
+}
+
+function renderTaskForm() {
+  const body = drawerShell('Add a task', 'Capture');
+  const form = document.createElement('form');
+  form.className = 'task-form';
+  form.innerHTML = `
+    <label class="field-label" for="planner-task-title">Task</label>
+    <input class="task-title-input" id="planner-task-title" name="content" autocomplete="off" required placeholder="What needs to happen?">
+    <details class="task-details"><summary>Add details</summary>
+      <div class="task-details-grid">
+        <label class="field-label">Due date<input class="field-input" type="date" name="due_date" value="${toLocalDateKey()}"></label>
+        <label class="field-label">Priority<select class="field-input" name="priority"><option value="1">Normal</option><option value="2">Medium</option><option value="3">High</option><option value="4">Urgent</option></select></label>
+      </div>
+    </details>
+    <p class="form-status" aria-live="polite"></p>
+    <button class="primary-action" type="submit">Add task</button>`;
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const submit = form.querySelector('[type="submit"]');
+    const status = form.querySelector('.form-status');
+    submit.disabled = true;
+    status.textContent = 'Adding task…';
+    const data = new FormData(form);
+    const task = { content: String(data.get('content')).trim(), priority: Number(data.get('priority')) };
+    if (data.get('due_date')) task.due_date = data.get('due_date');
+    try {
+      await todoist.createTask(task);
+      await loadTaskData();
+      openDrawer('tasks', activeDrawerTrigger);
+    } catch (error) {
+      console.error('Failed to create task:', error);
+      status.textContent = 'The task was not added. Try again.';
+      submit.disabled = false;
+    }
+  });
+  body.appendChild(form);
+  queueMicrotask(() => form.querySelector('input')?.focus());
+}
+
+async function renderScheduleDrawer() {
+  const body = drawerShell('Your schedule', 'Agenda');
+  const nav = document.createElement('div');
+  nav.className = 'schedule-nav';
+  const previous = document.createElement('button');
+  previous.type = 'button'; previous.textContent = 'Previous';
+  const date = document.createElement('input');
+  date.type = 'date'; date.value = selectedScheduleDate; date.setAttribute('aria-label', 'Schedule date');
+  const next = document.createElement('button');
+  next.type = 'button'; next.textContent = 'Next';
+  const today = document.createElement('button');
+  today.type = 'button'; today.textContent = 'Today';
+  const changeDate = value => { selectedScheduleDate = value; renderScheduleDrawer(); };
+  previous.addEventListener('click', () => changeDate(addLocalDays(selectedScheduleDate, -1)));
+  next.addEventListener('click', () => changeDate(addLocalDays(selectedScheduleDate, 1)));
+  today.addEventListener('click', () => changeDate(toLocalDateKey()));
+  date.addEventListener('change', () => changeDate(date.value));
+  nav.append(previous, date, next, today);
+  const status = document.createElement('p'); status.className = 'drawer-loading'; status.textContent = 'Loading schedule…';
+  const list = document.createElement('ul'); list.className = 'planner-drawer-list';
+  body.append(nav, status, list);
+  try {
+    const payload = await getPlannerEvents(selectedScheduleDate);
+    status.textContent = payload.stale ? 'Showing saved schedule.' : '';
+    const count = renderEventList(list, payload.events, { onOpen: event => openEventDetail(event) });
+    if (!count) status.textContent = 'Nothing scheduled for this day.';
+  } catch (error) {
+    console.error('Failed to load schedule:', error);
+    status.textContent = 'Schedule is unavailable.';
+  }
+}
+
+function openEventDetail(event, trigger) {
+  openDrawer('event', trigger);
+  const body = drawerShell(event.title, 'Event');
+  const meta = document.createElement('dl');
+  meta.className = 'event-detail-list';
+  const add = (term, value) => {
+    if (!value) return;
+    const dt = document.createElement('dt'); dt.textContent = term;
+    const dd = document.createElement('dd'); dd.textContent = value;
+    meta.append(dt, dd);
+  };
+  add('When', formatEventTime(event));
+  add('Calendar', event.calendarName);
+  add('Location', event.location);
+  body.appendChild(meta);
+  const actions = document.createElement('div'); actions.className = 'event-detail-actions';
+  const meeting = getMeetingUrl(event);
+  const calendar = safeExternalUrl(event.htmlLink);
+  for (const [url, label] of [[meeting, 'Join meeting'], [calendar, 'Open in Google Calendar']]) {
+    if (!url) continue;
+    const link = document.createElement('a'); link.className = 'primary-action'; link.href = url; link.target = '_blank'; link.rel = 'noreferrer'; link.textContent = label;
+    actions.appendChild(link);
+  }
+  body.appendChild(actions);
+}
+
+function setupDrawer() {
+  element('planner-drawer-close')?.addEventListener('click', closeDrawer);
+  element('planner-drawer-backdrop')?.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', event => {
+    const drawer = element('planner-drawer');
+    if (drawer?.classList.contains('hidden')) return;
+    if (event.key === 'Escape') closeDrawer();
+    if (event.key === 'Tab') {
+      const focusable = [...drawer.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), summary')];
+      if (!focusable.length) return;
+      const first = focusable[0]; const last = focusable.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+  });
+}
+
+function setupActions() {
+  element('view-tasks-btn')?.addEventListener('click', event => openDrawer('tasks', event.currentTarget));
+  element('add-task-btn')?.addEventListener('click', event => openDrawer('add', event.currentTarget));
+  element('view-schedule-btn')?.addEventListener('click', event => openDrawer('schedule', event.currentTarget));
+  element('todos-connect-btn')?.addEventListener('click', async () => { await todoist.authenticate(); await loadTaskData(); });
+  element('calendar-connect-btn')?.addEventListener('click', async () => { await api.sendRuntimeMessage({ type: 'CONNECT_GOOGLE_CALENDAR' }); await loadCalendarData(); });
+}
+
+export function initPlannerDashboard(options) {
+  if (plannerStarted) return;
+  plannerStarted = true;
+  api = options;
+  setupDrawer();
+  setupActions();
+}
+
+export async function refreshPlannerDashboard() {
+  if (!plannerStarted) return;
+  await Promise.allSettled([loadTaskData(), loadCalendarData()]);
+}
+
+export function handlePlannerStorageChange(changes) {
+  if (!plannerStarted) return;
+  if (changes[PLANNER_STATE_KEY]) {
+    const state = changes[PLANNER_STATE_KEY].newValue;
+    currentTaskId = state?.date === toLocalDateKey() ? state.taskId : '';
+    renderTasks();
+  }
+}

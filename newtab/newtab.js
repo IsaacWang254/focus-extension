@@ -13,10 +13,14 @@ import {
   resolveThemeVariant
 } from '../lib/theme.js';
 import { setIconButtonLabel } from '../lib/design-theme.js';
-import { getDailyQuote } from './quotes.js';
 import { resolveNewtabBackground } from '../lib/newtab-background.js';
 import { getCachedResource, withSharedLock } from '../lib/request-cache.js';
 import { runWhenVisible } from '../lib/when-visible.js';
+import {
+  handlePlannerStorageChange,
+  initPlannerDashboard,
+  refreshPlannerDashboard
+} from './planner.js';
 
 // =============================================================================
 // CONSTANTS
@@ -29,10 +33,8 @@ const WEATHER_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 const DEFAULTS = {
   newtabShowWeather: true,
-  newtabShowQuotes: true,
   newtabShowCalendar: true,
   newtabShowTodos: true,
-  newtabShowFocusSnapshot: true,
   newtabBackground: 'ocean',
   newtabShowOceanBackground: true,
   newtabOceanBatterySaver: false,
@@ -52,7 +54,6 @@ let lastFocusedElement = null;
 function isWidgetVisible(key) {
   return document.visibilityState === 'visible' && dashboardSettings[key] !== false;
 }
-let completedToday = [];
 let allTasks = [];
 let tasksExpanded = false;
 
@@ -67,8 +68,8 @@ function getPreviewResponse(message) {
     case 'GET_NEWTAB_EVENTS':
     case 'GET_TODAY_EVENTS':
       return [];
-    case 'GET_BLOCKING_SUMMARY':
-      return { totalBlockAttempts: 0 };
+    case 'GET_PLANNER_EVENTS':
+      return { date: message.date, events: [] };
     case 'ADD_EARNED_TIME':
       return { added: 0 };
     default:
@@ -329,12 +330,15 @@ function updateThemeToggleIcon(themeValue = document.documentElement.getAttribut
 
 function setupIcons() {
   updateThemeToggleIcon();
-  document.getElementById('settings-icon').innerHTML = Icons.settings;
-  document.getElementById('settings-close-icon').innerHTML = Icons.x;
-  document.getElementById('calendar-icon').innerHTML = Icons.calendar;
-  document.getElementById('todos-icon').innerHTML = Icons.list;
-  document.getElementById('completed-icon').innerHTML = Icons.checkCircle;
-  document.getElementById('bedtime-reminder-icon').innerHTML = Icons.moon;
+  const icons = {
+    'settings-icon': Icons.settings,
+    'settings-close-icon': Icons.x,
+    'bedtime-reminder-icon': Icons.moon
+  };
+  for (const [id, markup] of Object.entries(icons)) {
+    const target = document.getElementById(id);
+    if (target) target.innerHTML = markup;
+  }
 }
 
 // =============================================================================
@@ -540,20 +544,10 @@ function updateDate() {
     month: 'long',
     day: 'numeric',
   });
-  const calendarDateEl = document.getElementById('calendar-date');
-  if (calendarDateEl) {
-    calendarDateEl.textContent = formatted;
+  const dateEl = document.getElementById('full-date');
+  if (dateEl) {
+    dateEl.textContent = formatted;
   }
-}
-
-// =============================================================================
-// QUOTES
-// =============================================================================
-
-function loadQuote() {
-  const quote = getDailyQuote();
-  document.getElementById('quote-text').textContent = quote.text;
-  document.getElementById('quote-author').textContent = quote.author;
 }
 
 // =============================================================================
@@ -849,25 +843,11 @@ async function loadSettings() {
 
 function applyVisibility(settings) {
   const weatherSection = document.getElementById('weather-section');
-  const quoteSection = document.getElementById('quote-section');
-  const focusSnapshot = document.getElementById('focus-snapshot');
-  const calendarPanel = document.getElementById('calendar-panel');
-  const todosPanel = document.getElementById('todos-panel');
-  const completedPanel = document.getElementById('completed-panel');
-  const contentPanels = document.getElementById('content-panels');
-
-  weatherSection.classList.toggle('hidden', !settings.newtabShowWeather);
-  quoteSection.classList.toggle('hidden', !settings.newtabShowQuotes);
-  focusSnapshot.classList.toggle('hidden', !settings.newtabShowFocusSnapshot);
-  calendarPanel.classList.toggle('hidden', !settings.newtabShowCalendar);
-  todosPanel.classList.toggle('hidden', !settings.newtabShowTodos);
-
-  // Completed panel is tied to the todos toggle
-  completedPanel.classList.toggle('hidden', !settings.newtabShowTodos);
-
-  // Hide the content-panels container if all panels are hidden
-  const allHidden = !settings.newtabShowCalendar && !settings.newtabShowTodos;
-  contentPanels.classList.toggle('hidden', allHidden);
+  weatherSection?.classList.toggle('hidden', !settings.newtabShowWeather);
+  document.getElementById('brief-now')?.classList.toggle('hidden', !settings.newtabShowTodos);
+  document.getElementById('tasks-preview')?.classList.toggle('hidden', !settings.newtabShowTodos);
+  document.getElementById('brief-next')?.classList.toggle('hidden', !settings.newtabShowCalendar);
+  document.getElementById('agenda-preview')?.classList.toggle('hidden', !settings.newtabShowCalendar);
 }
 
 function setupSettings() {
@@ -1625,11 +1605,8 @@ function renderSavedTime(minutes) {
 }
 
 const DASHBOARD_WIDGETS = {
-  calendar: { key: 'newtabShowCalendar', load: loadCalendar },
   weather: { key: 'newtabShowWeather', load: loadWeather },
-  todos: { key: 'newtabShowTodos', load: loadTodos },
-  completed: { key: 'newtabShowTodos', load: fetchCompletedToday },
-  focusSnapshot: { key: 'newtabShowFocusSnapshot', load: loadFocusSnapshot }
+  planner: { key: 'planner', load: refreshPlannerDashboard }
 };
 
 const widgetStates = {};
@@ -1684,25 +1661,7 @@ function stopDashboardRefresh() {
 }
 
 function clearAuthFailedWidget(name) {
-  if (name === 'todos') {
-    allTasks = [];
-    const listEl = document.getElementById('todo-list');
-    if (listEl) listEl.innerHTML = '';
-    document.getElementById('todos-connect')?.classList.remove('hidden');
-    document.getElementById('todos-empty')?.classList.add('hidden');
-    document.getElementById('todos-loading')?.classList.add('hidden');
-    document.getElementById('todos-show-more')?.classList.add('hidden');
-  } else if (name === 'completed') {
-    completedToday = [];
-    renderCompletedSection();
-    document.getElementById('completed-loading')?.classList.add('hidden');
-  } else if (name === 'calendar') {
-    const listEl = document.getElementById('event-list');
-    if (listEl) listEl.innerHTML = '';
-    document.getElementById('calendar-reconnect')?.classList.remove('hidden');
-    document.getElementById('calendar-empty')?.classList.add('hidden');
-    document.getElementById('calendar-loading')?.classList.add('hidden');
-  }
+  if (name === 'planner') refreshPlannerDashboard();
 }
 
 function setupVisibilityLifecycle() {
@@ -1754,10 +1713,8 @@ function setupStorageSync() {
 
   const visibilityKeys = [
     'newtabShowWeather',
-    'newtabShowQuotes',
     'newtabShowCalendar',
     'newtabShowTodos',
-    'newtabShowFocusSnapshot',
     'newtabBackground',
     'newtabShowOceanBackground',
     'newtabOceanBatterySaver',
@@ -1771,21 +1728,18 @@ function setupStorageSync() {
 
   const WIDGET_SETTING_KEYS = {
     newtabShowWeather: ['weather'],
-    newtabShowCalendar: ['calendar'],
-    newtabShowTodos: ['todos', 'completed'],
-    newtabShowFocusSnapshot: ['focusSnapshot'],
+    newtabShowCalendar: ['planner'],
+    newtabShowTodos: ['planner'],
     newtabTempUnit: ['weather'],
     weatherLat: ['weather'],
     weatherLon: ['weather'],
-    todoistToken: ['todos', 'completed'],
-    todoistCacheRevision: ['todos', 'completed'],
-    calendarSettings: ['calendar']
+    todoistToken: ['planner'],
+    todoistCacheRevision: ['planner'],
+    calendarSettings: ['planner'],
+    newtabPlannerState: ['planner']
   };
 
   const CACHE_WIDGET_KEYS = {
-    'focusCache:todoist:tasks': 'todos',
-    'focusCache:todoist:completedToday': 'completed',
-    'focusCache:calendar:display': 'calendar',
     'focusCache:weather': 'weather'
   };
 
@@ -1831,6 +1785,7 @@ function setupStorageSync() {
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local') return;
+    handlePlannerStorageChange(changes);
 
     const changedKeys = Object.keys(changes);
 
@@ -1894,17 +1849,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupReducedMotionListener();
   setupSettings();
   setupStorageSync();
-  setupCalendarConnect();
-  setupTodosConnect();
-  setupShowMore();
   setupVisibilityLifecycle();
+  initPlannerDashboard({
+    sendRuntimeMessage,
+    getLocal,
+    setLocal,
+    isVisible: isWidgetVisible
+  });
 
   // Start clock
   startClock();
   startBedtimeReminderRefresh();
-
-  // Load quote
-  loadQuote();
 
   // Load settings and apply visibility
   await loadSettings();
