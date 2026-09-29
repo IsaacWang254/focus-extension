@@ -984,8 +984,10 @@ body[data-surface="newtab"] .main {
 
 .daily-header {
   min-height: 32px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: flex-start;
+  gap: clamp(48px, 10vw, 160px);
 }
 
 .product-mark {
@@ -1476,6 +1478,15 @@ body.planner-open {
     margin-top: 32px;
   }
 
+  .daily-header {
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+  }
+
+  body[data-surface="newtab"] .daily-header .top-bar {
+    justify-self: end;
+  }
+
   body[data-surface="newtab"] .clock {
     font-size: clamp(4.2rem, 22vw, 6rem);
   }
@@ -1563,8 +1574,7 @@ body.planner-open {
 }
 
 body[data-surface="newtab"] .top-bar {
-  top: clamp(28px, 4.2vw, 60px);
-  right: max(clamp(20px, 4vw, 64px), calc((100vw - 1264px) / 2));
-  bottom: auto;
+  position: static;
+  justify-self: start;
   padding: 0;
 }
