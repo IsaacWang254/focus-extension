@@ -60,31 +60,59 @@ function createNowMarker(label) {
   return marker;
 }
 
+function reconcileChildren(parent, desired, removableSelector) {
+  let cursor = parent.firstChild;
+  for (const node of desired) {
+    if (node !== cursor) parent.insertBefore(node, cursor);
+    cursor = node.nextSibling;
+  }
+  for (const node of [...parent.querySelectorAll(removableSelector)]) {
+    if (!desired.includes(node)) node.remove();
+  }
+}
+
 function renderAllDay(container, descriptors, onOpen) {
-  container.innerHTML = '';
   container.classList.toggle('hidden', descriptors.length === 0);
-  if (!descriptors.length) return;
-  const label = document.createElement('p');
-  label.className = 'timeline-all-day-label';
-  label.textContent = 'All day';
-  const list = document.createElement('ul');
-  list.className = 'timeline-all-day-list';
+  let label = container.querySelector('.timeline-all-day-label');
+  let list = container.querySelector('.timeline-all-day-list');
+  if (!label) {
+    label = document.createElement('p');
+    label.className = 'timeline-all-day-label';
+    label.textContent = 'All day';
+    container.appendChild(label);
+  }
+  if (!list) {
+    list = document.createElement('ul');
+    list.className = 'timeline-all-day-list';
+    container.appendChild(list);
+  }
+  const existing = new Map(
+    [...list.querySelectorAll('.timeline-all-day-event[data-event-key]')]
+      .map(item => [item.dataset.eventKey, item])
+  );
+  const desired = [];
   for (const descriptor of descriptors) {
-    const item = document.createElement('li');
-    item.className = 'timeline-all-day-event';
+    let item = existing.get(descriptor.key);
+    if (!item) {
+      item = document.createElement('li');
+      item.className = 'timeline-all-day-event';
+      item.dataset.eventKey = descriptor.key;
+      const marker = document.createElement('span');
+      marker.className = 'timeline-event-marker';
+      marker.setAttribute('aria-hidden', 'true');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.addEventListener('click', () => onOpen?.(button._event, button));
+      item.append(marker, button);
+    }
     item.style.setProperty('--event-color', descriptor.color);
-    const marker = document.createElement('span');
-    marker.className = 'timeline-event-marker';
-    marker.setAttribute('aria-hidden', 'true');
-    const button = document.createElement('button');
-    button.type = 'button';
+    const button = item.querySelector('button');
+    button._event = descriptor.event;
     button.textContent = descriptor.title;
     button.setAttribute('aria-label', eventAccessibleLabel(descriptor));
-    button.addEventListener('click', () => onOpen?.(descriptor.event, button));
-    item.append(marker, button);
-    list.appendChild(item);
+    desired.push(item);
   }
-  container.append(label, list);
+  reconcileChildren(list, desired, '.timeline-all-day-event[data-event-key]');
 }
 
 export function renderDayTimeline(elements, events, options = {}) {
@@ -94,26 +122,27 @@ export function renderDayTimeline(elements, events, options = {}) {
     [...elements.list.querySelectorAll('.timeline-event[data-event-key]')]
       .map(item => [item.dataset.eventKey, item])
   );
-  const fragment = document.createDocumentFragment();
-  let marker = null;
+  const desired = [];
+  let marker = elements.list.querySelector('[data-timeline-now="true"]');
 
   for (const row of [...model.rows, ...model.unavailable]) {
     if (row.type === 'now-marker') {
-      marker = createNowMarker(row.label);
-      fragment.appendChild(marker);
+      if (!marker) marker = createNowMarker(row.label);
+      marker.querySelector('.timeline-now-label').textContent = row.label;
+      desired.push(marker);
       continue;
     }
     const item = existing.get(row.key) || createTimedRow(row, options.onOpen);
     updateTimedRow(item, row);
-    fragment.appendChild(item);
+    desired.push(item);
     existing.delete(row.key);
   }
-  elements.list.replaceChildren(fragment);
+  reconcileChildren(elements.list, desired, '.timeline-event[data-event-key], [data-timeline-now="true"]');
   renderAllDay(elements.allDay, model.allDay, options.onOpen);
 
   const hasEvents = model.allDay.length + model.timed.length + model.unavailable.length > 0;
   elements.empty.classList.toggle('hidden', hasEvents || options.hasStatus);
-  elements.viewport.classList.toggle('hidden', !hasEvents);
+  elements.viewport.classList.toggle('hidden', !hasEvents && options.hasStatus);
   return { model, marker, hasEvents };
 }
 

@@ -37,8 +37,10 @@ const calendarRequestGuard = createLatestRequestGuard();
 const pendingTaskIds = new Set();
 const CALENDAR_REFRESH_INTERVAL = 5 * 60 * 1000;
 let lastCalendarAttemptAt = 0;
+let lastCalendarAttemptDate = '';
 let loadedCalendarDate = '';
 let timelineUserAnchored = false;
+let pendingTimelineRecenter = false;
 
 const storage = {
   get: keys => typeof chrome !== 'undefined' && chrome.storage?.local ? chrome.storage.local.get(keys) : api.getLocal(keys),
@@ -116,12 +118,13 @@ async function loadTaskData() {
 async function loadCalendarData({ force = false, recenter = false } = {}) {
   if (!api.isVisible('newtabShowCalendar')) return;
   const today = toLocalDateKey();
-  if (!force && loadedCalendarDate === today && Date.now() - lastCalendarAttemptAt < CALENDAR_REFRESH_INTERVAL) {
+  if (!force && lastCalendarAttemptDate === today && Date.now() - lastCalendarAttemptAt < CALENDAR_REFRESH_INTERVAL) {
     renderCalendar({ recenter });
     return;
   }
   const requestId = calendarRequestGuard.begin();
   lastCalendarAttemptAt = Date.now();
+  lastCalendarAttemptDate = today;
   if (!todayEvents.length) setPlannerStatus('calendar', 'Loading schedule…');
   try {
     const status = await api.sendRuntimeMessage({ type: 'GET_CALENDAR_STATUS' });
@@ -205,8 +208,19 @@ function renderCalendar({ recenter = false } = {}) {
     hasStatus: Boolean(element('calendar-status')?.textContent),
     onOpen: (event, trigger) => openEventDetail(event, trigger)
   });
-  if (recenter && !timelineUserAnchored && element('planner-drawer')?.classList.contains('hidden')) {
-    requestAnimationFrame(() => centerTimelineOnNow(viewport, result.marker));
+  if (!result.hasEvents) {
+    timelineUserAnchored = false;
+    element('back-to-now-btn')?.classList.add('hidden');
+  }
+  if (recenter && !timelineUserAnchored) {
+    const drawerOpen = !element('planner-drawer')?.classList.contains('hidden');
+    const timelineFocused = viewport.contains(document.activeElement);
+    if (drawerOpen || timelineFocused) {
+      pendingTimelineRecenter = true;
+    } else {
+      pendingTimelineRecenter = false;
+      requestAnimationFrame(() => centerTimelineOnNow(viewport, result.marker));
+    }
   }
 }
 
@@ -264,7 +278,16 @@ function closeDrawer() {
   drawer.setAttribute('aria-hidden', 'true');
   drawer.dataset.mode = '';
   document.body.classList.remove('planner-open');
-  activeDrawerTrigger?.focus?.();
+  const fallback = element('view-schedule-btn');
+  const restoreTarget = activeDrawerTrigger?.isConnected ? activeDrawerTrigger : fallback;
+  restoreTarget?.focus?.();
+  if (pendingTimelineRecenter && !element('timeline-viewport')?.contains(document.activeElement)) {
+    pendingTimelineRecenter = false;
+    requestAnimationFrame(() => centerTimelineOnNow(
+      element('timeline-viewport'),
+      element('timeline-list')?.querySelector('[data-timeline-now="true"]')
+    ));
+  }
 }
 
 function drawerShell(title, eyebrow = '') {
@@ -543,8 +566,15 @@ function setupActions() {
   };
   viewport?.addEventListener('wheel', anchorTimeline, { passive: true });
   viewport?.addEventListener('touchstart', anchorTimeline, { passive: true });
+  viewport?.addEventListener('pointerdown', anchorTimeline, { passive: true });
   viewport?.addEventListener('keydown', event => {
+    if (event.key === ' ' && event.target.closest?.('.timeline-event-button')) return;
     if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) anchorTimeline();
+  });
+  viewport?.addEventListener('focusout', event => {
+    if (!pendingTimelineRecenter || viewport.contains(event.relatedTarget)) return;
+    pendingTimelineRecenter = false;
+    requestAnimationFrame(() => centerTimelineOnNow(viewport, element('timeline-list')?.querySelector('[data-timeline-now="true"]')));
   });
   backToNow?.addEventListener('click', () => {
     timelineUserAnchored = false;
@@ -569,10 +599,17 @@ export async function refreshPlannerDashboard() {
 export function refreshPlannerTime({ recenter = false } = {}) {
   if (!plannerStarted || !api.isVisible('newtabShowCalendar')) return;
   const today = toLocalDateKey();
-  if (loadedCalendarDate && loadedCalendarDate !== today) {
+  if (recenter) {
+    timelineUserAnchored = false;
+    element('back-to-now-btn')?.classList.add('hidden');
+  }
+  if ((loadedCalendarDate && loadedCalendarDate !== today) || (lastCalendarAttemptDate && lastCalendarAttemptDate !== today)) {
     loadedCalendarDate = '';
     todayEvents = [];
     lastCalendarAttemptAt = 0;
+    lastCalendarAttemptDate = '';
+    timelineUserAnchored = false;
+    element('back-to-now-btn')?.classList.add('hidden');
     loadCalendarData({ force: true, recenter: true });
     return;
   }
@@ -585,5 +622,10 @@ export function handlePlannerStorageChange(changes) {
     const state = changes[PLANNER_STATE_KEY].newValue;
     currentTaskId = state?.date === toLocalDateKey() ? state.taskId : '';
     renderTasks();
+  }
+  if (changes.calendarSettings) {
+    lastCalendarAttemptAt = 0;
+    lastCalendarAttemptDate = '';
+    if (api.isVisible('newtabShowCalendar')) loadCalendarData({ force: true, recenter: true });
   }
 }

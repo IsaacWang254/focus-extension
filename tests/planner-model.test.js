@@ -94,8 +94,8 @@ const fadeTimeline = buildDayTimeline([
   { id: 'old', start: '2026-09-29T06:00:00', end: '2026-09-29T08:00:00' }
 ], '2026-09-29', timelineNow);
 assert.equal(fadeTimeline.timed.find(row => row.id === 'just-ended').pastFade, 1);
-assert.equal(fadeTimeline.timed.find(row => row.id === 'one-hour-old').pastFade, 0.85);
-assert.equal(fadeTimeline.timed.find(row => row.id === 'old').pastFade, 0.7);
+assert.equal(fadeTimeline.timed.find(row => row.id === 'one-hour-old').pastFade, 0.925);
+assert.equal(fadeTimeline.timed.find(row => row.id === 'old').pastFade, 0.85);
 
 const exclusiveAllDay = buildDayTimeline([
   { id: 'ended-before-today', isAllDay: true, start: '2026-09-28', end: '2026-09-29' },

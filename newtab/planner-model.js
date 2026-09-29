@@ -1,5 +1,5 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
-export const TIMELINE_PAST_FADE_FLOOR = 0.7;
+export const TIMELINE_PAST_FADE_FLOOR = 0.85;
 export const TIMELINE_NEUTRAL_COLOR = '#73736c';
 
 export function toLocalDateKey(value = new Date()) {

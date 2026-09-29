@@ -356,32 +356,6 @@ body {
   opacity: 0.7;
 }
 
-.settings-open {
-  overflow: hidden;
-}
-
-@keyframes settingsBackdropIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes settingsDialogIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.992);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
 /* ============================================
    Weather Section
    ============================================ */
@@ -499,59 +473,6 @@ body {
 [data-theme="dashboard-light"] body,
 [data-theme="dashboard-dark"] body {
   background: transparent;
-}
-
-[data-theme="dashboard-light"] .top-bar,
-[data-theme="dashboard-dark"] .top-bar {
-  width: auto;
-  display: flex;
-  justify-content: flex-end;
-  pointer-events: auto;
-  padding: var(--space-5);
-}
-
-[data-theme="dashboard-light"] .top-bar-actions,
-[data-theme="dashboard-dark"] .top-bar-actions {
-  gap: 10px;
-}
-
-[data-theme="dashboard-light"] #settings-dropdown .dropdown-menu-right,
-[data-theme="dashboard-dark"] #settings-dropdown .dropdown-menu-right {
-  margin-top: 0;
-  min-width: 240px;
-  padding: 0;
-}
-
-[data-theme="dashboard-light"] .settings-panel,
-[data-theme="dashboard-dark"] .settings-panel {
-  padding: 10px;
-  min-width: 240px;
-}
-
-[data-theme="dashboard-light"] .background-controls,
-[data-theme="dashboard-dark"] .background-controls {
-  padding: 8px 10px 10px;
-}
-
-[data-theme="dashboard-light"] .settings-title,
-[data-theme="dashboard-dark"] .settings-title {
-  padding: 8px 10px 6px;
-  margin-bottom: 4px;
-  letter-spacing: 0.12em;
-}
-
-[data-theme="dashboard-light"] .settings-row,
-[data-theme="dashboard-dark"] .settings-row {
-  min-height: 42px;
-  padding: 8px 10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-}
-
-[data-theme="dashboard-light"] .settings-row:hover,
-[data-theme="dashboard-dark"] .settings-row:hover {
-  background-color: var(--muted);
-  border-color: var(--border);
 }
 
 [data-theme="dashboard-light"] .main,
@@ -810,21 +731,6 @@ body[data-surface="newtab"] .main {
   overflow: visible;
 }
 
-.daily-header {
-  min-height: 32px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: flex-start;
-  gap: clamp(48px, 10vw, 160px);
-}
-
-.product-mark {
-  width: 23px;
-  height: 23px;
-  opacity: 0.32;
-  filter: grayscale(1);
-}
-
 .daily-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -932,37 +838,18 @@ body[data-surface="newtab"] .weather-icon svg {
   align-items: flex-start;
 }
 
-.planner-task-feature .planner-row-title,
-.feature-event-title {
+.planner-task-feature .planner-row-title {
   font-size: clamp(1.65rem, 2.7vw, 2.25rem);
   font-weight: 400;
   line-height: 1.16;
   letter-spacing: -0.04em;
 }
 
-.feature-event-title {
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--foreground);
-  text-align: left;
-  cursor: pointer;
-}
-
-.feature-kicker,
 .brief-empty {
   margin: 0 0 10px;
   color: var(--muted-foreground);
   font-size: 0.88rem;
   line-height: 1.55;
-}
-
-.brief-actions {
-  display: flex;
-  gap: 24px;
-  margin-top: 22px;
 }
 
 .text-action,
@@ -983,13 +870,6 @@ body[data-surface="newtab"] .weather-icon svg {
 .planner-row-action:hover {
   color: var(--modernist-signal, #d8372f);
   text-decoration: underline;
-}
-
-.daily-previews {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: clamp(64px, 10vw, 150px);
-  margin-top: clamp(72px, 9vh, 104px);
 }
 
 .preview-heading {
@@ -1283,8 +1163,7 @@ body.planner-open {
     width: min(100% - 48px, 760px);
   }
 
-  .daily-brief,
-  .daily-previews {
+  .daily-brief {
     grid-template-columns: 1fr;
     gap: 58px;
   }
@@ -1306,15 +1185,6 @@ body.planner-open {
     margin-top: 32px;
   }
 
-  .daily-header {
-    grid-template-columns: 1fr auto;
-    gap: 16px;
-  }
-
-  body[data-surface="newtab"] .daily-header .top-bar {
-    justify-self: end;
-  }
-
   body[data-surface="newtab"] .clock {
     font-size: clamp(4.2rem, 22vw, 6rem);
   }
@@ -1324,8 +1194,7 @@ body.planner-open {
     justify-content: flex-start;
   }
 
-  .daily-brief,
-  .daily-previews {
+  .daily-brief {
     margin-top: 60px;
   }
 
@@ -1401,23 +1270,9 @@ body.planner-open {
   list-style: none;
 }
 
-body[data-surface="newtab"] .top-bar {
-  position: static;
-  justify-self: start;
-  padding: 0;
-}
-
 /* ============================================
    Today timeline
    ============================================ */
-
-body[data-surface="newtab"],
-body[data-surface="newtab"] button,
-body[data-surface="newtab"] input,
-body[data-surface="newtab"] select,
-body[data-surface="newtab"] textarea {
-  font-family: var(--font-sans);
-}
 
 .task-column {
   display: grid;
@@ -1457,6 +1312,11 @@ body[data-surface="newtab"] textarea {
 .icon-action:hover {
   border-color: var(--modernist-signal, #d8372f);
   color: var(--modernist-signal, #d8372f);
+}
+
+.icon-action:focus-visible {
+  outline: 2px solid var(--ring, var(--modernist-signal, #d8372f));
+  outline-offset: 3px;
 }
 
 .icon-action span,
@@ -1505,9 +1365,10 @@ body[data-surface="newtab"] textarea {
   margin-bottom: 7px;
 }
 
-.timeline-heading h2 {
+.timeline-heading h2,
+.preview-heading h2 {
   margin: 0;
-  font-size: 1.45rem;
+  font-size: 1.2rem;
   font-weight: 500;
   letter-spacing: -0.035em;
 }
@@ -1515,13 +1376,13 @@ body[data-surface="newtab"] textarea {
 .timeline-viewport {
   position: relative;
   max-height: min(46vh, 430px);
-  min-height: 320px;
+  min-height: min(320px, 50vh);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scroll-padding-block: 36%;
   border-block: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
-  background: color-mix(in srgb, var(--background) 88%, transparent);
+  background: var(--background);
 }
 
 .timeline-all-day {
@@ -1553,12 +1414,11 @@ body[data-surface="newtab"] textarea {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 117px;
+  left: 114.5px;
   width: 1px;
   background: color-mix(in srgb, var(--foreground) 13%, transparent);
 }
 
-.timeline-event,
 .timeline-now {
   position: relative;
   display: grid;
@@ -1568,12 +1428,22 @@ body[data-surface="newtab"] textarea {
 }
 
 .timeline-event {
+  position: relative;
   min-height: 72px;
 }
 
 .timeline-event-button {
-  display: contents;
+  display: grid;
+  grid-template-columns: 98px 12px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
   color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
@@ -1584,7 +1454,7 @@ body[data-surface="newtab"] textarea {
   font-variant-numeric: tabular-nums;
   line-height: 1.35;
   text-align: right;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .timeline-event-marker {
@@ -1626,12 +1496,15 @@ body[data-surface="newtab"] textarea {
   font-weight: 600;
 }
 
-.timeline-event.is-past .timeline-event-button {
-  opacity: var(--past-opacity, 0.78);
+.timeline-event.is-past .timeline-event-time,
+.timeline-event.is-past .timeline-event-copy {
+  opacity: var(--past-opacity, 0.85);
 }
 
-.timeline-event.is-past:focus-within .timeline-event-button,
-.timeline-event.is-past:hover .timeline-event-button {
+.timeline-event.is-past:focus-within .timeline-event-time,
+.timeline-event.is-past:focus-within .timeline-event-copy,
+.timeline-event.is-past:hover .timeline-event-time,
+.timeline-event.is-past:hover .timeline-event-copy {
   opacity: 1;
 }
 
@@ -1639,7 +1512,7 @@ body[data-surface="newtab"] textarea {
   font-weight: 650;
 }
 
-.timeline-event-button:focus-visible .timeline-event-copy {
+.timeline-event-button:focus-visible {
   outline: 2px solid var(--focus-ring, var(--modernist-signal, #d8372f));
   outline-offset: 4px;
 }
@@ -1675,7 +1548,7 @@ body[data-surface="newtab"] textarea {
 
 .timeline-all-day-event {
   display: grid;
-  grid-template-columns: 117px 12px minmax(0, 1fr);
+  grid-template-columns: 98px 12px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
   min-height: 42px;
@@ -1741,22 +1614,26 @@ body[data-surface="newtab"] textarea {
   }
 
   .timeline-viewport {
-    min-height: 300px;
+    min-height: min(300px, 50vh);
     max-height: 360px;
   }
 
   .timeline-list::before {
-    left: 91px;
+    left: 86.5px;
   }
 
-  .timeline-event,
   .timeline-now {
     grid-template-columns: 72px 10px minmax(0, 1fr);
     gap: 10px;
   }
 
+  .timeline-event-button {
+    grid-template-columns: 72px 10px minmax(0, 1fr);
+    gap: 10px;
+  }
+
   .timeline-all-day-event {
-    grid-template-columns: 91px 10px minmax(0, 1fr);
+    grid-template-columns: 72px 10px minmax(0, 1fr);
     gap: 10px;
   }
 
