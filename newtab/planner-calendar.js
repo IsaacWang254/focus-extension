@@ -1,5 +1,16 @@
 import { normalizeEvents, safeExternalUrl } from './planner-model.js';
 
+export function normalizePlannerEventsPayload(payload, date) {
+  if (Array.isArray(payload)) return { date, events: payload };
+  return {
+    date,
+    events: payload?.events || [],
+    stale: payload?.stale,
+    partial: payload?.partial,
+    disconnected: payload?.disconnected
+  };
+}
+
 export function formatEventTime(event) {
   if (event.isAllDay) return 'All day';
   const start = new Date(event.start);

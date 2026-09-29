@@ -13,7 +13,7 @@ import {
 } from './planner-model.js';
 import { clearCurrentTaskState, loadCurrentTaskState, PLANNER_STATE_KEY, saveCurrentTaskState } from './planner-state.js';
 import { createTaskRow, renderTaskGroups, taskMeta } from './planner-tasks.js';
-import { createEventRow, formatEventTime, getMeetingUrl, renderEventList } from './planner-calendar.js';
+import { createEventRow, formatEventTime, getMeetingUrl, normalizePlannerEventsPayload, renderEventList } from './planner-calendar.js';
 import {
   buildCreateTaskPayload,
   buildUpdateTaskPayload,
@@ -68,8 +68,7 @@ async function getPlannerEvents(date) {
     if (payload?.error && !payload?.events?.length && !payload?.disconnected) {
       throw Object.assign(new Error(payload.error), { status: payload.status });
     }
-    if (Array.isArray(payload)) return { date, events: payload };
-    return { date, events: payload?.events || [], stale: payload?.stale, partial: payload?.partial };
+    return normalizePlannerEventsPayload(payload, date);
   } catch (error) {
     const message = String(error?.message || error || '');
     if (!message.includes('Unknown message type') && !message.includes('Could not establish connection') && !message.includes('Receiving end does not exist')) throw error;
