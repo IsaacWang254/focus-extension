@@ -7262,7 +7262,11 @@ async function getPlannerEvents(dateString) {
 
     if (result.failed) {
       const merged = new Map();
-      for (const event of [...(cached?.events || []), ...events]) {
+      const canUseCached = cached && cachedAge >= 0 && cachedAge < PLANNER_EVENTS_MAX_STALE;
+      const savedFailedEvents = canUseCached
+        ? (cached.events || []).filter(event => result.failedCalendarIds?.includes(event.calendarId || 'primary'))
+        : [];
+      for (const event of [...savedFailedEvents, ...events]) {
         const key = event.id || `${event.start || ''}:${event.title || ''}`;
         merged.set(key, event);
       }
@@ -7994,6 +7998,7 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
   let fetchFailed = false;
   let got401 = false;
   const failureStatuses = [];
+  const failedCalendarIds = [];
   let failureRetryAfterMs = 0;
   await Promise.allSettled(calendarsToFetch.map(async (calendarId) => {
     try {
@@ -8010,6 +8015,7 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
       if (response?.status === 401) {
         got401 = true;
         fetchFailed = true;
+        failedCalendarIds.push(calendarId);
         failureStatuses.push(401);
         return;
       }
@@ -8017,6 +8023,7 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
       if (response) {
         console.error(`Failed to fetch ${logLabel} from calendar ${calendarId}:`, response.status);
         fetchFailed = true;
+        failedCalendarIds.push(calendarId);
         failureStatuses.push(response.status);
         if (response.status === 429) {
           const retryAfter = response.headers.get('Retry-After');
@@ -8066,6 +8073,7 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
     } catch (e) {
       console.error(`Error fetching ${logLabel} from calendar ${calendarId}:`, e);
       fetchFailed = true;
+      failedCalendarIds.push(calendarId);
     }
   }));
 
@@ -8074,7 +8082,7 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
     : failureStatuses.includes(429) ? 429
     : (failureStatuses[0] || 503);
 
-  return { events: allEvents, failed: fetchFailed, got401, status, retryAfterMs: failureRetryAfterMs };
+  return { events: allEvents, failed: fetchFailed, failedCalendarIds, got401, status, retryAfterMs: failureRetryAfterMs };
 }
 
 /**

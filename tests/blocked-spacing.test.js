@@ -24,13 +24,9 @@ for (const token of [
 
 assert.match(
   css,
-  /\[data-surface="newtab"\]\s+\.main,\s*\n\s*html\[data-design="modernist"\]\s+\[data-surface="blocked"\]\s+>\s+\.container\s*\{[^}]*width:\s*calc\(100% - 2 \* var\(--modernist-gutter\)\)[^}]*max-width:\s*var\(--modernist-frame-width\)[^}]*margin:\s*0 auto[^}]*padding:\s*var\(--modernist-inset\) var\(--modernist-pad\)/s,
-  'newtab and blocked must share the centered frame rule'
+  /\[data-surface="blocked"\]\s+>\s+\.container\s*\{[^}]*width:\s*calc\(100% - 2 \* var\(--modernist-gutter\)\)[^}]*max-width:\s*var\(--modernist-frame-width\)[^}]*margin:\s*0 auto[^}]*padding:\s*var\(--modernist-inset\) var\(--modernist-pad\)/s,
+  'blocked page keeps the centered frame rule'
 );
-
-const standaloneMain = css.match(/html\[data-design="modernist"\] \[data-surface="newtab"\] \.main \{\n([^}]*)\}/);
-assert.ok(standaloneMain, 'standalone newtab .main rule exists');
-assert.doesNotMatch(standaloneMain[1], /width:|max-width:|min-height: 100dvh|padding:/, 'newtab .main defers frame sizing to the shared rule');
 
 const blockedBody = css.match(/html\[data-design="modernist"\] \[data-surface="blocked"\] \{\n([^}]*)\}/);
 assert.ok(blockedBody, 'blocked body rule exists');
@@ -68,12 +64,7 @@ assert.match(unblock1024[1], /border-top:\s*0/, 'rail gains its side rule only a
 assert.match(unblock1024[1], /border-left:\s*1px solid var\(--border\)/, 'rail side divider appears at 1024');
 assert.match(unblock1024[1], /padding-left:\s*var\(--modernist-rail-pad\)/, 'rail left padding matches work right padding');
 
-const media769 = css.slice(css.indexOf('@media (min-width: 769px)'), css.indexOf('@media (min-width: 1024px)'));
-assert.doesNotMatch(media769, /data-surface="blocked"/, 'the 769px shared block is homepage-only now');
-assert.match(media769, /content-panels:not\(:has\(\.panel-todos\.hidden\)\)[^{]*\{[^}]*grid-template-columns:\s*var\(--modernist-columns\)/s, 'homepage keeps its sidebar proportions');
-assert.match(media769, /\.side-rail\s*\{[^}]*padding-left:\s*var\(--modernist-rail-pad\)/s, 'homepage keeps its rail pad');
-
-const mobileBlock = css.slice(css.indexOf('@media (max-width: 768px)'), css.indexOf('@media (min-width: 900px)'));
+const mobileBlock = css.slice(css.indexOf('@media (max-width: 768px)'), css.indexOf('@media (max-width: 900px)'));
 assert.doesNotMatch(mobileBlock, /\[data-surface="blocked"\]\s+\.layout\s*\{[^}]*grid-template-columns/s, 'no redundant blocked stacking rule under 768');
 assert.match(mobileBlock, /\[data-surface="blocked"\]\s+\.section-header\s+h2\s*\{[^}]*font-size:\s*1\.35rem/s, 'blocked section heading still shrinks under 768');
 

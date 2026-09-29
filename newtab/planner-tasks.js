@@ -25,6 +25,8 @@ export function createTaskRow(task, options = {}) {
   complete.type = 'button';
   complete.className = 'planner-check';
   complete.setAttribute('aria-label', `Complete ${task.content}`);
+  complete.disabled = options.pending === true;
+  complete.classList.toggle('is-pending', options.pending === true);
   complete.addEventListener('click', () => options.onComplete?.(task, complete));
 
   const copy = document.createElement('div');
@@ -82,6 +84,7 @@ export function renderTaskGroups(container, tasks, options = {}) {
       list.appendChild(createTaskRow(task, {
         ...options,
         current: String(task.id) === String(options.currentTaskId),
+        pending: options.pendingTaskIds?.has(String(task.id)) === true,
         showCurrentAction: true
       }));
       count += 1;

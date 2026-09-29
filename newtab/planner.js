@@ -35,6 +35,8 @@ let selectedTaskDate = toLocalDateKey();
 let activeProjectId = '';
 let taskBrowseLimit = 30;
 const scheduleRequestGuard = createLatestRequestGuard();
+const taskRequestGuard = createLatestRequestGuard();
+const pendingTaskIds = new Set();
 
 const storage = {
   get: keys => typeof chrome !== 'undefined' && chrome.storage?.local ? chrome.storage.local.get(keys) : api.getLocal(keys),
@@ -78,9 +80,11 @@ async function getPlannerEvents(date) {
 
 async function loadTaskData() {
   if (!api.isVisible('newtabShowTodos')) return;
+  const requestId = taskRequestGuard.begin();
   if (!tasks.length) setPlannerStatus('tasks', 'Loading tasks…');
   try {
     const authenticated = await todoist.isAuthenticated();
+    if (!taskRequestGuard.isLatest(requestId)) return;
     if (!authenticated) {
       tasks = [];
       currentTaskId = '';
@@ -95,6 +99,7 @@ async function loadTaskData() {
       todoist.getProjects().catch(() => []),
       todoist.getToken()
     ]);
+    if (!taskRequestGuard.isLatest(requestId)) return;
     tasks = loadedTasks;
     projects = new Map(loadedProjects.map(project => [String(project.id), project]));
     const state = await loadCurrentTaskState(storage, token);
@@ -107,6 +112,7 @@ async function loadTaskData() {
     setPlannerStatus('tasks', '');
     renderTasks();
   } catch (error) {
+    if (!taskRequestGuard.isLatest(requestId)) return;
     console.error('Failed to load planner tasks:', error);
     setPlannerStatus('tasks', tasks.length ? 'Showing saved tasks.' : 'Tasks are unavailable.');
     renderTasks();
@@ -167,12 +173,15 @@ function renderTasks() {
   if (!current) {
     const empty = document.createElement('p');
     empty.className = 'brief-empty';
-    empty.textContent = 'No task needs your attention right now.';
+    empty.textContent = element('tasks-status')?.textContent
+      ? 'Tasks will appear after Todoist connects.'
+      : 'No task needs your attention right now.';
     currentContainer.appendChild(empty);
   } else {
     const row = createTaskRow(current, {
       current: String(current.id) === String(currentTaskId), projects, now,
       showCurrentAction: !currentTaskId,
+      pending: pendingTaskIds.has(String(current.id)),
       onComplete: completeTask,
       onMakeCurrent: makeTaskCurrent
     });
@@ -182,7 +191,7 @@ function renderTasks() {
   }
 
   for (const task of ranked.filter(task => String(task.id) !== String(current?.id)).slice(0, 2)) {
-    preview.appendChild(createTaskRow(task, { projects, now, onComplete: completeTask }));
+    preview.appendChild(createTaskRow(task, { projects, now, pending: pendingTaskIds.has(String(task.id)), onComplete: completeTask }));
   }
   setHidden('task-preview-empty', ranked.length > 1 || Boolean(element('tasks-status')?.textContent));
 }
@@ -200,7 +209,9 @@ function renderCalendar() {
   if (!next) {
     const empty = document.createElement('p');
     empty.className = 'brief-empty';
-    empty.textContent = currentEvents.length ? `${currentEvents.length} event${currentEvents.length === 1 ? '' : 's'} in progress.` : 'Nothing else is scheduled.';
+    empty.textContent = element('calendar-status')?.textContent
+      ? 'Schedule details will appear after Calendar connects.'
+      : currentEvents.length ? `${currentEvents.length} event${currentEvents.length === 1 ? '' : 's'} in progress.` : 'Nothing else is scheduled.';
     nextContainer.appendChild(empty);
   } else {
     const time = document.createElement('p');
@@ -242,7 +253,9 @@ async function makeTaskCurrent(task) {
 }
 
 async function completeTask(task, button) {
-  if (button.disabled) return;
+  const taskId = String(task.id);
+  if (button.disabled || pendingTaskIds.has(taskId)) return;
+  pendingTaskIds.add(taskId);
   button.disabled = true;
   button.classList.add('is-pending');
   try {
@@ -259,6 +272,10 @@ async function completeTask(task, button) {
     console.error('Failed to complete task:', error);
     button.disabled = false;
     button.classList.remove('is-pending');
+  } finally {
+    pendingTaskIds.delete(taskId);
+    renderTasks();
+    if (!element('planner-drawer')?.classList.contains('hidden') && element('planner-drawer')?.dataset.mode === 'tasks') renderTaskDrawer();
   }
 }
 
@@ -341,13 +358,14 @@ function renderTaskDrawer() {
   const list = document.createElement('div');
   list.className = 'drawer-task-groups';
   const filteredTasks = flattenTasks(tasks).filter(task => !activeProjectId || String(task.project_id) === activeProjectId);
-  const visibleTasks = filteredTasks.slice(0, taskBrowseLimit);
+  const visibleTasks = filteredTasks.slice(0, taskBrowseLimit).map(task => ({ ...task, subtasks: [] }));
   renderTaskGroups(list, visibleTasks, {
     view: activeTaskView,
     selectedDate: selectedTaskDate,
     currentTaskId,
     projects,
     now: new Date(),
+    pendingTaskIds,
     onComplete: completeTask,
     onMakeCurrent: makeTaskCurrent,
     onEdit: renderTaskEditForm
@@ -390,14 +408,14 @@ function renderTaskEditForm(task) {
     submit.disabled = true;
     if (!preserveDue) status.textContent = 'Saving changes…';
     const data = new FormData(form);
-    const changes = buildUpdateTaskPayload({
-      content: data.get('content'),
-      dueDate: data.get('due_date'),
-      originalDueDate: dueValue,
-      priority: data.get('priority'),
-      preserveDue
-    });
     try {
+      const changes = buildUpdateTaskPayload({
+        content: data.get('content'),
+        dueDate: data.get('due_date'),
+        originalDueDate: dueValue,
+        priority: data.get('priority'),
+        preserveDue
+      });
       await todoist.updateTask(task.id, changes);
       await loadTaskData();
       renderTaskDrawer();
@@ -437,13 +455,13 @@ function renderTaskForm() {
     submit.disabled = true;
     status.textContent = 'Adding task…';
     const data = new FormData(form);
-    const task = buildCreateTaskPayload({
-      content: data.get('content'),
-      dueDate: data.get('due_date'),
-      priority: data.get('priority')
-    });
-    if (data.get('project_id')) task.project_id = data.get('project_id');
     try {
+      const task = buildCreateTaskPayload({
+        content: data.get('content'),
+        dueDate: data.get('due_date'),
+        priority: data.get('priority')
+      });
+      if (data.get('project_id')) task.project_id = data.get('project_id');
       await todoist.createTask(task);
       await loadTaskData();
       openDrawer('tasks', activeDrawerTrigger);
@@ -482,7 +500,10 @@ async function renderScheduleDrawer() {
   try {
     const payload = await getPlannerEvents(selectedScheduleDate);
     if (!scheduleRequestGuard.isLatest(requestId) || element('planner-drawer')?.dataset.mode !== 'schedule') return;
-    status.textContent = payload.stale ? 'Showing saved schedule.' : '';
+    status.textContent = payload.disconnected
+      ? 'Your Calendar connection expired. Reconnect from the homepage to refresh it.'
+      : payload.stale ? 'Showing saved schedule.'
+        : payload.partial ? 'Some calendars are unavailable.' : '';
     const count = renderEventList(list, payload.events, { onOpen: event => openEventDetail(event) });
     if (selectedScheduleDate === toLocalDateKey() && count) {
       const marker = document.createElement('li');
@@ -491,7 +512,7 @@ async function renderScheduleDrawer() {
       const nextRow = [...list.children].find(row => row.dataset.start && new Date(row.dataset.start) >= new Date());
       list.insertBefore(marker, nextRow || null);
     }
-    if (!count) status.textContent = 'Nothing scheduled for this day.';
+    if (!count && !payload.disconnected && !payload.partial) status.textContent = 'Nothing scheduled for this day.';
   } catch (error) {
     if (!scheduleRequestGuard.isLatest(requestId) || element('planner-drawer')?.dataset.mode !== 'schedule') return;
     console.error('Failed to load schedule:', error);
