@@ -280,6 +280,7 @@ assert.doesNotMatch(
 assert.match(newtabHtml, /id="today-timeline-section"/, 'the homepage must expose one Today timeline');
 assert.match(newtabHtml, /id="add-task-btn"[^>]*aria-label="Add task"/, 'icon-only task actions need accessible names');
 assert.match(newtabHtml, /id="view-schedule-btn"[^>]*aria-label="View schedule"/, 'the schedule icon needs an accessible name');
+assert.match(newtabCss, /\.icon-action\s*\{[^}]*border:\s*0;[^}]*background:\s*none;/s, 'homepage icon actions must stay visually borderless');
 assert.doesNotMatch(newtabHtml, /product-mark|newtab-toolbar-root|settings-modal|radix-shell\.bundle/, 'retired homepage chrome must stay removed');
 assert.doesNotMatch(newtabSource, /setupThemeToggle|setupSettings/, 'removed homepage controls must not retain event wiring');
 assert.doesNotMatch(packageSource, /build:newtab|newtab\/radix-shell/, 'the retired new-tab bundle must stay out of build scripts');

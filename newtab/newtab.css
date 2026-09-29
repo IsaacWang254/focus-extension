@@ -1153,6 +1153,13 @@ body[data-surface="newtab"] .weather-icon svg {
 }
 
 body.planner-open {
+  position: fixed;
+  inset: var(--planner-scroll-top, 0px) 0 auto;
+  width: 100%;
+  overflow: hidden;
+}
+
+html.planner-open {
   overflow: hidden;
 }
 
@@ -1297,7 +1304,7 @@ body[data-surface="newtab"] textarea {
 .icon-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .icon-action {
@@ -1307,16 +1314,20 @@ body[data-surface="newtab"] textarea {
   height: 34px;
   place-items: center;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--foreground) 22%, transparent);
+  border: 0;
   border-radius: 0;
-  background: color-mix(in srgb, var(--background) 82%, transparent);
+  background: none;
   color: var(--foreground);
   cursor: pointer;
+  transition: color 160ms ease, opacity 160ms ease;
 }
 
 .icon-action:hover {
-  border-color: var(--modernist-signal, #d8372f);
   color: var(--modernist-signal, #d8372f);
+}
+
+.icon-action:active {
+  opacity: 0.55;
 }
 
 .icon-action:focus-visible {
