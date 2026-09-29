@@ -352,7 +352,9 @@ function updateClock() {
     return;
   }
   lastRenderedClockTime = rendered;
-  document.getElementById('clock').innerHTML = `
+  const clock = document.getElementById('clock');
+  clock.dataset.leadingDigit = hours[0];
+  clock.innerHTML = `
     <span class="clock-part">${hours}</span>
     <span class="clock-separator" aria-hidden="true">:</span>
     <span class="clock-part">${minutes}</span>
