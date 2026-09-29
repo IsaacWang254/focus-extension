@@ -61,13 +61,13 @@ function createNowMarker(label) {
 }
 
 function reconcileChildren(parent, desired, removableSelector) {
+  for (const node of [...parent.querySelectorAll(removableSelector)]) {
+    if (!desired.includes(node)) node.remove();
+  }
   let cursor = parent.firstChild;
   for (const node of desired) {
     if (node !== cursor) parent.insertBefore(node, cursor);
     cursor = node.nextSibling;
-  }
-  for (const node of [...parent.querySelectorAll(removableSelector)]) {
-    if (!desired.includes(node)) node.remove();
   }
 }
 
@@ -122,22 +122,20 @@ export function renderDayTimeline(elements, events, options = {}) {
     [...elements.list.querySelectorAll('.timeline-event[data-event-key]')]
       .map(item => [item.dataset.eventKey, item])
   );
-  const desired = [];
   let marker = elements.list.querySelector('[data-timeline-now="true"]');
+  marker?.remove();
+  const desired = [];
 
-  for (const row of [...model.rows, ...model.unavailable]) {
-    if (row.type === 'now-marker') {
-      if (!marker) marker = createNowMarker(row.label);
-      marker.querySelector('.timeline-now-label').textContent = row.label;
-      desired.push(marker);
-      continue;
-    }
+  for (const row of [...model.timed, ...model.unavailable]) {
     const item = existing.get(row.key) || createTimedRow(row, options.onOpen);
     updateTimedRow(item, row);
     desired.push(item);
     existing.delete(row.key);
   }
-  reconcileChildren(elements.list, desired, '.timeline-event[data-event-key], [data-timeline-now="true"]');
+  reconcileChildren(elements.list, desired, '.timeline-event[data-event-key]');
+  if (!marker) marker = createNowMarker(model.marker.label);
+  marker.querySelector('.timeline-now-label').textContent = model.marker.label;
+  elements.list.insertBefore(marker, elements.list.children[model.marker.index] || null);
   renderAllDay(elements.allDay, model.allDay, options.onOpen);
 
   const hasEvents = model.allDay.length + model.timed.length + model.unavailable.length > 0;

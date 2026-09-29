@@ -102,6 +102,7 @@ class MiniNode {
   }
 
   removeChild(node) {
+    if (node.contains?.(documentStub.activeElement)) documentStub.activeElement = null;
     const index = this.children.indexOf(node);
     if (index >= 0) this.children.splice(index, 1);
     node.parentNode = null;
@@ -128,6 +129,7 @@ class MiniNode {
   }
 
   querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
+  contains(node) { return node === this || this.children.some(child => child.contains(node)); }
   setAttribute(name, value) { this.attributes.set(name, String(value)); }
   getAttribute(name) { return this.attributes.get(name) || null; }
   addEventListener(type, listener) { this.listeners.set(type, listener); }
@@ -205,6 +207,29 @@ renderDayTimeline(elements, timelineEvents, {
 assert.equal(elements.list.querySelector(`[data-event-key="${eventKey('work', 'current', '2026-09-29T09:30:00')}"]`), currentRow, 'minute renders retain keyed row nodes');
 assert.equal(documentStub.activeElement, currentButton, 'focused event buttons retain focus while the marker moves');
 
+const boundaryEvent = { id: 'starting', calendarId: 'team', title: 'Starting now', calendarName: 'Team', color: '#4285F4', start: '2026-09-29T10:01:00', end: '2026-09-29T10:45:00' };
+renderDayTimeline(elements, [...timelineEvents, boundaryEvent], {
+  date: '2026-09-29', now: new Date(2026, 8, 29, 10, 0, 0),
+  onOpen: (event, trigger) => opened.push({ event, trigger })
+});
+const boundaryRow = elements.list.querySelector(`[data-event-key="${eventKey('team', 'starting', boundaryEvent.start)}"]`);
+const boundaryButton = boundaryRow.querySelector('.timeline-event-button');
+boundaryButton.focus();
+renderDayTimeline(elements, [...timelineEvents, boundaryEvent], {
+  date: '2026-09-29', now: new Date(2026, 8, 29, 10, 2, 0),
+  onOpen: (event, trigger) => opened.push({ event, trigger })
+});
+assert.equal(documentStub.activeElement, boundaryButton, 'crossing an event start moves only the Now marker, not the focused row');
+
+const currentRowAfterBoundary = elements.list.querySelector(`[data-event-key="${eventKey('work', 'current', '2026-09-29T09:30:00')}"]`);
+const currentButtonAfterBoundary = currentRowAfterBoundary.querySelector('.timeline-event-button');
+currentButtonAfterBoundary.focus();
+renderDayTimeline(elements, [...timelineEvents.filter(event => event.id !== 'past'), boundaryEvent], {
+  date: '2026-09-29', now: new Date(2026, 8, 29, 10, 2, 0),
+  onOpen: (event, trigger) => opened.push({ event, trigger })
+});
+assert.equal(documentStub.activeElement, currentButtonAfterBoundary, 'removing an earlier stale event does not move the focused row');
+
 const emptyElements = timelineElements();
 const emptyResult = renderDayTimeline(emptyElements, [], { date: '2026-09-29', now: timelineNow, hasStatus: false });
 assert.equal(emptyResult.hasEvents, false);
@@ -230,7 +255,7 @@ delete globalThis.document;
 const plannerSource = fs.readFileSync(new URL('../newtab/planner.js', import.meta.url), 'utf8')
   .replace(/^import[\s\S]*?;\n/gm, '')
   .replace(/^export /gm, '')
-  .concat('\nglobalThis.__plannerExports = { initPlannerDashboard, refreshPlannerDashboard, refreshPlannerTime };');
+  .concat('\nglobalThis.__plannerExports = { initPlannerDashboard, refreshPlannerDashboard, refreshPlannerTime, handlePlannerStorageChange };');
 
 function plannerHarness() {
   let date = '2026-09-29';
@@ -335,15 +360,29 @@ planner.element('back-to-now-btn').fire('click');
 assert.equal(planner.calls.centers, 3, 'Back to now explicitly recenters the marker');
 assert.equal(planner.element('back-to-now-btn').classList.contains('hidden'), true);
 
+planner.exports.handlePlannerStorageChange({ calendarSettings: {
+  oldValue: { connected: true, email: 'a@example.com', selectedCalendars: ['work'], lastSync: 1 },
+  newValue: { connected: true, email: 'a@example.com', selectedCalendars: ['work'], lastSync: 2 }
+} });
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(planner.calls.events, 1, 'background Calendar sync metadata does not bypass the refresh gate');
+planner.exports.handlePlannerStorageChange({ calendarSettings: {
+  oldValue: { connected: true, email: 'a@example.com', selectedCalendars: ['work'] },
+  newValue: { connected: true, email: 'a@example.com', selectedCalendars: ['personal'] }
+} });
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(planner.calls.events, 2, 'a changed Calendar selection forces an immediate refresh');
+assert.equal(planner.calls.centers, 3, 'storage-triggered Calendar refreshes do not recenter the timeline');
+
 planner.advance(5 * 60 * 1000);
 await planner.exports.refreshPlannerDashboard();
-assert.equal(planner.calls.events, 2, 'Calendar refreshes again exactly when the five-minute interval expires');
+assert.equal(planner.calls.events, 3, 'Calendar refreshes again exactly when the five-minute interval expires');
 
 planner.setDate('2026-09-30');
 planner.exports.refreshPlannerTime();
 await new Promise(resolve => setImmediate(resolve));
-assert.equal(planner.calls.events, 3, 'local-date rollover bypasses the gate and loads the new day once');
-assert.equal(planner.calls.renders, 8, 'rollover clears old timeline data before rendering the new day');
+assert.equal(planner.calls.events, 4, 'local-date rollover bypasses the gate and loads the new day once');
+assert.equal(planner.calls.renders, 9, 'rollover clears old timeline data before rendering the new day');
 
 const failurePlanner = plannerHarness();
 failurePlanner.api.nextEventsError = new Error('offline');

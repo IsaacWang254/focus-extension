@@ -1281,6 +1281,13 @@ body.planner-open {
   min-width: 0;
 }
 
+body[data-surface="newtab"] button,
+body[data-surface="newtab"] input,
+body[data-surface="newtab"] select,
+body[data-surface="newtab"] textarea {
+  font-family: var(--font-sans);
+}
+
 .section-heading-row,
 .timeline-heading {
   display: flex;
@@ -1496,15 +1503,12 @@ body.planner-open {
   font-weight: 600;
 }
 
-.timeline-event.is-past .timeline-event-time,
-.timeline-event.is-past .timeline-event-copy {
+.timeline-event.is-past .timeline-event-title {
   opacity: var(--past-opacity, 0.85);
 }
 
-.timeline-event.is-past:focus-within .timeline-event-time,
-.timeline-event.is-past:focus-within .timeline-event-copy,
-.timeline-event.is-past:hover .timeline-event-time,
-.timeline-event.is-past:hover .timeline-event-copy {
+.timeline-event.is-past:focus-within .timeline-event-title,
+.timeline-event.is-past:hover .timeline-event-title {
   opacity: 1;
 }
 
@@ -1513,7 +1517,7 @@ body.planner-open {
 }
 
 .timeline-event-button:focus-visible {
-  outline: 2px solid var(--focus-ring, var(--modernist-signal, #d8372f));
+  outline: 2px solid var(--ring, var(--modernist-signal, #d8372f));
   outline-offset: 4px;
 }
 

@@ -566,13 +566,16 @@ function setupActions() {
   };
   viewport?.addEventListener('wheel', anchorTimeline, { passive: true });
   viewport?.addEventListener('touchstart', anchorTimeline, { passive: true });
-  viewport?.addEventListener('pointerdown', anchorTimeline, { passive: true });
+  viewport?.addEventListener('pointerdown', event => {
+    if (event.target === viewport) anchorTimeline();
+  }, { passive: true });
   viewport?.addEventListener('keydown', event => {
     if (event.key === ' ' && event.target.closest?.('.timeline-event-button')) return;
     if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) anchorTimeline();
   });
   viewport?.addEventListener('focusout', event => {
-    if (!pendingTimelineRecenter || viewport.contains(event.relatedTarget)) return;
+    const drawerOpen = !element('planner-drawer')?.classList.contains('hidden');
+    if (!pendingTimelineRecenter || drawerOpen || viewport.contains(event.relatedTarget)) return;
     pendingTimelineRecenter = false;
     requestAnimationFrame(() => centerTimelineOnNow(viewport, element('timeline-list')?.querySelector('[data-timeline-now="true"]')));
   });
@@ -623,9 +626,17 @@ export function handlePlannerStorageChange(changes) {
     currentTaskId = state?.date === toLocalDateKey() ? state.taskId : '';
     renderTasks();
   }
-  if (changes.calendarSettings) {
+  if (changes.calendarSettings && calendarScopeChanged(changes.calendarSettings)) {
     lastCalendarAttemptAt = 0;
     lastCalendarAttemptDate = '';
-    if (api.isVisible('newtabShowCalendar')) loadCalendarData({ force: true, recenter: true });
+    if (api.isVisible('newtabShowCalendar')) loadCalendarData({ force: true });
   }
+}
+
+function calendarScopeChanged(change) {
+  const before = change?.oldValue || {};
+  const after = change?.newValue || {};
+  if (before.connected !== after.connected || before.email !== after.email || before.cacheRevision !== after.cacheRevision) return true;
+  const selected = value => [...(Array.isArray(value) ? value : [])].map(String).sort();
+  return JSON.stringify(selected(before.selectedCalendars)) !== JSON.stringify(selected(after.selectedCalendars));
 }
