@@ -1305,8 +1305,8 @@ body[data-surface="newtab"] textarea {
 .icon-action {
   position: relative;
   display: inline-grid;
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--foreground) 22%, transparent);
@@ -1329,8 +1329,8 @@ body[data-surface="newtab"] textarea {
 .icon-action span,
 .icon-action svg {
   display: block;
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
 }
 
 .icon-action::after {
@@ -1394,9 +1394,31 @@ body[data-surface="newtab"] textarea {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--foreground) 28%, transparent) transparent;
   scroll-padding-block: 36%;
   border-block: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
   background: var(--background);
+}
+
+.timeline-viewport::-webkit-scrollbar {
+  width: 7px;
+}
+
+.timeline-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.timeline-viewport::-webkit-scrollbar-thumb {
+  min-height: 36px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 28%, transparent);
+  background-clip: padding-box;
+}
+
+.timeline-viewport::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--foreground) 46%, transparent);
+  background-clip: padding-box;
 }
 
 .timeline-all-day {
