@@ -72,15 +72,15 @@ assert.notEqual(Icons.partlyCloudy, Icons.partlyCloudyNight, 'day and night part
 assert.match(Icons.sun, /<circle/, 'Icons.sun baseline circle retained');
 assert.match(Icons.moon, /M21 12\.79A9 9 0 1 1 11\.21 3/, 'Icons.moon baseline path retained');
 
-const modernistCss = read('../lib/modernist.css');
+const newtabCss = read('../newtab/newtab.css');
 assert.match(
-  modernistCss,
-  /\[data-surface="newtab"\]\s+\.weather-icon\s*\{[^}]*color:\s*var\(--foreground\)/s,
+  newtabCss,
+  /body\[data-surface="newtab"\]\s+\.weather-icon\s*\{[^}]*color:\s*var\(--foreground\)/s,
   'weather icon uses the neutral foreground token'
 );
 assert.match(
-  modernistCss,
-  /\[data-surface="newtab"\]\s+\.weather-icon\s+svg\s*\{[^}]*width:\s*32px[^}]*stroke-width:\s*1\.5/s,
+  newtabCss,
+  /body\[data-surface="newtab"\]\s+\.weather-icon\s+svg\s*\{[^}]*width:\s*32px[^}]*stroke-width:\s*1\.5/s,
   'weather svg sized 32px at stroke 1.5'
 );
 

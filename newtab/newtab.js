@@ -3,36 +3,33 @@
  * Shows clock, motivational quote, Google Calendar events, and Todoist tasks
  */
 
-import * as todoist from '../lib/todoist.js';
 import { createRuntimeMessenger, hasExtensionRuntime } from '../lib/runtime.js';
 import {
   applyAccentColorFromStorage,
-  getEffectiveThemeBase,
   isThemeSyncEnabled,
-  loadTheme,
-  resolveThemeVariant
+  loadTheme
 } from '../lib/theme.js';
-import { setIconButtonLabel } from '../lib/design-theme.js';
-import { getDailyQuote } from './quotes.js';
 import { resolveNewtabBackground } from '../lib/newtab-background.js';
 import { getCachedResource, withSharedLock } from '../lib/request-cache.js';
 import { runWhenVisible } from '../lib/when-visible.js';
+import {
+  handlePlannerStorageChange,
+  initPlannerDashboard,
+  refreshPlannerDashboard,
+  refreshPlannerTime
+} from './planner.js';
 
 // =============================================================================
 // CONSTANTS
 // =============================================================================
 
-const INITIAL_TASK_COUNT = 8;
-const EXPANDED_TASK_COUNT = 20;
 
 const WEATHER_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 const DEFAULTS = {
   newtabShowWeather: true,
-  newtabShowQuotes: true,
   newtabShowCalendar: true,
   newtabShowTodos: true,
-  newtabShowFocusSnapshot: true,
   newtabBackground: 'ocean',
   newtabShowOceanBackground: true,
   newtabOceanBatterySaver: false,
@@ -47,14 +44,10 @@ const DEFAULTS = {
 
 let reminderIntervalId = null;
 let dashboardSettings = { ...DEFAULTS };
-let lastFocusedElement = null;
 
 function isWidgetVisible(key) {
   return document.visibilityState === 'visible' && dashboardSettings[key] !== false;
 }
-let completedToday = [];
-let allTasks = [];
-let tasksExpanded = false;
 
 const previewStorage = {};
 
@@ -67,8 +60,8 @@ function getPreviewResponse(message) {
     case 'GET_NEWTAB_EVENTS':
     case 'GET_TODAY_EVENTS':
       return [];
-    case 'GET_BLOCKING_SUMMARY':
-      return { totalBlockAttempts: 0 };
+    case 'GET_PLANNER_EVENTS':
+      return { date: message.date, events: [] };
     case 'ADD_EARNED_TIME':
       return { added: 0 };
     default:
@@ -112,12 +105,6 @@ async function setLocal(values) {
   return undefined;
 }
 
-function getExtensionUrl(path) {
-  if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) return chrome.runtime.getURL(path);
-  return new URL(`../${path}`, import.meta.url).href;
-}
-
-
 function getCurrentTheme() {
   return document.documentElement.getAttribute('data-theme') || 'light';
 }
@@ -125,34 +112,6 @@ function getCurrentTheme() {
 function getBgImageStorageKey() {
   const theme = getCurrentTheme();
   return (theme === 'dark' || theme === 'dashboard-dark') ? 'newtabBgImageDark' : 'newtabBgImageLight';
-}
-
-function setupThemeToggle() {
-  const toggle = document.getElementById('theme-toggle');
-  toggle.addEventListener('click', async () => {
-    const root = document.documentElement;
-
-    // Read storage to get base theme
-    const result = await getLocal(['theme', 'themeSyncWithBrowser']);
-    const storedBase = result.theme || 'light';
-    const syncWithBrowser = isThemeSyncEnabled(result.themeSyncWithBrowser);
-    const currentBase = getEffectiveThemeBase(storedBase, syncWithBrowser);
-
-    // Toggle the base theme
-    const newBase = currentBase === 'dark' ? 'light' : 'dark';
-
-    // Resolve the actual data-theme value
-    const resolved = resolveThemeVariant(newBase);
-    root.setAttribute('data-theme', resolved);
-    updateThemeToggleIcon(resolved);
-    await setLocal({ theme: newBase, themeSyncWithBrowser: false });
-
-    // Re-apply accent color for the new theme
-    await applyAccentColorFromStorage();
-
-    // Refresh background color for the new theme
-    await refreshBgColor();
-  });
 }
 
 // Light themes get the "day" variant, dark themes the night variant. Both
@@ -299,7 +258,6 @@ function setupBrowserThemeSyncListener() {
     const result = await getLocal('themeSyncWithBrowser');
     if (!isThemeSyncEnabled(result.themeSyncWithBrowser)) return;
     await loadTheme();
-    updateThemeToggleIcon();
     await refreshBgColor();
   });
 }
@@ -308,33 +266,18 @@ function setupBrowserThemeSyncListener() {
 // ICONS
 // =============================================================================
 
-function updateThemeToggleIcon(themeValue = document.documentElement.getAttribute('data-theme')) {
-  const themeIconLight = document.getElementById('theme-icon-light');
-  const themeIconDark = document.getElementById('theme-icon-dark');
-  const toggle = document.getElementById('theme-toggle');
-  const isDark = themeValue === 'dashboard-dark' || themeValue === 'dark';
-
-  if (themeIconLight) {
-    themeIconLight.innerHTML = isDark ? '' : Icons.moon;
-    themeIconLight.setAttribute('aria-hidden', isDark ? 'true' : 'false');
-  }
-
-  if (themeIconDark) {
-    themeIconDark.innerHTML = isDark ? Icons.sun : '';
-    themeIconDark.setAttribute('aria-hidden', isDark ? 'false' : 'true');
-  }
-
-  setIconButtonLabel(toggle, isDark ? 'Switch to light mode' : 'Switch to dark mode');
-}
-
 function setupIcons() {
-  updateThemeToggleIcon();
-  document.getElementById('settings-icon').innerHTML = Icons.settings;
-  document.getElementById('settings-close-icon').innerHTML = Icons.x;
-  document.getElementById('calendar-icon').innerHTML = Icons.calendar;
-  document.getElementById('todos-icon').innerHTML = Icons.list;
-  document.getElementById('completed-icon').innerHTML = Icons.checkCircle;
-  document.getElementById('bedtime-reminder-icon').innerHTML = Icons.moon;
+  const icons = {
+    'bedtime-reminder-icon': Icons.moon,
+    'add-task-icon': Icons.plus,
+    'view-tasks-icon': Icons.list,
+    'view-schedule-icon': Icons.calendar,
+    'planner-drawer-close-icon': Icons.x
+  };
+  for (const [id, markup] of Object.entries(icons)) {
+    const target = document.getElementById(id);
+    if (target) target.innerHTML = markup;
+  }
 }
 
 // =============================================================================
@@ -353,11 +296,14 @@ function updateClock() {
     return;
   }
   lastRenderedClockTime = rendered;
-  document.getElementById('clock').innerHTML = `
+  const clock = document.getElementById('clock');
+  clock.dataset.leadingDigit = hours[0];
+  clock.innerHTML = `
     <span class="clock-part">${hours}</span>
     <span class="clock-separator" aria-hidden="true">:</span>
     <span class="clock-part">${minutes}</span>
   `;
+  refreshPlannerTime();
 }
 
 function startClock() {
@@ -540,20 +486,10 @@ function updateDate() {
     month: 'long',
     day: 'numeric',
   });
-  const calendarDateEl = document.getElementById('calendar-date');
-  if (calendarDateEl) {
-    calendarDateEl.textContent = formatted;
+  const dateEl = document.getElementById('full-date');
+  if (dateEl) {
+    dateEl.textContent = formatted;
   }
-}
-
-// =============================================================================
-// QUOTES
-// =============================================================================
-
-function loadQuote() {
-  const quote = getDailyQuote();
-  document.getElementById('quote-text').textContent = quote.text;
-  document.getElementById('quote-author').textContent = quote.author;
 }
 
 // =============================================================================
@@ -820,10 +756,6 @@ async function loadWeather() {
   }
 }
 
-// =============================================================================
-// SETTINGS
-// =============================================================================
-
 async function loadSettings() {
   const settings = {
     ...DEFAULTS,
@@ -849,85 +781,10 @@ async function loadSettings() {
 
 function applyVisibility(settings) {
   const weatherSection = document.getElementById('weather-section');
-  const quoteSection = document.getElementById('quote-section');
-  const focusSnapshot = document.getElementById('focus-snapshot');
-  const calendarPanel = document.getElementById('calendar-panel');
-  const todosPanel = document.getElementById('todos-panel');
-  const completedPanel = document.getElementById('completed-panel');
-  const contentPanels = document.getElementById('content-panels');
-
-  weatherSection.classList.toggle('hidden', !settings.newtabShowWeather);
-  quoteSection.classList.toggle('hidden', !settings.newtabShowQuotes);
-  focusSnapshot.classList.toggle('hidden', !settings.newtabShowFocusSnapshot);
-  calendarPanel.classList.toggle('hidden', !settings.newtabShowCalendar);
-  todosPanel.classList.toggle('hidden', !settings.newtabShowTodos);
-
-  // Completed panel is tied to the todos toggle
-  completedPanel.classList.toggle('hidden', !settings.newtabShowTodos);
-
-  // Hide the content-panels container if all panels are hidden
-  const allHidden = !settings.newtabShowCalendar && !settings.newtabShowTodos;
-  contentPanels.classList.toggle('hidden', allHidden);
-}
-
-function setupSettings() {
-  const settingsBtn = document.getElementById('settings-btn');
-  const modal = document.getElementById('settings-modal');
-  const backdrop = document.getElementById('settings-modal-backdrop');
-  const dialog = document.getElementById('settings-dialog');
-  const closeBtn = document.getElementById('settings-close-btn');
-  const frame = document.getElementById('settings-frame');
-
-  if (!settingsBtn || !modal || !backdrop || !dialog || !closeBtn || !frame) {
-    return;
-  }
-
-  const settingsUrl = getExtensionUrl('options/options.html?embedded=popup');
-  let settingsFrameLoaded = false;
-
-  const closeSettings = () => {
-    modal.classList.add('hidden');
-    modal.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('settings-open');
-    if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
-      lastFocusedElement.focus();
-    }
-  };
-
-  const openSettings = () => {
-    if (!settingsFrameLoaded) {
-      frame.src = settingsUrl;
-      settingsFrameLoaded = true;
-    }
-    lastFocusedElement = document.activeElement;
-    modal.classList.remove('hidden');
-    modal.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('settings-open');
-    closeBtn.focus();
-  };
-
-  settingsBtn.addEventListener('click', () => {
-    openSettings();
-  });
-
-  closeBtn.addEventListener('click', closeSettings);
-  backdrop.addEventListener('click', closeSettings);
-
-  dialog.addEventListener('click', (event) => {
-    event.stopPropagation();
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
-      closeSettings();
-    }
-  });
-
-  window.addEventListener('message', (event) => {
-    if (event.source !== frame.contentWindow) return;
-    if (event.data?.type !== 'FOCUS_CLOSE_SETTINGS') return;
-    closeSettings();
-  });
+  weatherSection?.classList.toggle('hidden', !settings.newtabShowWeather);
+  document.getElementById('brief-now')?.classList.toggle('hidden', !settings.newtabShowTodos);
+  document.getElementById('tasks-preview')?.classList.toggle('hidden', !settings.newtabShowTodos);
+  document.getElementById('today-timeline-section')?.classList.toggle('hidden', !settings.newtabShowCalendar);
 }
 
 // =============================================================================
@@ -991,645 +848,9 @@ function readFileAsDataUrl(file) {
   });
 }
 
-// =============================================================================
-// GOOGLE CALENDAR
-// =============================================================================
-
-async function loadCalendar() {
-  const titleEl = document.getElementById('calendar-title');
-  const dateEl = document.getElementById('calendar-date');
-  const connectEl = document.getElementById('calendar-connect');
-  const reconnectEl = document.getElementById('calendar-reconnect');
-  const loadingEl = document.getElementById('calendar-loading');
-  const emptyEl = document.getElementById('calendar-empty');
-  const emptyTextEl = document.getElementById('calendar-empty-text');
-  const listEl = document.getElementById('event-list');
-
-  if (!isWidgetVisible('newtabShowCalendar')) {
-    return;
-  }
-
-  try {
-    // Check if calendar is connected
-    const status = await sendRuntimeMessage({ type: 'GET_CALENDAR_STATUS' });
-
-    if (!status || !status.connected) {
-      connectEl.classList.remove('hidden');
-      reconnectEl.classList.add('hidden');
-      loadingEl.classList.add('hidden');
-      emptyEl.classList.add('hidden');
-      listEl.innerHTML = '';
-      return;
-    }
-
-    // Connected — hide prompts, show loading
-    connectEl.classList.add('hidden');
-    reconnectEl.classList.add('hidden');
-    if (listEl.children.length === 0) {
-      loadingEl.classList.remove('hidden');
-    }
-
-    // Fetch the new tab display payload so passed events disappear and
-    // the card can roll forward to tomorrow when today is done.
-    const payload = await getCalendarDisplayPayload();
-    const events = payload?.events || [];
-
-    loadingEl.classList.add('hidden');
-
-    // The fetch may have discovered a revoked token and marked the
-    // calendar disconnected — re-check so we show the reconnect prompt
-    // instead of a misleading "No events today".
-    const freshStatus = await sendRuntimeMessage({ type: 'GET_CALENDAR_STATUS' });
-    if (!freshStatus || !freshStatus.connected) {
-      reconnectEl.classList.remove('hidden');
-      emptyEl.classList.add('hidden');
-      listEl.innerHTML = '';
-      return;
-    }
-
-    if (titleEl) {
-      titleEl.textContent = payload?.title || 'Today\'s Schedule';
-    }
-    if (dateEl) {
-      dateEl.textContent = payload?.displayDate || '';
-    }
-
-    if (!events || events.length === 0) {
-      listEl.innerHTML = '';
-      if (emptyTextEl) {
-        emptyTextEl.textContent = 'No upcoming events';
-      }
-      emptyEl.classList.remove('hidden');
-      return;
-    }
-
-    emptyEl.classList.add('hidden');
-    renderEvents(events, listEl);
-  } catch (err) {
-    console.error('Failed to load calendar:', err);
-    loadingEl.classList.add('hidden');
-    if (err.status === 401 || err.status === 403) {
-      reconnectEl.classList.remove('hidden');
-      emptyEl.classList.add('hidden');
-      listEl.innerHTML = '';
-      return;
-    }
-    if (emptyTextEl) {
-      emptyTextEl.textContent = listEl.children.length > 0
-        ? 'Showing saved schedule'
-        : 'Calendar unavailable';
-    }
-    emptyEl.classList.remove('hidden');
-  }
-}
-
-async function getCalendarDisplayPayload() {
-  try {
-    const payload = await sendRuntimeMessage({ type: 'GET_NEWTAB_EVENTS' });
-    if (payload?.error) {
-      throw Object.assign(new Error(payload.error), { status: payload.status });
-    }
-    return payload;
-  } catch (error) {
-    const message = String(error?.message || error || '');
-    const shouldFallback =
-      message.includes('Unknown message type: GET_NEWTAB_EVENTS') ||
-      message.includes('Could not establish connection') ||
-      message.includes('Receiving end does not exist');
-
-    if (!shouldFallback) {
-      throw error;
-    }
-
-    const events = await sendRuntimeMessage({ type: 'GET_TODAY_EVENTS' });
-    const now = new Date();
-    return {
-      title: 'Today\'s Schedule',
-      displayDate: now.toLocaleDateString(undefined, {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-      }),
-      events: events || []
-    };
-  }
-}
-
-function renderEvents(events, listEl) {
-  const now = new Date();
-
-  // Separate all-day and timed events
-  const allDayEvents = events.filter(e => e.isAllDay);
-  const timedEvents = events.filter(e => !e.isAllDay);
-
-  // Sort timed events by start time
-  timedEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
-
-  listEl.innerHTML = '';
-
-  // Render all-day events first
-  for (const event of allDayEvents) {
-    const li = createEventItem(event, now, true);
-    listEl.appendChild(li);
-  }
-
-  // Render timed events
-  for (const event of timedEvents) {
-    const li = createEventItem(event, now, false);
-    listEl.appendChild(li);
-  }
-}
-
-function createEventItem(event, now, isAllDay) {
-  const li = document.createElement('li');
-  li.className = 'event-item';
-
-  // Check if current event
-  if (!isAllDay) {
-    const start = new Date(event.start);
-    const end = new Date(event.end);
-    if (now >= start && now < end) {
-      li.classList.add('event-current');
-    }
-  }
-
-  // Color dot
-  const dot = document.createElement('span');
-  dot.className = 'event-color-dot';
-  dot.style.backgroundColor = event.color || 'var(--indigo)';
-  li.appendChild(dot);
-
-  // Details
-  const details = document.createElement('div');
-  details.className = 'event-details';
-
-  const title = document.createElement('div');
-  title.className = 'event-title';
-  title.textContent = event.title;
-  details.appendChild(title);
-
-  if (isAllDay) {
-    const badge = document.createElement('span');
-    badge.className = 'event-allday';
-    badge.textContent = 'All day';
-    details.appendChild(badge);
-  } else {
-    const time = document.createElement('div');
-    time.className = 'event-time';
-    const startTime = formatTime(new Date(event.start));
-    const endTime = formatTime(new Date(event.end));
-    time.textContent = `${startTime} - ${endTime}`;
-    details.appendChild(time);
-  }
-
-  li.appendChild(details);
-  return li;
-}
-
-function formatTime(date) {
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function setupCalendarConnect() {
-  const connectBtn = document.getElementById('calendar-connect-btn');
-  const reconnectBtn = document.getElementById('calendar-reconnect-btn');
-
-  const handleConnect = async (btn, label) => {
-    if (!hasExtensionRuntime()) return;
-
-    btn.disabled = true;
-    btn.textContent = 'Connecting...';
-    try {
-      await sendRuntimeMessage({ type: 'CONNECT_GOOGLE_CALENDAR' });
-      await loadCalendar();
-    } catch (err) {
-      console.error('Failed to connect calendar:', err);
-      btn.disabled = false;
-      btn.textContent = label;
-    }
-  };
-
-  connectBtn.addEventListener('click', () => handleConnect(connectBtn, 'Connect Calendar'));
-  reconnectBtn.addEventListener('click', () => handleConnect(reconnectBtn, 'Reconnect Calendar'));
-}
-
-// =============================================================================
-// COMPLETED TASKS (from Todoist API)
-// =============================================================================
-
-async function fetchCompletedToday() {
-  const loadingEl = document.getElementById('completed-loading');
-  const emptyEl = document.getElementById('completed-empty');
-
-  if (!isWidgetVisible('newtabShowTodos')) {
-    return;
-  }
-
-  try {
-    if (!hasExtensionRuntime()) return;
-
-    const authenticated = await todoist.isAuthenticated();
-    if (!authenticated) {
-      completedToday = [];
-      loadingEl.classList.add('hidden');
-      renderCompletedSection();
-      return;
-    }
-
-    loadingEl.classList.remove('hidden');
-    emptyEl.classList.add('hidden');
-
-    const tasks = await todoist.getCompletedTasksToday({ limit: 50, staleWhileRevalidate: true });
-    completedToday = tasks.map(t => ({
-      id: t.id || t.task_id,
-      content: t.content,
-    }));
-
-    loadingEl.classList.add('hidden');
-    renderCompletedSection();
-  } catch (err) {
-    console.error('Failed to fetch completed tasks:', err);
-    loadingEl.classList.add('hidden');
-    renderCompletedSection();
-  }
-}
-
-function renderCompletedSection() {
-  const countEl = document.getElementById('completed-count');
-  const emptyEl = document.getElementById('completed-empty');
-  const listEl = document.getElementById('completed-list');
-
-  countEl.textContent = completedToday.length;
-
-  if (completedToday.length === 0) {
-    emptyEl.classList.remove('hidden');
-    listEl.classList.add('hidden');
-    return;
-  }
-
-  emptyEl.classList.add('hidden');
-  listEl.classList.remove('hidden');
-
-  // Render the list
-  listEl.innerHTML = '';
-  for (const task of completedToday) {
-    const li = document.createElement('li');
-    li.className = 'completed-item';
-
-    // Checkmark circle
-    const check = document.createElement('span');
-    check.className = 'completed-item-check';
-    check.innerHTML = Icons.check;
-    li.appendChild(check);
-
-    // Task content
-    const content = document.createElement('span');
-    content.className = 'completed-item-content';
-    content.textContent = task.content;
-    li.appendChild(content);
-
-    listEl.appendChild(li);
-  }
-}
-
-// =============================================================================
-// TODOIST
-// =============================================================================
-
-async function loadTodos() {
-  const connectEl = document.getElementById('todos-connect');
-  const loadingEl = document.getElementById('todos-loading');
-  const emptyEl = document.getElementById('todos-empty');
-  const listEl = document.getElementById('todo-list');
-  const showMoreBtn = document.getElementById('todos-show-more');
-
-  if (!isWidgetVisible('newtabShowTodos')) {
-    return;
-  }
-
-  // Reset every state up front — loadTodos re-runs on refresh, and leaving a
-  // previously shown connect prompt or empty state visible stacks it behind
-  // the freshly rendered list.
-  connectEl.classList.add('hidden');
-  emptyEl.classList.add('hidden');
-  loadingEl.classList.add('hidden');
-  showMoreBtn.classList.add('hidden');
-
-  try {
-    if (!hasExtensionRuntime()) {
-      connectEl.classList.remove('hidden');
-      loadingEl.classList.add('hidden');
-      emptyEl.classList.remove('hidden');
-      allTasks = [];
-      listEl.innerHTML = '';
-      return;
-    }
-
-    // Check if authenticated
-    const authenticated = await todoist.isAuthenticated();
-
-    if (!authenticated) {
-      connectEl.classList.remove('hidden');
-      loadingEl.classList.add('hidden');
-      allTasks = [];
-      listEl.innerHTML = '';
-      return;
-    }
-
-    // Authenticated — hide prompt, show loading
-    connectEl.classList.add('hidden');
-    if (allTasks.length === 0) {
-      loadingEl.classList.remove('hidden');
-    }
-
-    // Fetch tasks
-    const tasks = await todoist.getTasksWithSubtasks({ staleWhileRevalidate: true });
-
-    loadingEl.classList.add('hidden');
-
-    // Sort: priority desc, then due date asc (no due = last)
-    allTasks = sortTasks(tasks);
-
-    if (allTasks.length === 0) {
-      emptyEl.classList.remove('hidden');
-      listEl.innerHTML = '';
-      return;
-    }
-
-    renderTodos(listEl, showMoreBtn);
-  } catch (err) {
-    console.error('Failed to load todos:', err);
-    loadingEl.classList.add('hidden');
-
-    // If auth expired, show connect prompt
-    const stillAuthed = hasExtensionRuntime() ? await todoist.isAuthenticated() : false;
-    if (err.status === 401 || err.status === 403 ||
-        (err.message && err.message.includes('Authentication expired')) || !stillAuthed) {
-      connectEl.classList.remove('hidden');
-      allTasks = [];
-      listEl.innerHTML = '';
-    } else if (allTasks.length === 0) {
-      emptyEl.classList.remove('hidden');
-    }
-  }
-}
-
-function sortTasks(tasks) {
-  return tasks.sort((a, b) => {
-    // Priority: higher first (4 = urgent, 1 = normal)
-    if (b.priority !== a.priority) return b.priority - a.priority;
-
-    // Due date: earlier first, no due date last
-    const aDue = a.due ? (a.due.datetime || a.due.date) : null;
-    const bDue = b.due ? (b.due.datetime || b.due.date) : null;
-
-    if (aDue && bDue) return new Date(aDue) - new Date(bDue);
-    if (aDue && !bDue) return -1;
-    if (!aDue && bDue) return 1;
-    return 0;
-  });
-}
-
-function renderTodos(listEl, showMoreBtn) {
-  const limit = tasksExpanded ? EXPANDED_TASK_COUNT : INITIAL_TASK_COUNT;
-  const visibleTasks = allTasks.slice(0, limit);
-
-  listEl.innerHTML = '';
-
-  for (const task of visibleTasks) {
-    const li = createTodoItem(task);
-    listEl.appendChild(li);
-  }
-
-  // Show more button
-  if (allTasks.length > INITIAL_TASK_COUNT) {
-    showMoreBtn.classList.remove('hidden');
-    showMoreBtn.textContent = tasksExpanded
-      ? `Show less`
-      : `Show more (${allTasks.length - INITIAL_TASK_COUNT} more)`;
-  } else {
-    showMoreBtn.classList.add('hidden');
-  }
-}
-
-function createTodoItem(task, isSubtask = false) {
-  const li = document.createElement('li');
-  li.className = `todo-item${isSubtask ? ' subtask' : ''}`;
-  li.dataset.taskId = task.id;
-
-  // Checkbox
-  const checkbox = document.createElement('button');
-  checkbox.className = `todo-checkbox ${todoist.getPriorityClass(task.priority)}`;
-  checkbox.title = 'Complete task';
-  checkbox.addEventListener('click', () => completeTask(task.id, li, checkbox));
-  li.appendChild(checkbox);
-
-  // Details
-  const details = document.createElement('div');
-  details.className = 'todo-details';
-
-  const content = document.createElement('div');
-  content.className = 'todo-content';
-  content.textContent = task.content;
-  details.appendChild(content);
-
-  // Meta (due date + subtask count)
-  const dueStr = todoist.formatDueDate(task);
-  const hasSubtasks = !isSubtask && task.subtasks && task.subtasks.length > 0;
-
-  if (dueStr || hasSubtasks) {
-    const meta = document.createElement('div');
-    meta.className = 'todo-meta';
-
-    if (dueStr) {
-      const due = document.createElement('span');
-      due.className = 'todo-due';
-      due.textContent = dueStr;
-
-      if (dueStr === 'Overdue') due.classList.add('overdue');
-      if (dueStr === 'Today' || dueStr.startsWith('Today')) due.classList.add('today');
-
-      meta.appendChild(due);
-    }
-
-    if (hasSubtasks) {
-      const subtaskCount = document.createElement('span');
-      subtaskCount.className = 'subtask-count';
-      subtaskCount.textContent = `${task.subtasks.length} subtask${task.subtasks.length > 1 ? 's' : ''}`;
-      meta.appendChild(subtaskCount);
-    }
-
-    details.appendChild(meta);
-  }
-
-  // Render nested subtasks
-  if (hasSubtasks) {
-    const subtasksList = document.createElement('ul');
-    subtasksList.className = 'subtasks-list';
-
-    for (const subtask of task.subtasks) {
-      subtasksList.appendChild(createTodoItem(subtask, true));
-    }
-
-    details.appendChild(subtasksList);
-  }
-
-  li.appendChild(details);
-  return li;
-}
-
-async function completeTask(taskId, li, checkbox) {
-  // Prevent double-click
-  if (checkbox.classList.contains('checked')) return;
-
-  checkbox.classList.add('checked');
-
-  try {
-    await todoist.completeTask(taskId);
-
-    const rewardResult = await sendRuntimeMessage({ type: 'ADD_EARNED_TIME', taskCount: 1 });
-    if (rewardResult && rewardResult.added > 0) {
-      console.log('Task reward applied:', rewardResult);
-    }
-
-    // Re-fetch completed tasks from Todoist API
-    fetchCompletedToday();
-
-    // Animate removal
-    li.classList.add('completing');
-    setTimeout(() => {
-      // Remove from allTasks
-      allTasks = allTasks.filter(t => t.id !== taskId);
-
-      // Re-render
-      const listEl = document.getElementById('todo-list');
-      const showMoreBtn = document.getElementById('todos-show-more');
-      renderTodos(listEl, showMoreBtn);
-
-      // Show empty state if needed
-      if (allTasks.length === 0) {
-        document.getElementById('todos-empty').classList.remove('hidden');
-      }
-    }, 300);
-  } catch (err) {
-    console.error('Failed to complete task:', err);
-    checkbox.classList.remove('checked');
-  }
-}
-
-function setupTodosConnect() {
-  const btn = document.getElementById('todos-connect-btn');
-  btn.addEventListener('click', async () => {
-    if (!hasExtensionRuntime()) return;
-
-    btn.disabled = true;
-    btn.textContent = 'Connecting...';
-    try {
-      await todoist.authenticate();
-      // Reload todos section
-      await loadTodos();
-    } catch (err) {
-      console.error('Failed to connect Todoist:', err);
-      btn.disabled = false;
-      btn.textContent = 'Connect Todoist';
-    }
-  });
-}
-
-function setupShowMore() {
-  const btn = document.getElementById('todos-show-more');
-  btn.addEventListener('click', () => {
-    tasksExpanded = !tasksExpanded;
-    const listEl = document.getElementById('todo-list');
-    renderTodos(listEl, btn);
-  });
-}
-
-async function loadFocusSnapshot() {
-  if (!isWidgetVisible('newtabShowFocusSnapshot')) {
-    return;
-  }
-
-  try {
-    const blockingSummary = await sendRuntimeMessage({ type: 'GET_BLOCKING_SUMMARY' });
-    const totalBlockAttempts = blockingSummary?.totalBlockAttempts || 0;
-    const estimatedSavedMinutes = totalBlockAttempts * 15;
-    document.getElementById('focus-snapshot-blocked').textContent = totalBlockAttempts;
-    renderSavedTime(estimatedSavedMinutes);
-  } catch (error) {
-    console.error('Failed to load focus snapshot:', error);
-    document.getElementById('focus-snapshot-blocked').textContent = '-';
-    document.getElementById('focus-snapshot-saved').textContent = '-';
-  }
-}
-
-function getSavedTimeParts(minutes) {
-  if (minutes < 60) {
-    return { value: String(minutes), unit: 'min' };
-  }
-
-  const MINUTES_PER_HOUR = 60;
-  const MINUTES_PER_DAY = MINUTES_PER_HOUR * 24;
-  const MINUTES_PER_WEEK = MINUTES_PER_DAY * 7;
-  const MINUTES_PER_MONTH = MINUTES_PER_DAY * 30;
-  const MINUTES_PER_YEAR = MINUTES_PER_DAY * 365;
-
-  const formatLargeUnit = (value, singularUnit, pluralUnit) => {
-    const displayValue = value >= 10 ? String(Math.round(value)) : value.toFixed(1).replace(/\.0$/, '');
-    const numericValue = Number(displayValue);
-    return {
-      value: displayValue,
-      unit: numericValue === 1 ? singularUnit : pluralUnit
-    };
-  };
-
-  if (minutes >= MINUTES_PER_YEAR) {
-    return formatLargeUnit(minutes / MINUTES_PER_YEAR, 'year', 'years');
-  }
-
-  if (minutes >= MINUTES_PER_MONTH) {
-    return formatLargeUnit(minutes / MINUTES_PER_MONTH, 'month', 'months');
-  }
-
-  if (minutes >= MINUTES_PER_WEEK) {
-    return formatLargeUnit(minutes / MINUTES_PER_WEEK, 'week', 'weeks');
-  }
-
-  if (minutes >= MINUTES_PER_DAY) {
-    return formatLargeUnit(minutes / MINUTES_PER_DAY, 'day', 'days');
-  }
-
-  const hours = Math.floor(minutes / MINUTES_PER_HOUR);
-  const remainder = minutes % MINUTES_PER_HOUR;
-
-  if (remainder === 0) {
-    return { value: String(hours), unit: 'hr' };
-  }
-
-  // Two number/unit pairs so both units render in the small unit style
-  // ("8h 30min"), instead of a giant "8h 30" with only "min" set small.
-  return [
-    { value: String(hours), unit: 'h' },
-    { value: String(remainder), unit: 'min' }
-  ];
-}
-
-function renderSavedTime(minutes) {
-  const savedTimeEl = document.getElementById('focus-snapshot-saved');
-  const parts = getSavedTimeParts(minutes);
-  savedTimeEl.innerHTML = (Array.isArray(parts) ? parts : [parts])
-    .map(({ value, unit }) => (
-      `<span class="focus-snapshot-saved-number">${value}</span><span class="focus-snapshot-saved-unit">${unit}</span>`
-    ))
-    .join('');
-}
-
 const DASHBOARD_WIDGETS = {
-  calendar: { key: 'newtabShowCalendar', load: loadCalendar },
   weather: { key: 'newtabShowWeather', load: loadWeather },
-  todos: { key: 'newtabShowTodos', load: loadTodos },
-  completed: { key: 'newtabShowTodos', load: fetchCompletedToday },
-  focusSnapshot: { key: 'newtabShowFocusSnapshot', load: loadFocusSnapshot }
+  planner: { key: 'planner', load: refreshPlannerDashboard }
 };
 
 const widgetStates = {};
@@ -1684,31 +905,14 @@ function stopDashboardRefresh() {
 }
 
 function clearAuthFailedWidget(name) {
-  if (name === 'todos') {
-    allTasks = [];
-    const listEl = document.getElementById('todo-list');
-    if (listEl) listEl.innerHTML = '';
-    document.getElementById('todos-connect')?.classList.remove('hidden');
-    document.getElementById('todos-empty')?.classList.add('hidden');
-    document.getElementById('todos-loading')?.classList.add('hidden');
-    document.getElementById('todos-show-more')?.classList.add('hidden');
-  } else if (name === 'completed') {
-    completedToday = [];
-    renderCompletedSection();
-    document.getElementById('completed-loading')?.classList.add('hidden');
-  } else if (name === 'calendar') {
-    const listEl = document.getElementById('event-list');
-    if (listEl) listEl.innerHTML = '';
-    document.getElementById('calendar-reconnect')?.classList.remove('hidden');
-    document.getElementById('calendar-empty')?.classList.add('hidden');
-    document.getElementById('calendar-loading')?.classList.add('hidden');
-  }
+  if (name === 'planner') refreshPlannerDashboard();
 }
 
 function setupVisibilityLifecycle() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       startClock();
+      refreshPlannerTime({ recenter: true });
       if (dashboardRefreshStarted) {
         startDashboardRefresh();
       }
@@ -1754,10 +958,8 @@ function setupStorageSync() {
 
   const visibilityKeys = [
     'newtabShowWeather',
-    'newtabShowQuotes',
     'newtabShowCalendar',
     'newtabShowTodos',
-    'newtabShowFocusSnapshot',
     'newtabBackground',
     'newtabShowOceanBackground',
     'newtabOceanBatterySaver',
@@ -1771,21 +973,18 @@ function setupStorageSync() {
 
   const WIDGET_SETTING_KEYS = {
     newtabShowWeather: ['weather'],
-    newtabShowCalendar: ['calendar'],
-    newtabShowTodos: ['todos', 'completed'],
-    newtabShowFocusSnapshot: ['focusSnapshot'],
+    newtabShowCalendar: ['planner'],
+    newtabShowTodos: ['planner'],
     newtabTempUnit: ['weather'],
     weatherLat: ['weather'],
     weatherLon: ['weather'],
-    todoistToken: ['todos', 'completed'],
-    todoistCacheRevision: ['todos', 'completed'],
-    calendarSettings: ['calendar']
+    todoistToken: ['planner'],
+    todoistCacheRevision: ['planner'],
+    calendarSettings: ['planner'],
+    newtabPlannerState: ['planner']
   };
 
   const CACHE_WIDGET_KEYS = {
-    'focusCache:todoist:tasks': 'todos',
-    'focusCache:todoist:completedToday': 'completed',
-    'focusCache:calendar:display': 'calendar',
     'focusCache:weather': 'weather'
   };
 
@@ -1814,7 +1013,6 @@ function setupStorageSync() {
       }
       if (reloadTheme) {
         await loadTheme();
-        updateThemeToggleIcon();
         await refreshBgColor();
       }
       for (const name of authClears) {
@@ -1831,6 +1029,7 @@ function setupStorageSync() {
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local') return;
+    handlePlannerStorageChange(changes);
 
     const changedKeys = Object.keys(changes);
 
@@ -1889,22 +1088,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupIcons();
 
   // Setup interactions
-  setupThemeToggle();
   setupBrowserThemeSyncListener();
   setupReducedMotionListener();
-  setupSettings();
   setupStorageSync();
-  setupCalendarConnect();
-  setupTodosConnect();
-  setupShowMore();
   setupVisibilityLifecycle();
+  initPlannerDashboard({
+    sendRuntimeMessage,
+    getLocal,
+    setLocal,
+    isVisible: isWidgetVisible
+  });
 
   // Start clock
   startClock();
   startBedtimeReminderRefresh();
-
-  // Load quote
-  loadQuote();
 
   // Load settings and apply visibility
   await loadSettings();

@@ -141,7 +141,7 @@ Object.entries(pageStyles).forEach(([name, css]) => {
 });
 
 // Task priority rings are token-driven so every theme stays coherent.
-['newtab/newtab.css', 'blocked/blocked.css'].forEach((name) => {
+['blocked/blocked.css'].forEach((name) => {
   const css = pageStyles[name];
   assert.match(
     css,

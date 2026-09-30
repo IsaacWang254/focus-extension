@@ -67,13 +67,14 @@
     { id: 'relaxed', name: 'Relaxed', icon: 'R', color: '#d97706', blockedSites: SETTINGS.blockedSites.slice(0, 3), categories: [], unblockMethods: UNBLOCK_METHODS }
   ];
 
-  const at = (h, m = 0) => { const d = new Date(); d.setHours(h, m, 0, 0); return d.toISOString(); };
+  const aroundNow = minutes => new Date(now + minutes * 60 * 1000).toISOString();
+  const tomorrowIso = new Date(now + 864e5).toISOString().slice(0, 10);
 
   const EVENTS = [
-    { title: 'Deep work: extension restyle', start: at(9, 30), end: at(11, 0), color: '#666666' },
-    { title: 'Standup', start: at(11, 30), end: at(11, 45), color: '#666666' },
-    { title: 'Review pull requests', start: at(14, 0), end: at(15, 0), color: '#999999' },
-    { title: 'Ship day', isAllDay: true, color: '#999999' }
+    { id: 'e1', calendarId: 'work', title: 'Deep work: homepage direction', start: aroundNow(-150), end: aroundNow(-70), color: '#246fe0', calendarName: 'Work', location: 'Studio' },
+    { id: 'e2', calendarId: 'team', title: 'Product review', start: aroundNow(-25), end: aroundNow(35), color: '#dc4c3e', calendarName: 'Team', meetingUrl: 'https://meet.google.com/example' },
+    { id: 'e3', calendarId: 'work', title: 'Review pull requests', start: aroundNow(65), end: aroundNow(125), color: '#059669', calendarName: 'Work' },
+    { id: 'e4', calendarId: 'work', title: 'Ship day', start: todayIso, end: tomorrowIso, isAllDay: true, color: '#eb8909', calendarName: 'Work' }
   ];
 
   const due = (offsetDays, label) => ({ date: new Date(now + offsetDays * 864e5).toISOString().slice(0, 10), string: label, is_recurring: false });
@@ -112,6 +113,7 @@
     weatherCacheTime: now,
     quoteOfDay: { date: todayIso, quote: QUOTE }
   };
+  if (params.get('preview-state') === 'todoist-disconnected') delete store.todoistToken;
 
   const changeListeners = [];
   const normalize = (keys) => {
@@ -179,12 +181,32 @@
       case 'TRACK_BLOCK_ATTEMPT': return 34;
       case 'SAVE_UNBLOCK_REASON': case 'TEMPORARY_UNBLOCK': case 'END_TEMP_UNBLOCK': return { success: true };
       case 'ADD_EARNED_TIME': return { added: message.minutes || 5, minutes: 20 };
-      case 'GET_CALENDAR_STATUS': return { connected: true, email: 'preview@example.com' };
+      case 'GET_CALENDAR_STATUS': return {
+        connected: previewState !== 'calendar-disconnected',
+        email: 'preview@example.com'
+      };
       case 'GET_NEWTAB_EVENTS': return {
         title: "Today's Schedule",
         displayDate: new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }),
         events: structuredClone(EVENTS)
       };
+      case 'GET_PLANNER_EVENTS': {
+        const base = {
+          date: message.date,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          events: previewState === 'empty' ? [] : structuredClone(EVENTS),
+          stale: previewState === 'calendar-stale',
+          partial: previewState === 'calendar-stale',
+          updatedAt: Date.now()
+        };
+        if (previewState === 'calendar-expired') {
+          return { ...base, events: [], disconnected: true, status: 401, error: 'Not connected to Google Calendar' };
+        }
+        if (previewState === 'calendar-error') {
+          return { ...base, events: [], partial: true, status: 503, error: 'Calendar refresh temporarily unavailable' };
+        }
+        return base;
+      }
       case 'GET_TODAY_EVENTS': case 'GET_UPCOMING_EVENTS': return structuredClone(EVENTS);
       case 'GET_CALENDAR_LIST': return [{ id: 'primary', name: 'Personal', selected: true }, { id: 'team', name: 'Team', selected: false }];
       case 'GET_BLOCKING_SUMMARY': return { blockedSiteCount: SETTINGS.blockedSites.length, totalBlockAttempts: 34, lifetimeBlockAttempts: 210, totalUnblocks: 7, resistedCount: 27, topUnblockedDomain: 'youtube.com' };
@@ -288,9 +310,32 @@
   window.fetch = (input, init) => {
     const url = typeof input === 'string' ? input : input.url;
     if (url.includes('api.todoist.com')) {
+      const method = String(init?.method || 'GET').toUpperCase();
       if (url.includes('/tasks/completed')) return json({ items: previewState === 'empty' ? [] : structuredClone(COMPLETED) });
-      if (/\/tasks\/[^/]+\/(close|reopen)/.test(url)) return Promise.resolve(new Response(null, { status: 204 }));
-      if (url.includes('/tasks')) return json({ results: previewState === 'empty' ? [] : structuredClone(TASKS) });
+      const closeMatch = /\/tasks\/([^/]+)\/(close|reopen)/.exec(url);
+      if (closeMatch) {
+        if (previewState === 'mutation-error') return json({ error: 'Preview mutation failed' }, 503);
+        if (closeMatch[2] === 'close') {
+          const index = TASKS.findIndex(task => task.id === closeMatch[1]);
+          if (index >= 0) TASKS.splice(index, 1);
+        }
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      const taskMatch = /\/tasks\/([^/?]+)$/.exec(url);
+      if (taskMatch && method === 'POST') {
+        if (previewState === 'mutation-error') return json({ error: 'Preview mutation failed' }, 503);
+        const task = TASKS.find(item => item.id === taskMatch[1]);
+        if (task) Object.assign(task, JSON.parse(init?.body || '{}'));
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      if (url.includes('/tasks') && method === 'POST') {
+        if (previewState === 'mutation-error') return json({ error: 'Preview mutation failed' }, 503);
+        const body = JSON.parse(init?.body || '{}');
+        const created = { id: `preview-${Date.now()}`, order: TASKS.length + 1, ...body, due: body.due_date ? { date: body.due_date, is_recurring: false } : null };
+        TASKS.push(created);
+        return json(created);
+      }
+      if (url.includes('/tasks')) return json({ results: previewState === 'empty' ? [] : structuredClone(TASKS), next_cursor: null });
       if (url.includes('/labels')) return json({ results: [{ id: 'l1', name: 'deep-work', color: 'blue' }, { id: 'l2', name: 'quick', color: 'yellow' }] });
       if (url.includes('/projects')) return json({ results: [{ id: 'p1', name: 'Inbox' }] });
       return json({});

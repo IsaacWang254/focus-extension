@@ -245,144 +245,12 @@ html[data-design="modernist"] .todo-checkbox:hover {
   background-color: var(--indigo-subtle);
 }
 
-html[data-design="modernist"] [data-surface="newtab"] {
-  height: auto;
-  min-height: 100dvh;
-  overflow: auto;
-}
-
-html[data-design="modernist"] [data-surface="newtab"] .main,
 html[data-design="modernist"] [data-surface="blocked"] > .container {
   width: calc(100% - 2 * var(--modernist-gutter));
   max-width: var(--modernist-frame-width);
   min-height: 100dvh;
   margin: 0 auto;
   padding: var(--modernist-inset) var(--modernist-pad);
-}
-
-html[data-design="modernist"] [data-surface="newtab"] .main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--modernist-section-gap);
-  overflow: visible;
-}
-
-html[data-design="modernist"] [data-surface="newtab"] .modernist-masthead {
-  display: flex;
-  align-items: flex-start;
-  width: 100%;
-  flex: 0 0 auto;
-  padding: 0 100px 16px 0;
-  border-bottom: 0;
-  margin: 0;
-}
-
-html[data-design="modernist"] [data-surface="newtab"] .modernist-wordmark {
-  font-size: clamp(22px, 3dvh, 28px);
-  font-weight: 500;
-  line-height: .9;
-  letter-spacing: -.055em;
-  color: var(--indigo);
-}
-
-html[data-design="modernist"] [data-surface="newtab"] .center-stage {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(240px, .6fr);
-  grid-template-areas: "clock quote" "weather quote" "panels panels" "snapshot snapshot";
-  width: 100%;
-  min-height: 0;
-  align-items: start;
-  gap: var(--modernist-row-gap) clamp(24px, 3vw, 48px);
-  padding: 0;
-}
-
-html[data-design="modernist"] [data-surface="newtab"] .hero {grid-area: clock; text-align: left; min-width: 0;}
-
-html[data-design="modernist"] [data-surface="newtab"] .clock {
-  font-family: var(--font-sans);
-  font-size: clamp(4.5rem, min(9vw, 16dvh), 9rem);
-  font-weight: 400;
-  line-height: .9;
-  letter-spacing: -.065em;
-  color: var(--modernist-display);
-}
-
-html[data-design="modernist"] [data-surface="newtab"] .clock-separator {opacity: 1; font-weight: 400;}
-
-html[data-design="modernist"] [data-surface="newtab"] .quote-section {
-  grid-area: quote;
-  align-self: center;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  min-width: 0;
-}
-
-html[data-design="modernist"] [data-surface="newtab"] .quote-text {
-  font-size: clamp(1.1rem, min(2vw, 3dvh), 1.75rem);
-  font-weight: 400;
-  line-height: 1.18;
-  letter-spacing: -.025em;
-  color: var(--foreground);
-  max-width: 25ch;
-}
-
-html[data-design="modernist"] [data-surface="newtab"] .quote-author {font-size: .8rem; color: var(--muted-foreground);}
-
-html[data-design="modernist"] [data-surface="newtab"] .weather-section {grid-area: weather; margin: 0; justify-content: flex-start; text-align: left;}
-
-html[data-design="modernist"] [data-surface="newtab"] .weather-content {justify-content: flex-start;}
-
-html[data-design="modernist"] [data-surface="newtab"] .weather-icon {
-  flex: 0 0 32px;
-  width: 32px;
-  height: 32px;
-  color: var(--foreground);
-}
-
-html[data-design="modernist"] [data-surface="newtab"] .weather-icon svg {
-  display: block;
-  width: 32px;
-  height: 32px;
-  stroke-width: 1.5;
-}
-
-html[data-design="modernist"] [data-surface="newtab"] .content-panels {
-  grid-area: panels;
-  max-width: none;
-  min-height: 0;
-  margin-top: var(--modernist-row-gap);
-  padding-top: var(--modernist-panel-pad);
-  column-gap: var(--modernist-column-gap);
-  border-top: 0;
-}
-
-html[data-design="modernist"] [data-surface="newtab"] .panel-header {padding-bottom: 10px; flex-wrap: wrap;}
-
-html[data-design="modernist"] [data-surface="newtab"] .panel-header-text {flex-wrap: wrap;}
-
-html[data-design="modernist"] [data-surface="newtab"] .panel-title {font-size: var(--modernist-panel-heading); color: var(--indigo); font-weight: 400; letter-spacing: -.035em;}
-
-html[data-design="modernist"] [data-surface="newtab"] .todo-content {font-size: 1rem; line-height: 1.4;}
-
-html[data-design="modernist"] [data-surface="newtab"] .event-title {font-size: .95rem;}
-
-html[data-design="modernist"] [data-surface="newtab"] .focus-snapshot {
-  grid-area: snapshot;
-  margin: 0;
-  padding-top: 12px;
-  border-top: 0;
-}
-
-html[data-design="modernist"] [data-surface="newtab"] .focus-snapshot-inline-value {font-size: clamp(1.5rem, 4dvh, 2.25rem);}
-
-html[data-design="modernist"] [data-surface="newtab"] .top-bar {
-  top: var(--modernist-inset);
-  right: calc(var(--modernist-frame-edge) + var(--modernist-pad));
-  bottom: auto;
-  padding: 0;
-  border: 0;
-  background: transparent;
 }
 
 html[data-design="modernist"] [data-surface="blocked"] {
@@ -603,20 +471,6 @@ html[data-design="modernist"] [data-surface="stats"] .section-title {
   color: var(--indigo);
 }
 
-@media (min-width: 769px) {
-  html[data-design="modernist"] [data-surface="newtab"] .content-panels:not(:has(.panel-todos.hidden)) {
-    grid-template-columns: var(--modernist-columns);
-  }
-
-  html[data-design="modernist"] [data-surface="newtab"] .side-rail {
-    border-left: 1px solid var(--border);
-    border-top: 0;
-    padding-left: var(--modernist-rail-pad);
-    padding-top: 0;
-    margin-top: 0;
-  }
-}
-
 @media (min-width: 1024px) {
   html[data-design="modernist"] [data-surface="blocked"] .layout {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -638,72 +492,6 @@ html[data-design="modernist"] [data-surface="stats"] .section-title {
     font-size: 1.35rem;
   }
 
-  html[data-design="modernist"] [data-surface="newtab"] .center-stage {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "clock" "weather" "quote" "panels" "snapshot";
-    gap: 20px;
-  }
-
-  html[data-design="modernist"] [data-surface="newtab"] .clock {
-    font-size: clamp(4.2rem, 18vw, 7rem);
-  }
-
-  html[data-design="modernist"] [data-surface="newtab"] .quote-text {
-    max-width: 32ch;
-  }
-
-  html[data-design="modernist"] [data-surface="newtab"] .content-panels {
-    margin-top: 8px;
-  }
-
-  html[data-design="modernist"] [data-surface="newtab"] .panel-title {
-    font-size: 1.35rem;
-  }
-}
-
-@media (min-width: 900px) and (min-height: 600px) {
-  html[data-design="modernist"] [data-surface="newtab"] {height: 100dvh; min-height: 0; overflow: hidden;}
-
-  html[data-design="modernist"] [data-surface="newtab"] .main {height: 100dvh; min-height: 0; flex: 0 0 auto;}
-
-  html[data-design="modernist"] [data-surface="newtab"] .center-stage {
-    flex: 1 1 0;
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
-    align-items: stretch;
-  }
-
-  html[data-design="modernist"] [data-surface="newtab"] .content-panels {
-    grid-template-rows: minmax(0, 1fr);
-    align-content: stretch;
-    min-height: 0;
-  }
-
-  html[data-design="modernist"] [data-surface="newtab"] .panel {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    align-self: stretch;
-    min-height: 0;
-  }
-
-  html[data-design="modernist"] [data-surface="newtab"] .panel-body {
-    min-height: 0;
-    max-height: none;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-  }
-
-  html[data-design="modernist"] [data-surface="newtab"] .side-rail {
-    display: grid;
-    grid-template-rows: minmax(0, 1.2fr) minmax(0, .8fr);
-    min-height: 0;
-    gap: var(--modernist-section-gap);
-  }
-
-  html[data-design="modernist"] [data-surface="newtab"] .side-rail:has(.panel-calendar.hidden),
-  html[data-design="modernist"] [data-surface="newtab"] .side-rail:has(.panel-completed.hidden) {
-    grid-template-rows: minmax(0, 1fr);
-  }
 }
 
 @media (max-width: 900px) {

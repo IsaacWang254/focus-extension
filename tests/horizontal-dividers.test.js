@@ -51,7 +51,6 @@ assert.match(common, /\.input,[\s\S]*?border:\s*1px solid var\(--input\);/, 'inp
 assert.match(ruleBody(popup, '.focus-preset-btn'), /border:\s*1px solid/, 'focus preset button keeps full outline');
 assert.match(common, /outline:\s*2px solid var\(--ring\)/, 'focus outline preserved');
 assert.match(ruleBody(blocked, '.unblock-col'), /border-left:\s*1px solid/, 'vertical unblock rail kept');
-assert.match(newtab, /\.side-rail\s*\{[^{}]*border-left:\s*1px solid/, 'vertical side rail kept');
 
 const dividerBody = ruleBody(common, '.divider,');
 assert.match(dividerBody, /height:\s*0;/, 'divider occupies no height');

@@ -51,7 +51,7 @@ function harness({ settings = {}, visibility = 'visible', summaryDelay = 0, cale
   completedItems = [{ id: 'c1', content: 'Done task' }], geo = 'ok', weatherFail = false,
   authenticated = true, coords = true, taskFailureStatus = 0, seed = {} } = {}) {
   const calls = {
-    tasks: 0, completed: 0, weather: 0, geolocation: 0,
+    tasks: 0, completed: 0, planner: 0, plannerTime: 0, weather: 0, geolocation: 0,
     messages: {}, shaderImports: [], shaderInits: []
   };
   let now = new Date(2026, 8, 13, 12, 0, 0).getTime();
@@ -234,6 +234,10 @@ function harness({ settings = {}, visibility = 'visible', summaryDelay = 0, cale
     resolveThemeVariant: (b) => b,
     setIconButtonLabel: () => {},
     getDailyQuote: () => ({ text: 'q', author: 'a' }),
+    initPlannerDashboard: () => {},
+    refreshPlannerDashboard: async () => { calls.planner++; },
+    refreshPlannerTime: () => { calls.plannerTime++; },
+    handlePlannerStorageChange: () => {},
     TODOIST_CLIENT_ID: 'fixture', TOKEN_PROXY_URL: 'https://fixture.invalid/token',
     __importShader: (name) => {
       calls.shaderImports.push(name);
@@ -255,8 +259,7 @@ this.todoist = { isAuthenticated, getTasksWithSubtasks, getCompletedTasksToday, 
   vm.runInContext(whenVisibleSource + '\nthis.runWhenVisible = runWhenVisible;', sandbox);
   vm.runInContext(bgResolverSource + '\nthis.resolveNewtabBackground = resolveNewtabBackground;', sandbox);
   vm.runInContext(`${newtabSource}
-this.__test = { loadSettings, loadTodos, loadCalendar, loadWeather, fetchCompletedToday,
-  loadFocusSnapshot, refreshWidget, refreshDashboard, startDashboardRefresh,
+this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, startDashboardRefresh,
   applyBackgroundSetting, updateClock, startClock, getCoordinates };`, sandbox);
 
   return {
@@ -294,122 +297,42 @@ this.__test = { loadSettings, loadTodos, loadCalendar, loadWeather, fetchComplet
   const h = harness({ visibility: 'hidden', settings: { newtabBackground: 'none' } });
   await h.start();
   await flush(10);
-  assert.equal(h.calls.tasks, 0, 'hidden tab must not fetch tasks');
-  assert.equal(h.calls.completed, 0, 'hidden tab must not fetch completed tasks');
+  assert.equal(h.calls.planner, 0, 'hidden tab must not refresh the planner');
   assert.equal(h.calls.weather, 0, 'hidden tab must not fetch weather');
   assert.equal(h.calls.geolocation, 0, 'hidden tab must not request geolocation');
-  assert.equal(h.calls.messages.GET_NEWTAB_EVENTS || 0, 0, 'hidden tab must not fetch calendar events');
   assert.equal(h.calls.shaderImports.length, 0, 'hidden tab must not import shaders');
 }
 
 {
-  const h = harness({
-    visibility: 'visible',
-    settings: {
-      newtabShowWeather: false, newtabShowCalendar: false, newtabShowTodos: false,
-      newtabShowFocusSnapshot: false, newtabBackground: 'none'
-    }
-  });
-  await h.start();
-  await flush(10);
-  assert.equal(h.calls.tasks + h.calls.completed + h.calls.weather + h.calls.geolocation, 0,
-    'disabled widgets must make no API calls');
-  assert.equal(h.calls.messages.GET_CALENDAR_STATUS || 0, 0, 'disabled calendar must not even check status');
-  assert.equal(h.calls.messages.GET_BLOCKING_SUMMARY || 0, 0);
-}
-
-{
   const h = harness({ visibility: 'visible', settings: { newtabBackground: 'none' } });
   await h.start();
   await flush(10);
-  assert.equal(h.calls.tasks, 1, 'tasks load once');
-  assert.equal(h.calls.completed, 1, 'completed load once');
-  assert.equal(h.calls.weather, 1, 'weather loads once');
-  assert.equal(h.calls.messages.GET_NEWTAB_EVENTS, 1, 'calendar display loads once');
-  assert.equal(h.calls.messages.GET_BLOCKING_SUMMARY, 1, 'focus snapshot loads once');
-}
+  assert.equal(h.calls.planner, 1, 'planner refreshes once at startup');
+  assert.equal(h.calls.weather, 1, 'weather loads once at startup');
 
-{
-  const h = harness({ visibility: 'visible', settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  const tasksAtStart = h.calls.tasks;
-  const eventsAtStart = h.calls.messages.GET_NEWTAB_EVENTS;
   h.advanceMs(2 * 60 * 1000 + 1);
   h.setVisibility('hidden');
-  assert.equal(h.activeIntervals(60000), 1, 'only the self-skipping reminder interval remains while hidden');
   h.tickIntervals();
   await flush(10);
-  assert.equal(h.calls.tasks, tasksAtStart, 'no polling while hidden');
-  assert.equal(h.calls.messages.GET_NEWTAB_EVENTS, eventsAtStart, 'no calendar polling while hidden');
+  assert.equal(h.calls.planner, 1, 'planner polling pauses while hidden');
+
   h.setVisibility('visible');
   await flush(10);
-  assert.equal(h.calls.tasks, tasksAtStart + 1, 'visible resume triggers exactly one task refresh');
-  assert.equal(h.calls.messages.GET_NEWTAB_EVENTS, eventsAtStart + 1, 'visible resume triggers exactly one calendar refresh');
-  assert.equal(h.activeIntervals(60000), 2, 'reminder plus exactly one dashboard interval after resume');
+  assert.equal(h.calls.planner, 2, 'visible resume triggers one planner refresh');
+  assert.equal(h.activeIntervals(60000), 2, 'reminder plus one dashboard interval remain active');
 }
 
 {
   const h = harness({ visibility: 'visible', settings: { newtabBackground: 'none' } });
   await h.start();
   await flush(10);
-  const snapshot = { ...h.calls, messages: { ...h.calls.messages } };
+  const plannerCalls = h.calls.planner;
   h.fireStorage({ unrelatedKey: 'x' });
   await flush(10);
-  assert.equal(h.calls.tasks, snapshot.tasks);
-  assert.equal(h.calls.weather, snapshot.weather);
-  assert.equal(h.calls.messages.GET_NEWTAB_EVENTS, snapshot.messages.GET_NEWTAB_EVENTS);
-}
-
-{
-  const h = harness({ visibility: 'visible', settings: { newtabBackground: 'none' } });
-  await h.start();
+  assert.equal(h.calls.planner, plannerCalls, 'unrelated storage writes do not refresh the planner');
+  h.fireStorage({ todoistCacheRevision: 'next' });
   await flush(10);
-  const before = h.calls.tasks;
-  h.fireStorage({ newtabShowTodos: false, settings: { ...h.store.settings, newtabShowTodos: false } });
-  await flush(10);
-  assert.equal(h.calls.tasks, before, 'disabling todos must not fetch');
-  h.advanceMs(2 * 60 * 1000 + 1);
-  h.fireStorage({ newtabShowTodos: true, settings: { ...h.store.settings, newtabShowTodos: true } });
-  await flush(10);
-  assert.equal(h.calls.tasks, before + 1, 'enabling todos triggers one refresh');
-}
-
-{
-  const h = harness({ visibility: 'visible', summaryDelay: Infinity, settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  assert.equal(h.calls.tasks, 1, 'tasks must not wait on the snapshot');
-  assert.equal(h.calls.weather, 1, 'weather must not wait on the snapshot');
-  assert.equal(h.calls.messages.GET_NEWTAB_EVENTS, 1, 'calendar must not wait on the snapshot');
-}
-
-{
-  const h = harness({ visibility: 'visible', settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  const weatherCalls = h.calls.weather;
-  assert.ok(h.store['focusCache:todoist:tasks']?.value, 'the real API path cached the tasks');
-  assert.equal(h.calls.tasks, 1, 'the cache write during load must not cause a refetch');
-  h.fireStorage({ 'focusCache:todoist:tasks': { scope: 'other', value: [{ id: 'x', content: 'x', priority: 1 }], updatedAt: Date.now() + 1 } });
-  await flush(10);
-  assert.equal(h.calls.tasks, 2, 'a foreign-scope cache write re-renders through one refetch');
-  assert.equal(h.calls.weather, weatherCalls, 'and does not recurse into other loaders');
-  h.fireStorage({ 'focusCache:todoist:tasks': { scope: 's', retryAt: Date.now() + 60000, status: 500, error: 'x' } });
-  await flush(10);
-  assert.equal(h.calls.tasks, 2, 'cooldown bookkeeping writes must not trigger refreshes');
-}
-
-{
-  const h = harness({ visibility: 'visible', settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  assert.equal(h.el('todo-list').children.length, 1, 'task rendered');
-  h.fireStorage({ 'focusCache:todoist:tasks': { scope: 's', retryAt: Date.now() + 60000, status: 401, error: 'x' } });
-  await flush(10);
-  assert.equal(h.calls.tasks, 1, 'an auth-failure write must not launch a fetch');
-  assert.equal(h.el('todo-list').children.length, 0, 'the stale task list is cleared');
-  assert.ok(!h.el('todos-connect').classList.contains('hidden'), 'the reconnect prompt shows');
+  assert.equal(h.calls.planner, plannerCalls + 1, 'Todoist revisions refresh the planner once');
 }
 
 {
@@ -454,106 +377,7 @@ this.__test = { loadSettings, loadTodos, loadCalendar, loadWeather, fetchComplet
   assert.equal(h.calls.shaderInits.length, 0, 'reduced motion must win over a pending import');
 }
 
-{
-  const h = harness({ settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  const listEl = h.el('todo-list');
-  assert.equal(listEl.children.length, 1, 'the task row rendered');
-  h.setTasks([]);
-  h.advanceMs(2 * 60 * 1000 + 1);
-  await h.api.loadTodos();
-  await flush(10);
-  assert.equal(listEl.children.length, 0, 'a fresh empty response must remove the old rows');
-  assert.equal(listEl.innerHTML, '');
-  assert.ok(!h.el('todos-empty').classList.contains('hidden'), 'the empty state shows');
-  assert.ok(h.el('todos-show-more').classList.contains('hidden'));
-}
-
-{
-  const h = harness({ settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  assert.equal(h.el('todo-list').children.length, 1);
-  await h.sandbox.todoist.logout();
-  await h.api.loadTodos();
-  assert.equal(h.el('todo-list').children.length, 0, 'logout must remove the rendered rows');
-  assert.equal(h.el('todo-list').innerHTML, '');
-  assert.ok(!h.el('todos-connect').classList.contains('hidden'), 'the connect prompt shows');
-  assert.ok(h.el('todos-show-more').classList.contains('hidden'));
-}
-
-{
-  const h = harness({ settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  assert.equal(h.el('todo-list').children[0].dataset.taskId, 't1');
-  h.store.todoistToken = 'tok-b';
-  h.store.todoistCacheRevision = 'rev-b';
-  h.setTasks([{ id: 'b1', content: 'Beta task', priority: 1 }]);
-  await h.api.loadTodos();
-  assert.equal(h.calls.tasks, 2, 'the account switch refetches');
-  assert.equal(h.el('todo-list').children.length, 1);
-  assert.equal(h.el('todo-list').children[0].dataset.taskId, 'b1', 'only the new account\'s task renders');
-}
-
-{
-  const h = harness({ settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  h.setTaskFailures(401, 1);
-  h.fireStorage({ 'focusCache:todoist:tasks': undefined });
-  await h.api.loadTodos();
-  await flush(10);
-  assert.equal(h.el('todo-list').children.length, 0, 'an expired session clears rendered tasks');
-  assert.ok(!h.el('todos-connect').classList.contains('hidden'), 'the connect prompt shows');
-}
-{
-  const h = harness({ settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  h.setTaskFailures(503, 1);
-  h.fireStorage({ 'focusCache:todoist:tasks': undefined });
-  await h.api.loadTodos();
-  await flush(10);
-  assert.equal(h.el('todo-list').children.length, 1, 'a transient failure keeps the rendered list');
-  assert.ok(h.el('todos-empty').classList.contains('hidden'), 'the empty state must not stack on top');
-}
-
-{
-  const h = harness({ authenticated: false, settings: { newtabBackground: 'none' } });
-  await h.api.fetchCompletedToday();
-  assert.ok(h.el('completed-loading').classList.contains('hidden'), 'no spinner when logged out');
-  assert.equal(h.el('completed-count').textContent, 0);
-}
-
-{
-  const h = harness({ settings: { newtabBackground: 'none' },
-    calendarEventsPayload: { error: 'Calendar events fetch failed: 401', status: 401 } });
-  await h.start();
-  await flush(10);
-  assert.ok(!h.el('calendar-reconnect').classList.contains('hidden'), 'a 401 error object shows reconnect');
-  assert.equal(h.el('event-list').children.length, 0, 'the event list is cleared');
-}
-{
-  const h = harness({ settings: { newtabBackground: 'none' },
-    calendarEventsPayload: { error: 'Calendar events fetch failed: 503', status: 503 } });
-  await h.start();
-  await flush(10);
-  assert.equal(h.el('calendar-empty-text').textContent, 'Calendar unavailable');
-  assert.ok(h.el('calendar-reconnect').classList.contains('hidden'), 'a transient failure must not show reconnect');
-}
-{
-  const h = harness({ settings: { newtabBackground: 'none' } });
-  await h.start();
-  await flush(10);
-  assert.equal(h.el('event-list').children.length, 1, 'the event rendered');
-  h.setEventsPayload({ error: 'Calendar events fetch failed: 503', status: 503 });
-  await h.api.loadCalendar();
-  assert.equal(h.el('event-list').children.length, 1, 'a transient failure keeps the rendered schedule');
-  assert.equal(h.el('calendar-empty-text').textContent, 'Showing saved schedule');
-}
-
+// Legacy task-list and calendar-panel rendering tests were removed with the retired homepage panels.
 {
   const h = harness({ settings: { newtabBackground: 'none' } });
   await h.start();
@@ -644,11 +468,10 @@ this.__test = { loadSettings, loadTodos, loadCalendar, loadWeather, fetchComplet
   releaseSettings();
   await started;
   await flush(10);
-  assert.equal(h.calls.tasks, 0, 'no task fetch after hiding during the settings load');
-  assert.equal(h.calls.messages.GET_NEWTAB_EVENTS || 0, 0);
+  assert.equal(h.calls.planner, 0, 'no planner refresh after hiding during the settings load');
   h.setVisibility('visible');
   await flush(10);
-  assert.equal(h.calls.tasks, 0, 'the widget stayed disabled through the hidden window');
+  assert.equal(h.calls.planner, 1, 'the visible page performs one coalesced planner refresh');
 }
 
 {
@@ -713,19 +536,6 @@ this.__test = { loadSettings, loadTodos, loadCalendar, loadWeather, fetchComplet
   await h.api.loadWeather();
   assert.ok(h.el('weather-content').classList.contains('hidden'), 'data past the 2.5h bound is not shown');
   assert.equal(h.el('weather-error-text').textContent, 'Weather unavailable');
-}
-{
-  const h = harness({ settings: { newtabBackground: 'none' } });
-  h.setTaskFailures(403, 1);
-  h.fireStorage({ 'focusCache:todoist:tasks': undefined });
-  await h.api.loadTodos();
-  assert.ok(!h.el('todos-connect').classList.contains('hidden'), 'a 403 shows the connect prompt');
-  assert.equal(h.el('todo-list').children.length, 0);
-  await h.api.loadTodos();
-  await flush(10);
-  assert.equal(h.calls.tasks, 1, 'the 403 cooldown suppresses a second API call');
-  assert.ok(!h.el('todos-connect').classList.contains('hidden'), 'the cooldown still shows connect, not empty');
-  assert.ok(h.el('todos-empty').classList.contains('hidden'));
 }
 
 console.log('dashboard-loading tests passed');

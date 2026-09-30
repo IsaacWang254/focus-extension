@@ -180,6 +180,7 @@ for (const src of ['../lib/theme.js', '../lib/design-theme.js', '../newtab/newta
 }
 
 const newtabHtml = read('../newtab/newtab.html');
+const newtabCss = read('../newtab/newtab.css');
 const modernistCss = read('../lib/modernist.css');
 
 assert.doesNotMatch(newtabHtml, /modernist-caption|A space for/, 'the masthead tagline must be gone');
@@ -189,21 +190,10 @@ assert.doesNotMatch(
   'the new tab frame must not draw outer left/right rules'
 );
 assert.doesNotMatch(modernistCss, /modernist-setting/, 'the options row CSS must be gone');
-assert.match(
-  modernistCss,
-  /@media\s*\(min-width:\s*900px\)\s*and\s*\(min-height:\s*600px\)/,
-  'a scoped desktop-height fit block must exist'
-);
-assert.match(
-  modernistCss,
-  /grid-template-rows:\s*auto\s+auto\s+minmax\(0,\s*1fr\)\s+auto/,
-  'the stage must give the flexible row to the panels'
-);
-assert.match(
-  modernistCss,
-  /\[data-surface="newtab"\]\s+\.panel-body\s*\{[^}]*overflow-y:\s*auto/s,
-  'panel bodies must scroll inside their bounded row'
-);
+assert.match(newtabCss, /body\[data-surface="newtab"\][^{]*\{[^}]*overflow-y:\s*auto/s,
+  'the new tab keeps natural page scrolling');
+assert.doesNotMatch(modernistCss, /\[data-surface="newtab"\][^{]*\{[^}]*overflow:\s*hidden/s,
+  'the shared theme must not clip the new tab');
 
 assert.match(modernistCss, /--brand-red:\s*#e5342a/i, 'brand red token present');
 assert.match(modernistCss, /--modernist-highlight:\s*var\(--brand-red\)/, 'highlight aliases brand red');
@@ -232,10 +222,9 @@ assert.match(
 
 const newtabSource = read('../newtab/newtab.js');
 const blockedSource = read('../blocked/blocked.js');
-for (const [file, src] of [['newtab/newtab.js', newtabSource], ['blocked/blocked.js', blockedSource]]) {
-  assert.match(src, /setIconButtonLabel\(toggle/, `${file} must label the theme toggle through the design-aware helper`);
-  assert.doesNotMatch(src, /toggle\.title\s*=/, `${file} must not assign native titles directly`);
-}
+assert.doesNotMatch(newtabSource, /setupThemeToggle|theme-toggle|setIconButtonLabel/, 'newtab must not retain the removed theme control');
+assert.match(blockedSource, /setIconButtonLabel\(toggle/, 'blocked/blocked.js must label the theme toggle through the design-aware helper');
+assert.doesNotMatch(blockedSource, /toggle\.title\s*=/, 'blocked/blocked.js must not assign native titles directly');
 assert.match(modernistCss, /\.settings-launch::after\s*\{[^}]*content:\s*none/s, 'the pseudo tooltip must be disabled');
 assert.match(
   modernistCss,

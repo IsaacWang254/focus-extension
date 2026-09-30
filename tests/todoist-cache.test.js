@@ -11,8 +11,9 @@ const cacheSource = fs.readFileSync(new URL('../lib/request-cache.js', import.me
 
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
-function harness() {
+function harness({ taskPages = null, projectPages = null } = {}) {
   const counts = { tasks: 0, completed: 0, labels: 0, projects: 0 };
+  const requests = [];
   const store = { todoistToken: 'token-a', todoistCacheRevision: 'rev-a' };
   let now = new Date(2026, 8, 13, 12).getTime();
 
@@ -26,6 +27,7 @@ function harness() {
 
   const fetch = async (input, options = {}) => {
     const url = new URL(String(input));
+    requests.push({ url: url.toString(), method: (options.method || 'GET').toUpperCase(), body: options.body });
     const auth = options.headers?.Authorization;
     if (rejectTokenA && auth === 'Bearer token-a') {
       if (pendingRelease) await pendingRelease;
@@ -34,7 +36,8 @@ function harness() {
     let body;
     if (url.pathname.endsWith('/tasks') && (options.method || 'GET') === 'GET') {
       counts.tasks++;
-      body = { results: [{ id: `task:${auth}:${url.search || 'all'}`, content: `task for ${auth}`, priority: 1 }], next_cursor: null };
+      body = taskPages?.[url.searchParams.get('cursor') || 'first'] ||
+        { results: [{ id: `task:${auth}:${url.search || 'all'}`, content: `task for ${auth}`, priority: 1 }], next_cursor: null };
     } else if (url.pathname.includes('/completed/')) {
       counts.completed++;
       body = { items: [{ id: `c:${auth}:${url.searchParams.get('limit')}`, content: 'done' }], next_cursor: null };
@@ -43,7 +46,10 @@ function harness() {
       body = { results: [{ id: 'l1', name: 'Work', color: 'red' }], next_cursor: null };
     } else if (url.pathname.endsWith('/projects')) {
       counts.projects++;
-      body = { results: [{ id: 'p1', name: 'Inbox' }], next_cursor: null };
+      body = projectPages?.[url.searchParams.get('cursor') || 'first'] ||
+        { results: [{ id: 'p1', name: 'Inbox' }], next_cursor: null };
+    } else if (/\/tasks\/[^/]+$/.test(url.pathname) && (options.method || 'GET') === 'POST') {
+      body = { id: url.pathname.split('/').pop(), ...JSON.parse(options.body) };
     } else if (url.pathname.endsWith('/close') || url.pathname.endsWith('/reopen') || url.pathname.endsWith('/tasks')) {
       body = null;
     } else {
@@ -77,10 +83,10 @@ function harness() {
   vm.runInContext(`${transformed}
 this.api = { getToken, isAuthenticated, logout, getTasks, getTasksWithSubtasks, getTask,
   getCompletedTasks, getCompletedTasksToday, completeTask, reopenTask, createTask,
-  getProjects, getLabels, getLabelsMap };`, sandbox);
+  updateTask, getProjects, getLabels, getLabelsMap };`, sandbox);
 
   return {
-    api: sandbox.api, counts, store,
+    api: sandbox.api, counts, requests, store,
     setToken(token, revision) { store.todoistToken = token; store.todoistCacheRevision = revision; },
     rejectTokenA(v, gate) { rejectTokenA = v; pendingRelease = gate; },
     advanceMs(ms) { now += ms; },
@@ -155,16 +161,57 @@ this.api = { getToken, isAuthenticated, logout, getTasks, getTasksWithSubtasks, 
   assert.equal(h.counts.tasks, 3, 'a repeated query after an intervening scope must refetch, not cross data');
 }
 
-for (const mutate of ['completeTask', 'reopenTask', 'createTask']) {
+for (const mutate of ['completeTask', 'reopenTask', 'createTask', 'updateTask']) {
   const h = harness();
   await h.api.getTasksWithSubtasks();
   await h.api.getCompletedTasksToday({ limit: 50 });
   if (mutate === 'createTask') await h.api.createTask({ content: 'x' });
+  else if (mutate === 'updateTask') await h.api.updateTask('t1', { priority: 4 });
   else await h.api[mutate]('t1');
   await h.api.getTasksWithSubtasks();
   await h.api.getCompletedTasksToday({ limit: 50 });
   assert.equal(h.counts.tasks, 2, `${mutate} must invalidate the tasks cache`);
   assert.equal(h.counts.completed, 2, `${mutate} must invalidate the completed-today cache`);
+}
+
+{
+  const h = harness({
+    taskPages: {
+      first: { results: [{ id: 'parent', content: 'Parent', priority: 1 }], next_cursor: 'page-2' },
+      'page-2': { results: [
+        { id: 'child', parent_id: 'parent', content: 'Child', priority: 1, order: 1 },
+        { id: 'child', parent_id: 'parent', content: 'Duplicate child', priority: 1, order: 1 },
+        { id: 'grandchild', parent_id: 'child', content: 'Grandchild', priority: 1, order: 1 }
+      ], next_cursor: null }
+    }
+  });
+  const tasks = await h.api.getTasksWithSubtasks();
+  assert.equal(h.counts.tasks, 2, 'task reads must exhaust every cursor page');
+  assert.equal(tasks.length, 1, 'the parent remains the sole top-level task');
+  assert.equal(tasks[0].subtasks.length, 1, 'a child repeated across pages is not duplicated');
+  assert.equal(tasks[0].subtasks[0].subtasks[0].id, 'grandchild', 'nested ancestry survives pagination');
+  await h.api.getTasksWithSubtasks();
+  assert.equal(h.counts.tasks, 2, 'the complete paginated task result is cached as one list');
+}
+
+{
+  const h = harness({
+    projectPages: {
+      first: { results: [{ id: 'p1', name: 'Inbox' }], next_cursor: 'page-2' },
+      'page-2': { results: [{ id: 'p2', name: 'Work' }], next_cursor: null }
+    }
+  });
+  const projects = await h.api.getProjects();
+  assert.deepEqual(projects.map(project => project.id), ['p1', 'p2'], 'project reads must exhaust every cursor page');
+  assert.equal(h.counts.projects, 2);
+}
+
+{
+  const h = harness();
+  const updated = await h.api.updateTask('t1', { due_date: '2026-09-14', priority: 4 });
+  assert.equal(updated.priority, 4);
+  assert.equal(h.requests.at(-1).method, 'POST', 'task updates use Todoist\'s mutation path');
+  assert.match(h.requests.at(-1).url, /\/tasks\/t1$/);
 }
 
 {

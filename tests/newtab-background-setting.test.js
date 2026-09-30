@@ -183,8 +183,10 @@ assert.match(
 // ---------------------------------------------------------------------------
 
 const newtabSource = read('../newtab/newtab.js');
+const plannerSource = read('../newtab/planner.js');
 const newtabHtml = read('../newtab/newtab.html');
 const newtabCss = read('../newtab/newtab.css');
+const packageSource = read('../package.json');
 
 assert.match(
   newtabHtml,
@@ -253,12 +255,10 @@ assert.doesNotMatch(
   'loadTodos must not also be called unconditionally at startup'
 );
 
-// loadTodos re-runs on refresh; leaving a previously shown connect prompt or
-// empty state visible stacks it behind the freshly rendered list.
 assert.match(
-  newtabSource,
-  /connectEl\.classList\.add\('hidden'\);\s*emptyEl\.classList\.add\('hidden'\);/,
-  'loadTodos must reset panel states on entry'
+  plannerSource,
+  /if \(!tasks\.length\) setPlannerStatus\('tasks', 'Loading tasks…'\)/,
+  'planner refreshes must not flash loading state over visible tasks'
 );
 
 // ---------------------------------------------------------------------------
@@ -267,24 +267,23 @@ assert.match(
 
 assert.match(
   newtabCss,
-  /\.center-stage \{[^}]*align-items: flex-start/,
-  'the content column must stack flush left'
+  /\.daily-hero \{[^}]*align-items: flex-end/,
+  'the daily context must keep its deliberate reading alignment'
 );
 
 assert.doesNotMatch(
   newtabCss,
-  /\.center-stage \{[^}]*margin: 0 auto/,
-  'the content column must not re-centre itself'
+  /\.daily-brief \{[^}]*border/,
+  'the daily brief must use whitespace instead of a decorative divider'
 );
 
-[['.hero', 'text-align: left'],
- ['.quote-section', 'text-align: left'],
- ['.weather-section', 'justify-content: flex-start']].forEach(([sel, decl]) => {
-  assert.match(
-    newtabCss,
-    new RegExp(`\\${sel} \\{[^}]*${decl.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}`),
-    `${sel} must be left aligned (${decl})`
-  );
-});
+assert.match(newtabHtml, /id="today-timeline-section"/, 'the homepage must expose one Today timeline');
+assert.match(newtabHtml, /id="add-task-btn"[^>]*aria-label="Add task"/, 'icon-only task actions need accessible names');
+assert.match(newtabHtml, /id="view-schedule-btn"[^>]*aria-label="View schedule"/, 'the schedule icon needs an accessible name');
+assert.match(newtabCss, /\.icon-action\s*\{[^}]*border:\s*0;[^}]*background:\s*none;/s, 'homepage icon actions must stay visually borderless');
+assert.doesNotMatch(newtabHtml, /product-mark|newtab-toolbar-root|settings-modal|radix-shell\.bundle/, 'retired homepage chrome must stay removed');
+assert.doesNotMatch(newtabSource, /setupThemeToggle|setupSettings/, 'removed homepage controls must not retain event wiring');
+assert.doesNotMatch(packageSource, /build:newtab|newtab\/radix-shell/, 'the retired new-tab bundle must stay out of build scripts');
+assert.match(newtabCss, /\.timeline-list::before\s*\{[^}]*background:/s, 'the Today timeline keeps a clear vertical time rail');
 
 console.log('newtab background setting tests passed');

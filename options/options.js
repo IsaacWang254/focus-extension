@@ -1004,10 +1004,8 @@ function renderNewtabBackgroundControls() {
 
 function populateNewtabAppearanceSettings() {
   document.getElementById('newtab-show-weather').checked = settings.newtabShowWeather !== false;
-  document.getElementById('newtab-show-quotes').checked = settings.newtabShowQuotes !== false;
   document.getElementById('newtab-show-calendar').checked = settings.newtabShowCalendar !== false;
   document.getElementById('newtab-show-todos').checked = settings.newtabShowTodos !== false;
-  document.getElementById('newtab-show-focus-snapshot').checked = settings.newtabShowFocusSnapshot !== false;
   document.getElementById('newtab-background').value = resolveNewtabBackground(settings);
   document.getElementById('newtab-ocean-battery-saver').checked = settings.newtabOceanBatterySaver === true;
 
@@ -1030,10 +1028,8 @@ function populateNewtabAppearanceSettings() {
 function setupNewtabAppearanceControls() {
   const toggleIds = [
     'newtab-show-weather',
-    'newtab-show-quotes',
     'newtab-show-calendar',
     'newtab-show-todos',
-    'newtab-show-focus-snapshot',
     'newtab-ocean-battery-saver'
   ];
 
@@ -2136,10 +2132,8 @@ async function saveSettings() {
   settings.bedtimeReminderTime = document.getElementById('bedtime-reminder-time').value || '22:30';
   settings.bedtimeReminderEndTime = document.getElementById('bedtime-reminder-end-time').value || '07:00';
   settings.newtabShowWeather = document.getElementById('newtab-show-weather').checked;
-  settings.newtabShowQuotes = document.getElementById('newtab-show-quotes').checked;
   settings.newtabShowCalendar = document.getElementById('newtab-show-calendar').checked;
   settings.newtabShowTodos = document.getElementById('newtab-show-todos').checked;
-  settings.newtabShowFocusSnapshot = document.getElementById('newtab-show-focus-snapshot').checked;
   settings.newtabBackground = document.getElementById('newtab-background').value;
   // Kept in sync so downgrading to a build without the picker still works.
   settings.newtabShowOceanBackground = settings.newtabBackground !== 'none';
@@ -2214,10 +2208,8 @@ async function saveSettings() {
 
     await chrome.storage.local.set({
       newtabShowWeather: settings.newtabShowWeather,
-      newtabShowQuotes: settings.newtabShowQuotes,
       newtabShowCalendar: settings.newtabShowCalendar,
       newtabShowTodos: settings.newtabShowTodos,
-      newtabShowFocusSnapshot: settings.newtabShowFocusSnapshot,
       newtabBackground: settings.newtabBackground,
       newtabShowOceanBackground: settings.newtabShowOceanBackground,
       newtabOceanBatterySaver: settings.newtabOceanBatterySaver,
@@ -2653,10 +2645,8 @@ function gatherCurrentSettings() {
     bedtimeReminderTime: document.getElementById('bedtime-reminder-time').value || '22:30',
     bedtimeReminderEndTime: document.getElementById('bedtime-reminder-end-time').value || '07:00',
     newtabShowWeather: document.getElementById('newtab-show-weather').checked,
-    newtabShowQuotes: document.getElementById('newtab-show-quotes').checked,
     newtabShowCalendar: document.getElementById('newtab-show-calendar').checked,
     newtabShowTodos: document.getElementById('newtab-show-todos').checked,
-    newtabShowFocusSnapshot: document.getElementById('newtab-show-focus-snapshot').checked,
     newtabBackground: document.getElementById('newtab-background').value,
     newtabOceanBatterySaver: document.getElementById('newtab-ocean-battery-saver').checked,
     newtabOceanWaveSpeed: parseFloat(document.getElementById('newtab-ocean-wave-speed')?.value) || 0.8,

@@ -3,7 +3,7 @@
  * Handles URL blocking using declarativeNetRequest and manages extension state
  */
 
-import { getCachedResource } from './lib/request-cache.js';
+import { getCachedResource, withSharedLock } from './lib/request-cache.js';
 
 // Predefined category templates
 const CATEGORY_TEMPLATES = {
@@ -1407,6 +1407,9 @@ async function handleMessage(message, sender) {
 
     case 'GET_NEWTAB_EVENTS':
       return await getNewTabEvents();
+
+    case 'GET_PLANNER_EVENTS':
+      return await getPlannerEvents(message.date);
 
     case 'GET_CURRENT_EVENTS':
       return await getCurrentEvents();
@@ -7089,6 +7092,12 @@ const DEFAULT_CALENDAR_SETTINGS = {
   cacheRevision: null
 };
 
+const PLANNER_EVENTS_CACHE_KEY = 'focusCache:calendar:planner:v1';
+const PLANNER_EVENTS_CACHE_TTL = 5 * 60 * 1000;
+const PLANNER_EVENTS_MAX_STALE = 24 * 60 * 60 * 1000;
+const PLANNER_EVENTS_CACHE_LIMIT = 14;
+const plannerEventRequests = new Map();
+
 /**
  * Get calendar settings from storage
  * @returns {Promise<Object>}
@@ -7107,6 +7116,183 @@ async function saveCalendarSettings(settings) {
   const updated = { ...current, ...settings };
   await chrome.storage.local.set({ calendarSettings: updated });
   return updated;
+}
+
+function getBrowserTimeZone() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
+}
+
+function getPlannerDayInfo(dateString) {
+  if (typeof dateString !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    throw Object.assign(new Error('date must use YYYY-MM-DD format'), { status: 400 });
+  }
+
+  const [year, month, day] = dateString.split('-').map(Number);
+  const startOfDay = new Date(year, month - 1, day);
+  if (startOfDay.getFullYear() !== year || startOfDay.getMonth() !== month - 1 || startOfDay.getDate() !== day) {
+    throw Object.assign(new Error('date must be a real calendar date'), { status: 400 });
+  }
+
+  const endOfDay = new Date(startOfDay);
+  // setDate keeps this range aligned to browser-local calendar days across DST.
+  endOfDay.setDate(endOfDay.getDate() + 1);
+  return { dayStr: dateString, startOfDay, endOfDay };
+}
+
+function getPlannerEventsScope(settings, dayInfo, timeZone) {
+  return JSON.stringify([
+    'planner-events-v1',
+    settings.cacheRevision || '',
+    settings.email || '',
+    [...settings.selectedCalendars].sort(),
+    timeZone,
+    dayInfo.startOfDay.toISOString(),
+    dayInfo.endOfDay.toISOString()
+  ]);
+}
+
+async function getPlannerCacheEntry(scope) {
+  const stored = await chrome.storage.local.get(PLANNER_EVENTS_CACHE_KEY);
+  return stored[PLANNER_EVENTS_CACHE_KEY]?.entries?.[scope] || null;
+}
+
+async function savePlannerCacheEntry(scope, entry) {
+  await withSharedLock('planner-events-cache-write', async () => {
+    const stored = await chrome.storage.local.get(PLANNER_EVENTS_CACHE_KEY);
+    const entries = {
+      ...(stored[PLANNER_EVENTS_CACHE_KEY]?.entries || {}),
+      [scope]: entry
+    };
+    const boundedEntries = Object.fromEntries(Object.entries(entries)
+      .sort(([, a], [, b]) => (b.updatedAt || 0) - (a.updatedAt || 0))
+      .slice(0, PLANNER_EVENTS_CACHE_LIMIT));
+    await chrome.storage.local.set({ [PLANNER_EVENTS_CACHE_KEY]: { entries: boundedEntries } });
+  });
+}
+
+function buildPlannerEventsPayload(dayInfo, timeZone, entry, { stale = false, partial = false, disconnected = false, error, status } = {}) {
+  const updatedAt = entry?.updatedAt || null;
+  return {
+    date: dayInfo.dayStr,
+    timezone: timeZone,
+    events: entry?.events || [],
+    updatedAt,
+    cacheUpdatedAt: updatedAt,
+    stale,
+    partial,
+    disconnected,
+    ...(error ? { error } : {}),
+    ...(status ? { status } : {})
+  };
+}
+
+/**
+ * Return one complete local calendar day for the planner. Unlike the compact
+ * new-tab card this retains earlier, all-day, and overlapping events.
+ */
+async function getPlannerEvents(dateString) {
+  const dayInfo = getPlannerDayInfo(dateString);
+  const timeZone = getBrowserTimeZone();
+  const settings = await getCalendarSettings();
+  if (!settings.connected) {
+    return buildPlannerEventsPayload(dayInfo, timeZone, null, {
+      disconnected: true,
+      error: 'Not connected to Google Calendar'
+    });
+  }
+
+  const scope = getPlannerEventsScope(settings, dayInfo, timeZone);
+  const cached = await getPlannerCacheEntry(scope);
+  const cachedAge = cached ? Date.now() - cached.updatedAt : Infinity;
+  if (cached && cachedAge >= 0 && cachedAge < PLANNER_EVENTS_CACHE_TTL) {
+    return buildPlannerEventsPayload(dayInfo, timeZone, cached, { partial: cached.partial === true });
+  }
+
+  if (plannerEventRequests.has(scope)) {
+    return plannerEventRequests.get(scope);
+  }
+
+  const request = (async () => {
+    const token = await getValidCalendarToken();
+    if (!token) {
+      if (cached && cachedAge >= 0 && cachedAge < PLANNER_EVENTS_MAX_STALE) {
+        return buildPlannerEventsPayload(dayInfo, timeZone, cached, {
+          stale: true,
+          partial: true,
+          disconnected: true,
+          status: 401
+        });
+      }
+      return buildPlannerEventsPayload(dayInfo, timeZone, null, {
+        disconnected: true,
+        error: 'Not connected to Google Calendar',
+        status: 401
+      });
+    }
+
+    let result = await fetchEventsForRangeWithToken(token, dayInfo.startOfDay, dayInfo.endOfDay, {
+      logLabel: 'planner events',
+      emptyTitleFallback: '(No title)'
+    });
+    if (result.got401 && result.events.length === 0) {
+      const freshToken = await forceRefreshCalendarToken();
+      if (freshToken && freshToken !== token) {
+        result = await fetchEventsForRangeWithToken(freshToken, dayInfo.startOfDay, dayInfo.endOfDay, {
+          logLabel: 'planner events',
+          emptyTitleFallback: '(No title)'
+        });
+      }
+    }
+
+    const events = filterEventsForDay(result.events, dayInfo.dayStr, dayInfo.startOfDay, dayInfo.endOfDay);
+    if (result.failed && events.length === 0) {
+      if (cached && cachedAge >= 0 && cachedAge < PLANNER_EVENTS_MAX_STALE) {
+        return buildPlannerEventsPayload(dayInfo, timeZone, cached, {
+          stale: true,
+          partial: true,
+          status: result.status
+        });
+      }
+      return buildPlannerEventsPayload(dayInfo, timeZone, null, {
+        partial: true,
+        error: 'Calendar refresh temporarily unavailable',
+        status: result.status
+      });
+    }
+
+    if (result.failed) {
+      const merged = new Map();
+      const canUseCached = cached && cachedAge >= 0 && cachedAge < PLANNER_EVENTS_MAX_STALE;
+      const savedFailedEvents = canUseCached
+        ? (cached.events || []).filter(event => result.failedCalendarIds?.includes(event.calendarId || 'primary'))
+        : [];
+      for (const event of [...savedFailedEvents, ...events]) {
+        const key = event.id || `${event.start || ''}:${event.title || ''}`;
+        merged.set(key, event);
+      }
+      const partialEntry = {
+        events: [...merged.values()],
+        partial: true,
+        updatedAt: cached?.updatedAt || Date.now()
+      };
+      return buildPlannerEventsPayload(dayInfo, timeZone, partialEntry, {
+        stale: Boolean(cached),
+        partial: true,
+        status: result.status
+      });
+    }
+
+    const entry = { events, partial: false, updatedAt: Date.now() };
+    await savePlannerCacheEntry(scope, entry);
+    return buildPlannerEventsPayload(dayInfo, timeZone, entry);
+  })();
+
+  plannerEventRequests.set(scope, request);
+  try {
+    return await request;
+  } finally {
+    plannerEventRequests.delete(scope);
+  }
 }
 
 /**
@@ -7174,7 +7360,7 @@ async function connectGoogleCalendar() {
       calendarListCache: [],
       calendarListCacheTime: null
     });
-    await chrome.storage.local.remove('focusCache:calendar:display');
+    await chrome.storage.local.remove(['focusCache:calendar:display', PLANNER_EVENTS_CACHE_KEY]);
 
     // Fetch available calendars
     const calendars = await fetchCalendarList(token);
@@ -7277,7 +7463,7 @@ async function disconnectGoogleCalendar() {
       calendarListCacheTime: null,
       cacheRevision: crypto.randomUUID()
     });
-    await chrome.storage.local.remove('focusCache:calendar:display');
+    await chrome.storage.local.remove(['focusCache:calendar:display', PLANNER_EVENTS_CACHE_KEY]);
 
     // Clear calendar sync alarm
     await chrome.alarms.clear('calendar-sync');
@@ -7347,7 +7533,7 @@ async function getValidCalendarToken() {
         accessToken: null,
         tokenExpiry: null,
       });
-      await chrome.storage.local.remove('focusCache:calendar:display');
+      await chrome.storage.local.remove(['focusCache:calendar:display', PLANNER_EVENTS_CACHE_KEY]);
       return null;
     }
 
@@ -7408,7 +7594,7 @@ async function forceRefreshCalendarToken() {
         accessToken: null,
         tokenExpiry: null,
       });
-      await chrome.storage.local.remove('focusCache:calendar:display');
+      await chrome.storage.local.remove(['focusCache:calendar:display', PLANNER_EVENTS_CACHE_KEY]);
     }
   }
 
@@ -7442,16 +7628,26 @@ async function fetchCalendarList(token, forceRefresh = false) {
     return settings.calendarListCache;
   }
   try {
-    const response = await fetchWithRetry(`${GOOGLE_CALENDAR_API}/users/me/calendarList`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const items = [];
+    const seenPageTokens = new Set();
+    let pageToken = null;
+    do {
+      const params = new URLSearchParams();
+      if (pageToken) params.set('pageToken', pageToken);
+      const response = await fetchWithRetry(`${GOOGLE_CALENDAR_API}/users/me/calendarList${params.toString() ? `?${params}` : ''}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-    if (!response.ok) {
-      throw new Error(`Calendar API error: ${response.status}`);
-    }
+      if (!response.ok) {
+        throw new Error(`Calendar API error: ${response.status}`);
+      }
 
-    const data = await response.json();
-    const calendars = (data.items || []).map(cal => ({
+      const data = await response.json();
+      items.push(...(data.items || []));
+      pageToken = data.nextPageToken || null;
+    } while (pageToken && !seenPageTokens.has(pageToken) && seenPageTokens.add(pageToken));
+
+    const calendars = items.map(cal => ({
       id: cal.id,
       name: cal.summary,
       description: cal.description || '',
@@ -7468,6 +7664,50 @@ async function fetchCalendarList(token, forceRefresh = false) {
     console.error('Failed to fetch calendar list:', e);
     return [];
   }
+}
+
+function getSafeHttpsUrl(value) {
+  if (!value || typeof value !== 'string') return '';
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
+function getSafeCalendarEventLink(value) {
+  const link = getSafeHttpsUrl(value);
+  if (!link) return '';
+  const host = new URL(link).hostname.toLowerCase();
+  return host === 'calendar.google.com' || host === 'www.google.com' ? link : '';
+}
+
+function getSafeMeetingLink(event) {
+  const entryPoint = event.conferenceData?.entryPoints?.find(point => point.entryPointType === 'video' && point.uri);
+  return getSafeHttpsUrl(entryPoint?.uri);
+}
+
+async function fetchCalendarEventPages(token, calendarId, baseParams) {
+  const items = [];
+  const seenPageTokens = new Set();
+  let pageToken = null;
+
+  do {
+    const params = new URLSearchParams(baseParams);
+    if (pageToken) params.set('pageToken', pageToken);
+    const response = await fetchWithRetry(
+      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!response.ok) return { response, items };
+
+    const data = await response.json();
+    items.push(...(data.items || []));
+    pageToken = data.nextPageToken || null;
+  } while (pageToken && !seenPageTokens.has(pageToken) && seenPageTokens.add(pageToken));
+
+  return { response: null, items };
 }
 
 /**
@@ -7510,8 +7750,10 @@ async function fetchUpcomingEventsWithToken(token, days) {
   // Build calendar-id → color map from stored calendar list
   const calList = await fetchCalendarList(token);
   const calColorMap = {};
+  const calNameMap = {};
   for (const cal of calList) {
     calColorMap[cal.id] = cal.color;
+    calNameMap[cal.id] = cal.name;
   }
 
   const now = new Date();
@@ -7531,27 +7773,23 @@ async function fetchUpcomingEventsWithToken(token, days) {
         maxResults: '100'
       });
 
-      const response = await fetchWithRetry(
-        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const { response, items } = await fetchCalendarEventPages(token, calendarId, params);
 
-      if (response.status === 401) {
+      if (response?.status === 401) {
         got401 = true;
         failed = true;
         return;
       }
 
-      if (!response.ok) {
+      if (response) {
         console.error(`Failed to fetch events from calendar ${calendarId}:`, response.status);
         failed = true;
         return;
       }
 
-      const data = await response.json();
       const calColor = calColorMap[calendarId] || '#4285f4';
 
-      for (const event of (data.items || [])) {
+      for (const event of items) {
         const startTime = event.start?.dateTime || event.start?.date;
         const endTime = event.end?.dateTime || event.end?.date;
 
@@ -7566,6 +7804,7 @@ async function fetchUpcomingEventsWithToken(token, days) {
         events.push({
           id: event.id,
           calendarId: calendarId,
+          calendarName: calNameMap[calendarId] || calendarId,
           title: (event.summary || '').trim() || '(No title)',
           description: event.description || '',
           start: startTime,
@@ -7573,7 +7812,8 @@ async function fetchUpcomingEventsWithToken(token, days) {
           isAllDay: !event.start?.dateTime,
           location: event.location || '',
           status: event.status,
-          htmlLink: event.htmlLink,
+          htmlLink: getSafeCalendarEventLink(event.htmlLink),
+          meetingLink: getSafeMeetingLink(event),
           color: eventColor
         });
       }
@@ -7745,8 +7985,10 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
   // Build calendar-id → color map from stored calendar list
   const calList = await fetchCalendarList(token);
   const calColorMap = {};
+  const calNameMap = {};
   for (const cal of calList) {
     calColorMap[cal.id] = cal.color;
+    calNameMap[cal.id] = cal.name;
   }
 
   const timeMin = startOfRange.toISOString();
@@ -7756,6 +7998,7 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
   let fetchFailed = false;
   let got401 = false;
   const failureStatuses = [];
+  const failedCalendarIds = [];
   let failureRetryAfterMs = 0;
   await Promise.allSettled(calendarsToFetch.map(async (calendarId) => {
     try {
@@ -7767,21 +8010,20 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
         maxResults: '100'
       });
 
-      const response = await fetchWithRetry(
-        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const { response, items } = await fetchCalendarEventPages(token, calendarId, params);
 
-      if (response.status === 401) {
+      if (response?.status === 401) {
         got401 = true;
         fetchFailed = true;
+        failedCalendarIds.push(calendarId);
         failureStatuses.push(401);
         return;
       }
 
-      if (!response.ok) {
+      if (response) {
         console.error(`Failed to fetch ${logLabel} from calendar ${calendarId}:`, response.status);
         fetchFailed = true;
+        failedCalendarIds.push(calendarId);
         failureStatuses.push(response.status);
         if (response.status === 429) {
           const retryAfter = response.headers.get('Retry-After');
@@ -7796,10 +8038,9 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
         return;
       }
 
-      const data = await response.json();
       const calColor = calColorMap[calendarId] || '#4285f4';
 
-      for (const event of (data.items || [])) {
+      for (const event of items) {
         const startTime = event.start?.dateTime || event.start?.date;
         const endTime = event.end?.dateTime || event.end?.date;
 
@@ -7816,6 +8057,7 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
         allEvents.push({
           id: event.id,
           calendarId: calendarId,
+          calendarName: calNameMap[calendarId] || calendarId,
           title: title || emptyTitleFallback,
           description: event.description || '',
           start: startTime,
@@ -7823,13 +8065,15 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
           isAllDay: !event.start?.dateTime,
           location: event.location || '',
           status: event.status,
-          htmlLink: event.htmlLink,
+          htmlLink: getSafeCalendarEventLink(event.htmlLink),
+          meetingLink: getSafeMeetingLink(event),
           color: eventColor
         });
       }
     } catch (e) {
       console.error(`Error fetching ${logLabel} from calendar ${calendarId}:`, e);
       fetchFailed = true;
+      failedCalendarIds.push(calendarId);
     }
   }));
 
@@ -7838,7 +8082,7 @@ async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { l
     : failureStatuses.includes(429) ? 429
     : (failureStatuses[0] || 503);
 
-  return { events: allEvents, failed: fetchFailed, got401, status, retryAfterMs: failureRetryAfterMs };
+  return { events: allEvents, failed: fetchFailed, failedCalendarIds, got401, status, retryAfterMs: failureRetryAfterMs };
 }
 
 /**
@@ -8189,7 +8433,7 @@ async function updateCalendarSettings(updates) {
   }
   const updated = await saveCalendarSettings(next);
   if (next.cacheRevision) {
-    await chrome.storage.local.remove('focusCache:calendar:display');
+    await chrome.storage.local.remove(['focusCache:calendar:display', PLANNER_EVENTS_CACHE_KEY]);
   }
 
   // Restart sync if enabled
