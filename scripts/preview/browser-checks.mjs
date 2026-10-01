@@ -155,9 +155,8 @@ for (const theme of ['light', 'dark']) {
       const weights = await page.evaluate(
         `[...document.querySelectorAll('#task-list .planner-row-title')].map(el => getComputedStyle(el).fontWeight)`
       );
-      check('first task title is 600, rest are 400', () => {
-        assert.equal(weights[0], '600');
-        weights.slice(1).forEach(w => assert.equal(w, '400'));
+      check('all task titles share weight 400', () => {
+        weights.forEach(w => assert.equal(w, '400'));
         return true;
       });
 
@@ -1743,9 +1742,9 @@ function contrast(fg, bg) {
       w: getComputedStyle(r.querySelector('.planner-row-title')).fontWeight,
       meta: r.querySelector('.planner-row-meta')?.textContent || ''
     }))`);
-    check('suggest order: deadline-first (timed before same-day date-only), first row bold', () => {
+    check('suggest order: deadline-first (timed before same-day date-only), uniform weight', () => {
       assert.equal(sug[0].t, 'Timed deadline at 15:00');
-      assert.equal(sug[0].w, '600', 'first row not bold');
+      assert.equal(sug[0].w, '400');
       assert.equal(sug[1].t, 'Later high-priority review');
       assert.equal(sug[2].t, 'Earlier low-priority errand');
       return true;
@@ -1768,9 +1767,9 @@ function contrast(fg, bg) {
       w: getComputedStyle(r.querySelector('.planner-row-title')).fontWeight,
       meta: r.querySelector('.planner-row-meta')?.textContent || ''
     }))`);
-    check('future-only: deadline-first order, first bold, dates shown', () => {
+    check('future-only: deadline-first order, uniform weight, dates shown', () => {
       assert.equal(fut[0].t, 'Tomorrow morning review');
-      assert.equal(fut[0].w, '600');
+      assert.equal(fut[0].w, '400');
       assert.ok(!/today/i.test(fut[0].meta) && fut[0].meta.length > 0, fut[0].meta);
       assert.equal(fut[2].t, 'Undated someday item');
       return true;

@@ -397,10 +397,6 @@ body[data-surface="newtab"] .main {
   white-space: normal;
 }
 
-.task-list > .planner-task-row:first-child .planner-row-title {
-  font-weight: 600;
-}
-
 .planner-task-row {
   --task-priority-color: #808080;
 }

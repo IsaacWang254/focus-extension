@@ -12,7 +12,7 @@ Chrome extension that replaces the new tab page with a calm daily command centre
   - Clock and date
   - Weather (°C/°F, saved coordinates)
   - Today's Google Calendar timeline: hour rails, side-by-side lanes for overlapping events, all-day chips, a Now marker with a "Back to now" shortcut, and links out to Google Calendar
-  - The top three Todoist tasks ranked deadline-first (overdue, then today's timed deadlines, then date-only, then upcoming, then undated) — the top task is shown in bold
+  - The top three Todoist tasks ranked deadline-first (overdue, then today's timed deadlines, then date-only, then upcoming, then undated)
   - Complete a task from its priority-coloured ring; click a task to edit it in a centred modal (title, description, due date, priority, project, labels)
   - Quick Add spotlight (⌘K / Ctrl+K) using Todoist's own `/tasks/quick` parser — dates, `#project`, `@label`, `p1`–`p4` — with inline project and label suggestions
 - **Settings page** (opened via the toolbar icon):
