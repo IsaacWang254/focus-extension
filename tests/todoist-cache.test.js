@@ -12,7 +12,7 @@ const cacheSource = fs.readFileSync(new URL('../lib/request-cache.js', import.me
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 function harness({ taskPages = null, projectPages = null } = {}) {
-  const counts = { tasks: 0, completed: 0, labels: 0, projects: 0 };
+  const counts = { tasks: 0, labels: 0, projects: 0 };
   const requests = [];
   const store = { todoistToken: 'token-a', todoistCacheRevision: 'rev-a' };
   let now = new Date(2026, 8, 13, 12).getTime();
@@ -38,9 +38,6 @@ function harness({ taskPages = null, projectPages = null } = {}) {
       counts.tasks++;
       body = taskPages?.[url.searchParams.get('cursor') || 'first'] ||
         { results: [{ id: `task:${auth}:${url.search || 'all'}`, content: `task for ${auth}`, priority: 1 }], next_cursor: null };
-    } else if (url.pathname.includes('/completed/')) {
-      counts.completed++;
-      body = { items: [{ id: `c:${auth}:${url.searchParams.get('limit')}`, content: 'done' }], next_cursor: null };
     } else if (url.pathname.endsWith('/labels')) {
       counts.labels++;
       body = { results: [{ id: 'l1', name: 'Work', color: 'red' }], next_cursor: null };
@@ -82,7 +79,7 @@ function harness({ taskPages = null, projectPages = null } = {}) {
   vm.runInContext(cacheSource, sandbox);
   vm.runInContext(`${transformed}
 this.api = { getToken, isAuthenticated, logout, getTasks, getTasksWithSubtasks, getTask,
-  getCompletedTasks, getCompletedTasksToday, completeTask, reopenTask, createTask,
+  completeTask, reopenTask, createTask,
   updateTask, getProjects, getLabels, getLabelsMap };`, sandbox);
 
   return {
@@ -98,18 +95,8 @@ this.api = { getToken, isAuthenticated, logout, getTasks, getTasksWithSubtasks, 
   const h = harness();
   for (let i = 0; i < 2; i++) {
     await h.api.getTasksWithSubtasks();
-    await h.api.getCompletedTasksToday({ limit: 50 });
   }
   assert.equal(h.counts.tasks, 1, 'second open must reuse the tasks cache');
-  assert.equal(h.counts.completed, 1, 'second open must reuse the completed-today cache');
-}
-
-{
-  const h = harness();
-  await h.api.getCompletedTasksToday({ limit: 50 });
-  h.advanceMs(1000);
-  await h.api.getCompletedTasksToday({ limit: 50 });
-  assert.equal(h.counts.completed, 1, 'same-day completedToday reads share one fetch');
 }
 
 {
@@ -125,29 +112,11 @@ this.api = { getToken, isAuthenticated, logout, getTasks, getTasksWithSubtasks, 
 
 {
   const h = harness();
-  const fifty = await h.api.getCompletedTasksToday({ limit: 50 });
-  const hundred = await h.api.getCompletedTasksToday({ limit: 100 });
-  assert.equal(h.counts.completed, 2, 'limit 50 and limit 100 are separate requests');
-  assert.notEqual(fifty[0].id, hundred[0].id, 'each scope returns its own payload');
-  await h.api.getCompletedTasksToday({ limit: 100 });
-  assert.equal(h.counts.completed, 2, 'a warm request for the same scope adds no call');
-}
-
-{
-  const h = harness();
   const first = await h.api.getTasksWithSubtasks();
   first[0].content = 'mutated';
   const second = await h.api.getTasksWithSubtasks();
   assert.equal(second[0].content, 'task for Bearer token-a', 'callers cannot corrupt the cached value');
   assert.notEqual(second[0], first[0]);
-}
-
-{
-  const h = harness();
-  await h.api.getCompletedTasksToday({ limit: 50 });
-  h.nextDay();
-  await h.api.getCompletedTasksToday({ limit: 50 });
-  assert.equal(h.counts.completed, 2, 'a new day must fetch completed tasks again');
 }
 
 {
@@ -164,14 +133,11 @@ this.api = { getToken, isAuthenticated, logout, getTasks, getTasksWithSubtasks, 
 for (const mutate of ['completeTask', 'reopenTask', 'createTask', 'updateTask']) {
   const h = harness();
   await h.api.getTasksWithSubtasks();
-  await h.api.getCompletedTasksToday({ limit: 50 });
   if (mutate === 'createTask') await h.api.createTask({ content: 'x' });
   else if (mutate === 'updateTask') await h.api.updateTask('t1', { priority: 4 });
   else await h.api[mutate]('t1');
   await h.api.getTasksWithSubtasks();
-  await h.api.getCompletedTasksToday({ limit: 50 });
   assert.equal(h.counts.tasks, 2, `${mutate} must invalidate the tasks cache`);
-  assert.equal(h.counts.completed, 2, `${mutate} must invalidate the completed-today cache`);
 }
 
 {
@@ -214,13 +180,6 @@ for (const mutate of ['completeTask', 'reopenTask', 'createTask', 'updateTask'])
   assert.match(h.requests.at(-1).url, /\/tasks\/t1$/);
 }
 
-{
-  const h = harness();
-  const range = { since: '2026-01-01T00:00:00Z', until: '2026-01-02T00:00:00Z', limit: 200 };
-  await h.api.getCompletedTasks(range);
-  await h.api.getCompletedTasks(range);
-  assert.equal(h.counts.completed, 2, 'raw completed-range requests must always hit the API');
-}
 
 {
   const h = harness();

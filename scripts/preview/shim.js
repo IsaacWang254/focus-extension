@@ -202,19 +202,17 @@
     'todoist-disconnected': { todoistDisconnected: true },
     'todoist-error': { todoistError: true },
     'mutation-fail': { mutationFail: true },
-    // Suggestion-ordering probes incl. a valid stored override (account hash is
-    // the sha-256 fingerprint of 'preview-token') and an arbitrary timing
-    // field that must not produce timing UI.
+    // Suggestion-ordering probes plus an arbitrary timing field that must
+    // not produce timing UI.
     suggest: {
       tasks: [
         { id: 'sg-early-low', content: 'Earlier low-priority errand', priority: 1, labels: [], due: { date: D, string: 'today' }, order: 1 },
         { id: 'sg-later-high', content: 'Later high-priority review', priority: 4, labels: [], due: { date: D, string: 'today' }, order: 2 },
         { id: 'sg-timed', content: 'Timed deadline at 15:00', priority: 2, labels: [], due: { date: `${D}T15:00:00`, string: 'today at 3pm' }, order: 3 },
-        { id: 'sg-override', content: 'Stored current task with later deadline', priority: 1, labels: [], duration: { amount: 45, unit: 'minute' }, due: { date: DD(3), string: 'Saturday' }, order: 4 },
+        { id: 'sg-later', content: 'Later weekend errand', priority: 1, labels: [], duration: { amount: 45, unit: 'minute' }, due: { date: DD(3), string: 'Saturday' }, order: 4 },
         { id: 'sg-bad', content: 'Malformed due date task', priority: 2, labels: [], due: { date: '2026-02-30', string: 'nonsense' }, order: 5 },
         { id: 'sg-none', content: 'Undated task', priority: 3, labels: [], order: 6 }
-      ],
-      currentTaskId: 'sg-override'
+      ]
     },
     'future-only': { tasks: [
       { id: 'ft-1', content: 'Tomorrow morning review', priority: 2, labels: [], due: { date: DD(1), string: 'tomorrow' }, order: 1 },
@@ -281,14 +279,6 @@
     weatherCacheTime: now
   };
   if (params.get('preview-state') === 'todoist-disconnected' || fixture?.todoistDisconnected) delete store.todoistToken;
-  if (fixture?.currentTaskId) {
-    store.newtabPlannerState = {
-      version: 1,
-      account: '76dac3d27654e6d3', // sha-256 fingerprint of 'preview-token'
-      date: todayIso,
-      taskId: fixture.currentTaskId
-    };
-  }
 
   const changeListeners = [];
   // Cross-page sync: settings changes in the options preview must reach open

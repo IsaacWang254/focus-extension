@@ -146,10 +146,6 @@ function dueSnippet(task) {
   return date + time;
 }
 
-export function nextCurrentTaskIdAfterCompletion(currentTaskId, completedTaskId) {
-  return String(currentTaskId || '') === String(completedTaskId || '') ? '' : String(currentTaskId || '');
-}
-
 export function createLatestRequestGuard() {
   let latest = 0;
   return {

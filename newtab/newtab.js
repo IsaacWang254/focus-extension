@@ -554,8 +554,7 @@ function setupStorageSync() {
     weatherLon: ['weather'],
     todoistToken: ['planner'],
     todoistCacheRevision: ['planner'],
-    calendarSettings: ['planner'],
-    newtabPlannerState: ['planner']
+    calendarSettings: ['planner']
   };
 
   const CACHE_WIDGET_KEYS = {

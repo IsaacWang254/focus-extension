@@ -45,10 +45,10 @@ function makeElement(id) {
 
 function harness({ settings = {}, visibility = 'visible', summaryDelay = 0, calendarConnected = true,
   calendarEventsPayload = null, tasksItems = [{ id: 't1', content: 'Alpha task', priority: 2 }],
-  completedItems = [{ id: 'c1', content: 'Done task' }], geo = 'ok', weatherFail = false,
+  geo = 'ok', weatherFail = false,
   authenticated = true, coords = true, taskFailureStatus = 0, seed = {} } = {}) {
   const calls = {
-    tasks: 0, completed: 0, planner: 0, plannerTime: 0, weather: 0, geolocation: 0,
+    tasks: 0, planner: 0, plannerTime: 0, weather: 0, geolocation: 0,
     messages: {}
   };
   let now = new Date(2026, 8, 13, 12, 0, 0).getTime();
@@ -64,7 +64,6 @@ function harness({ settings = {}, visibility = 'visible', summaryDelay = 0, cale
   if (coords) { store.weatherLat = 40; store.weatherLon = -74; }
   if (!authenticated) delete store.todoistToken;
   let nextTasks = tasksItems;
-  let nextCompleted = completedItems;
   let eventsPayload = calendarEventsPayload;
   let taskFailures = taskFailureStatus;
   let weatherGate = null;
@@ -167,11 +166,6 @@ function harness({ settings = {}, visibility = 'visible', summaryDelay = 0, cale
         }
         return new Response(JSON.stringify({ results: nextTasks, next_cursor: null }));
       }
-      if (url.pathname.includes('/completed/')) {
-        calls.completed++;
-        await flush(1);
-        return new Response(JSON.stringify({ items: nextCompleted, next_cursor: null }));
-      }
       if ((options.method || 'GET') !== 'GET') return new Response(null, { status: 204 });
       throw new Error(`Unexpected Todoist fixture request: ${url.pathname}`);
     }
@@ -235,7 +229,7 @@ function harness({ settings = {}, visibility = 'visible', summaryDelay = 0, cale
   vm.createContext(sandbox);
   vm.runInContext(cacheSource, sandbox);
   vm.runInContext(`${todoistSource}
-this.todoist = { isAuthenticated, getTasksWithSubtasks, getCompletedTasksToday, getCompletedTasks,
+this.todoist = { isAuthenticated, getTasksWithSubtasks,
   completeTask, reopenTask, createTask, logout, authenticate, getPriorityClass, formatDueDate };`, sandbox);
   vm.runInContext(whenVisibleSource + '\nthis.runWhenVisible = runWhenVisible;', sandbox);
   vm.runInContext(`${newtabSource}
@@ -256,7 +250,6 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
     advanceMs(ms) { now += ms; },
     nextDay() { now += 24 * 60 * 60 * 1000; },
     setTasks(items) { nextTasks = items; },
-    setCompleted(items) { nextCompleted = items; },
     setEventsPayload(p) { eventsPayload = p; },
     setTaskFailures(status, n) { taskFailureStatus = status; taskFailures = n; },
     setWeatherFail(v) { weatherFails = v; },

@@ -155,19 +155,28 @@ for (const theme of ['light', 'dark']) {
       const weights = await page.evaluate(
         `[...document.querySelectorAll('#task-list .planner-row-title')].map(el => getComputedStyle(el).fontWeight)`
       );
-      check('first task title is 600, rest are 400', () => {
-        assert.equal(weights[0], '600');
-        weights.slice(1).forEach(w => assert.equal(w, '400'));
+      check('all task titles share weight 400', () => {
+        weights.forEach(w => assert.equal(w, '400'));
         return true;
       });
 
-      // Make current reveal geometry
-      const actionSel = '#task-list .planner-task-row:nth-child(2) .icon-action';
-      const slotSel = '#task-list .planner-task-row:nth-child(2) .task-row-action';
+      // Task row: ring + open button only — no current-task artifacts.
       const rowSel = '#task-list .planner-task-row:nth-child(2)';
-      const restOpacity = await page.evaluate(`getComputedStyle(document.querySelector(${JSON.stringify(actionSel)})).opacity`);
-      check('Make current concealed at rest', () => (assert.equal(restOpacity, '0'), true));
-      const slotRest = await page.evaluate(rect(slotSel));
+      const rowClean = await page.evaluate(`(() => {
+        const rows = [...document.querySelectorAll('#task-list .planner-task-row')];
+        return {
+          anyAriaCurrent: !!document.querySelector('[aria-current]'),
+          anyCurrentName: !!document.querySelectorAll && [...document.querySelectorAll('#task-list [aria-label]')].some(el => /make current|current task/i.test(el.getAttribute('aria-label'))),
+          hiddenHint: rows.some(r => r.querySelector('.visually-hidden')),
+          secondRowChildren: [...rows[1].children].map(el => el.className)
+        };
+      })()`);
+      check('no Make current / Current task / aria-current artifacts', () => {
+        assert.equal(rowClean.anyAriaCurrent, false);
+        assert.equal(rowClean.anyCurrentName, false);
+        assert.equal(rowClean.hiddenHint, false);
+        return true;
+      });
 
       // Row highlight: hidden at rest; geometry snapshot for hover comparison.
       const rowParts = sels => `(() => {
@@ -176,71 +185,23 @@ for (const theme of ['light', 'dark']) {
         const cs = getComputedStyle(row, '::before');
         return { row: row.getBoundingClientRect().toJSON(), parts: ${sels}, opacity: cs.opacity, bg: cs.backgroundColor, left: cs.left, right: cs.right, radius: cs.borderRadius };
       })()`;
-      const partsExpr = `{ ring: pick('.planner-check'), title: pick('.planner-row-title'), meta: pick('.planner-row-meta'), slot: pick('.task-row-action') }`;
+      const partsExpr = `{ ring: pick('.planner-check'), title: pick('.planner-row-title'), meta: pick('.planner-row-meta'), open: pick('.task-open') }`;
       const washColor = theme === 'dark' ? 'rgb(30, 30, 30)' : 'rgb(241, 241, 241)';
       const rowRest = await page.evaluate(rowParts(partsExpr));
       check('task row has no highlight at rest', () => (assert.equal(rowRest.opacity, '0'), true));
 
-      await page.hover('#task-list .planner-task-row:nth-child(2)');
-      await new Promise(r => setTimeout(r, 60));
-      const hoverOpacity = await page.evaluate(`getComputedStyle(document.querySelector(${JSON.stringify(actionSel)})).opacity`);
-      check('Make current visible on row hover', () => (assert.equal(hoverOpacity, '1'), true));
-      const slotHover = await page.evaluate(rect(slotSel));
-      check('Make current slot geometry unchanged on hover', () => {
-        assert.deepEqual({ x: slotHover.x, w: slotHover.width }, { x: slotRest.x, w: slotRest.width });
-        return true;
-      });
-      const ink = theme === 'dark' ? 'rgb(237, 237, 237)' : 'rgb(31, 31, 31)';
-      const muted = theme === 'dark' ? 'rgb(154, 154, 154)' : 'rgb(98, 98, 98)';
-      const revealSurf = await page.evaluate(`(() => {
-        const cs = getComputedStyle(document.querySelector(${JSON.stringify(actionSel)}));
-        return { bg: cs.backgroundColor, bc: cs.borderColor, color: cs.color };
-      })()`);
-      check('Make current revealed as bare muted glyph (no box/fill)', () => {
-        assert.equal(revealSurf.bg, 'rgba(0, 0, 0, 0)', `bg ${revealSurf.bg}`);
-        assert.equal(revealSurf.bc, 'rgba(0, 0, 0, 0)', `border ${revealSurf.bc}`);
-        assert.equal(revealSurf.color, muted, `color ${revealSurf.color}`);
-        return true;
-      });
-      await page.hover(actionSel);
-      const hoverSurf = await page.evaluate(`(() => {
-        const cs = getComputedStyle(document.querySelector(${JSON.stringify(actionSel)}));
-        return { bg: cs.backgroundColor, bc: cs.borderColor, color: cs.color };
-      })()`);
-      check('Make current glyph turns ink on direct hover, still bare', () => {
-        assert.equal(hoverSurf.bg, 'rgba(0, 0, 0, 0)', `bg ${hoverSurf.bg}`);
-        assert.equal(hoverSurf.bc, 'rgba(0, 0, 0, 0)', `border ${hoverSurf.bc}`);
-        assert.equal(hoverSurf.color, ink, `color ${hoverSurf.color}`);
-        return true;
-      });
-      const rowAlign = await page.evaluate(`(() => {
-        const row = document.querySelector('#task-list .planner-task-row:nth-child(2)');
-        const slot = row.querySelector('.task-row-action').getBoundingClientRect();
-        const r = row.getBoundingClientRect();
-        const cs = getComputedStyle(row);
-        const top = r.top + parseFloat(cs.paddingTop);
-        const bottom = r.bottom - parseFloat(cs.paddingBottom);
-        return { slotCy: slot.top + slot.height / 2, rowCy: (top + bottom) / 2 };
-      })()`);
-      check('Make current slot centred on the whole row', () => {
-        assert.ok(Math.abs(rowAlign.slotCy - rowAlign.rowCy) <= 1, `${rowAlign.slotCy} vs ${rowAlign.rowCy}`);
-        return true;
-      });
-
-      // Wash layer on hover: colour, asymmetric inline bleed (12 left / 7.5
-      // right — the ring glyph sits ~4.5px inside the content edge while the
-      // action glyph sits ~11px in, so equal visual insets need asymmetric
-      // bleed), zero reflow.
+      // Wash layer on hover: colour, symmetric inline bleed (−12/−12 — the
+      // row's right action slot is gone, so both edges mirror), zero reflow.
       await page.hover(rowSel);
       await new Promise(r => setTimeout(r, 180)); // > 120ms wash fade
       const rowHover = await page.evaluate(rowParts(partsExpr));
-      check('task row hover shows the wash, bleed −12/−7.5, no reflow', () => {
+      check('task row hover shows the wash, symmetric −12px bleed, no reflow', () => {
         assert.equal(rowHover.opacity, '1');
         assert.equal(rowHover.bg, washColor, `wash ${rowHover.bg}`);
         assert.ok(Math.abs(parseFloat(rowHover.left) + 12) <= 1, `left ${rowHover.left}`);
-        assert.ok(Math.abs(parseFloat(rowHover.right) + 7.5) <= 1, `right ${rowHover.right}`);
+        assert.ok(Math.abs(parseFloat(rowHover.right) + 12) <= 1, `right ${rowHover.right}`);
         assert.equal(parseFloat(rowHover.radius), 8, `radius ${rowHover.radius}`);
-        for (const part of ['ring', 'title', 'meta', 'slot']) {
+        for (const part of ['ring', 'title', 'meta', 'open']) {
           for (const k of ['x', 'y', 'width', 'height']) {
             assert.ok(Math.abs(rowHover.parts[part][k] - rowRest.parts[part][k]) <= 0.5,
               `${part}.${k}: ${rowRest.parts[part][k]} → ${rowHover.parts[part][k]}`);
@@ -248,10 +209,8 @@ for (const theme of ['light', 'dark']) {
         }
         return true;
       });
-      // Visual-inset symmetry: ring-circle edge ↔ wash left equals action
-      // glyph edge ↔ wash right; the wash's right bleed never exceeds its
-      // left bleed; and the row action glyph stays centred under the toolbar
-      // icons (Todoist link + Calendar heading icon).
+      // Visual-inset symmetry: ring edge ↔ wash left equals the open button's
+      // right edge ↔ wash right.
       const washAlign = await page.evaluate(`(() => {
         const row = document.querySelector(${JSON.stringify(rowSel)});
         const rr = row.getBoundingClientRect();
@@ -259,31 +218,14 @@ for (const theme of ['light', 'dark']) {
         const washL = rr.left + parseFloat(pcs.left);
         const washR = rr.right - parseFloat(pcs.right);
         const ring = row.querySelector('.planner-check').getBoundingClientRect();
-        const ringInset = parseFloat(getComputedStyle(row.querySelector('.planner-check'), '::after').insetBlockStart)
-          || 8.5;
-        const ringEdge = ring.left + ringInset;
-        const glyph = row.querySelector('.task-row-action svg')?.getBoundingClientRect();
-        const todoistIcon = document.querySelector('#view-tasks-btn svg')?.getBoundingClientRect();
-        const calIcon = document.querySelector('#view-schedule-btn svg')?.getBoundingClientRect();
-        return {
-          insetL: ringEdge - washL,
-          insetR: glyph ? washR - glyph.right : null,
-          bleedL: washL - rr.left, bleedR: washR - rr.right,
-          glyphCx: glyph ? glyph.left + glyph.width / 2 : null,
-          todoistCx: todoistIcon ? todoistIcon.left + todoistIcon.width / 2 : null,
-          calCx: calIcon ? calIcon.left + calIcon.width / 2 : null
-        };
+        const open = row.querySelector('.task-open').getBoundingClientRect();
+        return { insetL: washL - (ring.left - 12) , bleedL: washL - rr.left, bleedR: washR - rr.right,
+          insetR: open.right - washR };
       })()`);
-      check('wash visual insets are symmetric and stay inside the icon column', () => {
-        assert.ok(washAlign.glyphCx !== null, 'row action glyph missing');
-        assert.ok(Math.abs(washAlign.insetL - washAlign.insetR) <= 1,
-          `visual insets ${washAlign.insetL} vs ${washAlign.insetR}`);
-        assert.ok(-washAlign.bleedR <= -washAlign.bleedL + 0.01,
-          `right bleed ${-washAlign.bleedR} exceeds left bleed ${-washAlign.bleedL}`);
-        assert.ok(Math.abs(washAlign.glyphCx - washAlign.todoistCx) <= 0.5,
-          `row glyph ${washAlign.glyphCx} vs Todoist icon ${washAlign.todoistCx}`);
-        assert.ok(Math.abs(washAlign.glyphCx - washAlign.calCx) <= 0.5,
-          `row glyph ${washAlign.glyphCx} vs calendar icon ${washAlign.calCx}`);
+      check('wash visual insets are symmetric (12px both sides)', () => {
+        assert.ok(Math.abs(-washAlign.bleedL - 12) <= 0.5, `left bleed ${-washAlign.bleedL}`);
+        assert.ok(Math.abs(washAlign.bleedR - 12) <= 0.5, `right bleed ${washAlign.bleedR}`);
+        assert.ok(Math.abs(washAlign.insetR + 12) <= 1, `right inset ${washAlign.insetR}`);
         return true;
       });
       const symPitch = await page.evaluate(`(() => {
@@ -308,38 +250,11 @@ for (const theme of ['light', 'dark']) {
       });
       await page.mouse.move(10, 10);
 
-      // Row keyboard-focus reveal
-      await page.evaluate(`document.querySelector('#task-list .planner-task-row:nth-child(2) .planner-check').focus({ focusVisible: true })`);
-      const focusOpacity = await page.evaluate(`getComputedStyle(document.querySelector(${JSON.stringify(actionSel)})).opacity`);
-      check('Make current visible on row keyboard focus', () => (assert.equal(focusOpacity, '1'), true));
+      // Row keyboard-focus wash
+      await page.evaluate(`document.querySelector('#task-list .planner-task-row:nth-child(2) .task-open').focus({ focusVisible: true })`);
       await new Promise(r => setTimeout(r, 180)); // > 120ms wash fade
       const focusWash = await page.evaluate(`getComputedStyle(document.querySelector(${JSON.stringify(rowSel)}), '::before').opacity`);
       check('task row keyboard focus shows the wash', () => (assert.equal(focusWash, '1'), true));
-
-      // Direct keyboard focus onto the button itself
-      await page.evaluate(`document.querySelector(${JSON.stringify(actionSel)}).focus({ focusVisible: true })`);
-      const tabOpacity = await page.evaluate(`getComputedStyle(document.querySelector(${JSON.stringify(actionSel)})).opacity`);
-      check('Make current visible on direct focus', () => (assert.equal(tabOpacity, '1'), true));
-
-      // Tooltip on focus
-      await new Promise(r => setTimeout(r, 100));
-      const tip = await page.evaluate(`(() => {
-        const t = document.getElementById('planner-tooltip');
-        if (!t || !t.classList.contains('is-visible')) return null;
-        const b = document.querySelector(${JSON.stringify(actionSel)}).getBoundingClientRect().toJSON();
-        return { tip: t.getBoundingClientRect().toJSON(), btn: b, vw: innerWidth, vh: innerHeight };
-      })()`);
-      check('tooltip appears on focus, off the button, inside viewport', () => {
-        assert.ok(tip, 'tooltip not visible');
-        const overlap = tip.tip.x < tip.btn.x + tip.btn.width && tip.tip.x + tip.tip.width > tip.btn.x
-          && tip.tip.y < tip.btn.y + tip.btn.height && tip.tip.y + tip.tip.height > tip.btn.y;
-        assert.equal(overlap, false, `tooltip overlaps button ${JSON.stringify(tip)}`);
-        assert.ok(tip.tip.x >= 0 && tip.tip.y >= 0
-          && tip.tip.x + tip.tip.width <= tip.vw && tip.tip.y + tip.tip.height <= tip.vh,
-          `tooltip out of viewport ${JSON.stringify(tip)}`);
-        return true;
-      });
-      await page.keyboard.press('Escape');
       await page.evaluate(`document.activeElement.blur?.()`);
 
       // Open event reveal
@@ -509,8 +424,6 @@ for (const theme of ['light', 'dark']) {
       await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
       await coarsePage.goto(`${URL_BASE}?preview-theme=${theme}`, { waitUntil: 'networkidle0' });
       await waitTasks(coarsePage);
-      const coarseOpacity = await coarsePage.evaluate(`getComputedStyle(document.querySelector(${JSON.stringify(actionSel)})).opacity`);
-      check('Make current always visible under hover:none', () => (assert.equal(coarseOpacity, '1'), true));
       // hover:none: the hover wash is gated behind the (hover:hover) and
       // (pointer:fine) media query; keyboard focus still highlights.
       const hoverCapable = await coarsePage.evaluate(`matchMedia('(hover: hover) and (pointer: fine)').matches`);
@@ -635,11 +548,11 @@ async function newFrozenPage(browser, width, height, theme = 'light') {
     const edges = await page.evaluate(`(() => {
       const main = document.querySelector('.main').getBoundingClientRect().right;
       const toolbar = document.querySelector('#tasks-section .icon-actions').getBoundingClientRect().right;
-      const slot = document.querySelector('#task-list .task-row-action').getBoundingClientRect().right;
+      const open = document.querySelector('#task-list .task-open').getBoundingClientRect().right;
       const cal = document.querySelector('#today-timeline-section .icon-actions').getBoundingClientRect().right;
-      return { main, toolbar, slot, cal };
+      return { main, toolbar, open, cal };
     })()`);
-    check('all right-hand action slots are flush with the column edge', () => {
+    check('toolbar, task copy, and calendar actions all end at the column edge', () => {
       for (const [k, v] of Object.entries(edges)) {
         if (k === 'main') continue;
         assert.ok(Math.abs(v - edges.main) < 0.5, `${k} ends at ${v}, column at ${edges.main}`);
@@ -1827,20 +1740,24 @@ function contrast(fg, bg) {
     const sug = await page.evaluate(`[...document.querySelectorAll('#task-list .planner-task-row')].map(r => ({
       t: r.querySelector('.planner-row-title').textContent,
       w: getComputedStyle(r.querySelector('.planner-row-title')).fontWeight,
-      meta: r.querySelector('.planner-row-meta')?.textContent || '',
-      hint: r.querySelector('.visually-hidden')?.textContent || '',
-      current: !!r.querySelector('[aria-current="true"]')
+      meta: r.querySelector('.planner-row-meta')?.textContent || ''
     }))`);
-    check('suggest order: valid override first, then deadline-first', () => {
-      assert.equal(sug[0].t, 'Stored current task with later deadline');
-      assert.equal(sug[0].current, true);
-      assert.equal(sug[0].hint, 'Current task');
-      assert.equal(sug[1].t, 'Timed deadline at 15:00');
-      assert.equal(sug[2].t, 'Later high-priority review');
+    check('suggest order: deadline-first (timed before same-day date-only), uniform weight', () => {
+      assert.equal(sug[0].t, 'Timed deadline at 15:00');
+      assert.equal(sug[0].w, '400');
+      assert.equal(sug[1].t, 'Later high-priority review');
+      assert.equal(sug[2].t, 'Earlier low-priority errand');
       return true;
     });
-    check('override meta shows its real date, not Today', () => {
-      assert.ok(!/today/i.test(sug[0].meta), sug[0].meta);
+    const noCurrent = await page.evaluate(`(() => ({
+      aria: !!document.querySelector('[aria-current]'),
+      name: [...document.querySelectorAll('[aria-label]')].some(el => /make current|current task/i.test(el.getAttribute('aria-label'))),
+      hint: [...document.querySelectorAll('#task-list .visually-hidden')].length
+    }))()`);
+    check('no Make current / Current task / aria-current on the new tab', () => {
+      assert.equal(noCurrent.aria, false, 'aria-current present');
+      assert.equal(noCurrent.name, false, 'current-task accessible name present');
+      assert.equal(noCurrent.hint, 0, 'hidden hint present');
       return true;
     });
     await page.close();
@@ -1850,9 +1767,9 @@ function contrast(fg, bg) {
       w: getComputedStyle(r.querySelector('.planner-row-title')).fontWeight,
       meta: r.querySelector('.planner-row-meta')?.textContent || ''
     }))`);
-    check('future-only: deadline-first order, first bold, dates shown', () => {
+    check('future-only: deadline-first order, uniform weight, dates shown', () => {
       assert.equal(fut[0].t, 'Tomorrow morning review');
-      assert.equal(fut[0].w, '600');
+      assert.equal(fut[0].w, '400');
       assert.ok(!/today/i.test(fut[0].meta) && fut[0].meta.length > 0, fut[0].meta);
       assert.equal(fut[2].t, 'Undated someday item');
       return true;
@@ -2168,7 +2085,6 @@ function contrast(fg, bg) {
             viewportTop: q('#timeline-viewport').top,
             viewportLeft: q('#timeline-viewport').left,
             viewportRight: q('#timeline-viewport').right,
-            makeCurrent: rows[0].querySelector('.icon-action--reveal, .planner-make-current, .task-action')?.getBoundingClientRect().toJSON() || null,
             firstWash: { top: washTop(rows[0]), bottom: washBottom(rows[0]), left: rows[0].getBoundingClientRect().left, right: rows[0].getBoundingClientRect().right }
           };
         })()`);
@@ -2199,13 +2115,6 @@ function contrast(fg, bg) {
           }
           return true;
         });
-        if (g.makeCurrent) {
-          check(`clearance: Make-current ring inside the wash (${tag})`, () => {
-            assert.ok(g.makeCurrent.top - 4 >= g.firstWash.top - 0.5 && g.makeCurrent.bottom + 4 <= g.firstWash.bottom + 0.5,
-              `ring ${g.makeCurrent.top - 4}..${g.makeCurrent.bottom + 4} vs wash ${g.firstWash.top}..${g.firstWash.bottom}`);
-            return true;
-          });
-        }
         await cp.close();
       }
     }

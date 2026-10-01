@@ -63,7 +63,9 @@ const OLD_KEYS = {
   tempUnblocks: [],
   categories: [],
   blockedKeywords: { keywords: ['shorts'] },
-  statsHistory: []
+  statsHistory: [],
+  // v2 leftover: the removed "current task" pin.
+  newtabPlannerState: { taskId: 't1' }
 };
 
 const KEEP_KEYS = {
@@ -85,7 +87,6 @@ const KEEP_KEYS = {
   weatherCacheTime: 1,
   weatherCacheScope: 's',
   'focusCache:weather': { scope: 's' },
-  newtabPlannerState: { taskId: 't1' },
   calendarSettings: {
     connected: true,
     accessToken: 'cal-tok',
@@ -188,6 +189,19 @@ const KEEP_KEYS = {
   assert.equal(local.store.cleanupVersion, CLEANUP_VERSION);
   assert.equal(local.store.theme, 'light');
   assert.deepEqual(result.removedKeys, []);
+}
+
+{
+  // An install already cleaned to '2' re-runs under '3' and drops the
+  // leftover newtabPlannerState pin; everything else stays intact.
+  const local = fakeStorage({ cleanupVersion: '2', newtabPlannerState: { taskId: 't1' }, theme: 'dark', newtabTempUnit: 'F' });
+  const dnr = fakeDnr([], []);
+  const result = await runExtensionCleanup({ storage: local, syncStorage: null, dnr, alarms: null, notifications: null });
+  assert.ok(!('newtabPlannerState' in local.store), 'newtabPlannerState removed on the v3 run');
+  assert.equal(local.store.cleanupVersion, '3');
+  assert.equal(local.store.theme, 'dark');
+  assert.equal(local.store.newtabTempUnit, 'F');
+  assert.deepEqual(result.removedKeys, ['newtabPlannerState']);
 }
 
 // The keep-list is the single source of truth — every key the remaining code

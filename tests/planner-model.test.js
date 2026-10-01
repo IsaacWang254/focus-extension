@@ -11,18 +11,12 @@ import {
   selectCurrentEvents,
   selectHomepageTasks,
   selectNextEvent,
-  selectNowTask,
   parseTaskDeadline,
   rankSuggestedTasks,
   toLocalDateKey,
   validateProviderColor
 } from '../newtab/planner-model.js';
 import { taskMeta } from '../newtab/planner-tasks.js';
-import {
-  clearCurrentTaskState,
-  loadCurrentTaskState,
-  saveCurrentTaskState
-} from '../newtab/planner-state.js';
 import { getMeetingUrl } from '../newtab/planner-calendar.js';
 
 const now = new Date(2026, 8, 29, 9, 0, 0);
@@ -121,7 +115,7 @@ const upcomingOnly = [
   { id: 'und', content: 'Und', priority: 4, due: null }
 ];
 assert.deepEqual(rankSuggestedTasks(upcomingOnly, now).map(task => task.id), ['f1', 'f2', 'und'], 'future deadlines rank before undated fallbacks');
-assert.equal(selectNowTask(upcomingOnly, '', now).id, 'f1', 'upcoming work is suggested when nothing is due');
+assert.equal(selectHomepageTasks(upcomingOnly, now)[0].id, 'f1', 'upcoming work is suggested when nothing is due');
 
 const undatedOnly = [
   { id: 'b', content: 'B', priority: 1, due: null },
@@ -130,14 +124,7 @@ const undatedOnly = [
 ];
 assert.deepEqual(rankSuggestedTasks(undatedOnly, now).map(task => task.id), ['urgent', 'a', 'b'], 'undated tasks rank by priority then id');
 
-const override = selectHomepageTasks(tasks, 'undated', now);
-assert.equal(override.tasks[0].id, 'undated', 'a valid override leads even without a deadline');
-assert.equal(override.currentIsOverride, true);
-assert.deepEqual(override.tasks.slice(1).map(task => task.id), ['overdue', 'today'], 'ranked tasks follow the override');
-assert.equal(override.tasks.length, 3, 'the homepage list is limited to three');
-assert.equal(override.tasks.filter(task => task.id === 'undated').length, 1, 'the override is not duplicated');
-assert.deepEqual(selectHomepageTasks(tasks, 'missing', now).currentIsOverride, false, 'an unknown override falls back to automatic ranking');
-assert.equal(selectNowTask(tasks, 'missing', now).id, 'overdue');
+assert.deepEqual(selectHomepageTasks(tasks, now).map(t => t.id), ['overdue', 'today', 'child'], 'homepage picks the top three by deadline-first ranking');
 
 const malformed = [
   { id: 'bad-date', content: 'Bad', priority: 4, due: dateOnly('2026-02-30') },
@@ -151,8 +138,7 @@ assert.equal(taskMeta({ content: 'Ok', priority: 1, due: dateOnly('2026-09-30') 
 
 const shuffled = [...tasks].reverse();
 assert.deepEqual(rankSuggestedTasks(shuffled, now).map(task => task.id), rankSuggestedTasks(tasks, now).map(task => task.id), 'input order never affects ranking');
-assert.deepEqual(selectHomepageTasks(), { tasks: [], currentIsOverride: false }, 'no tasks yields an empty list');
-assert.equal(selectNowTask([], '', now), null, 'no tasks yields no suggestion');
+assert.deepEqual(selectHomepageTasks(), [], 'no tasks yields an empty list');
 
 const day = groupTasks(tasks, 'day', '2026-09-29');
 assert.deepEqual(day.map(group => group.key), ['overdue', '2026-09-29']);
@@ -221,18 +207,5 @@ const unsortedUpcoming = [
   { id: 'tomorrow-low', content: 'Tomorrow low', priority: 1, due: { date: '2026-09-30' } }
 ];
 assert.deepEqual(groupTasks(unsortedUpcoming, 'upcoming', '2026-09-29').map(group => group.key), ['2026-09-30', '2026-10-03']);
-
-const data = {};
-const storage = {
-  async get(key) { return { [key]: data[key] }; },
-  async set(values) { Object.assign(data, values); },
-  async remove(key) { delete data[key]; }
-};
-await saveCurrentTaskState(storage, 'account-token', 'today', now);
-assert.equal((await loadCurrentTaskState(storage, 'account-token', now)).taskId, 'today');
-assert.equal(await loadCurrentTaskState(storage, 'different-account', now), null);
-assert.equal(await loadCurrentTaskState(storage, 'account-token', new Date(2026, 8, 30, 9, 0, 0)), null);
-await clearCurrentTaskState(storage);
-assert.equal(await loadCurrentTaskState(storage, 'account-token', now), null);
 
 console.log('planner model tests passed');

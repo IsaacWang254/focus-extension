@@ -69,42 +69,9 @@ export function createTaskRow(task, options = {}) {
     describedBy.push(meta.id);
   }
 
-  if (options.hint) {
-    const hint = document.createElement('span');
-    hint.className = 'visually-hidden';
-    hint.id = `task-hint-${task.id}`;
-    hint.textContent = options.hint;
-    copy.appendChild(hint);
-    describedBy.push(hint.id);
-  }
   if (describedBy.length) copy.setAttribute('aria-describedby', describedBy.join(' '));
   copy.addEventListener('click', event => options.onEdit?.(task, event.currentTarget, event.detail === 0));
 
   row.append(complete, copy);
-
-  // One reserved action slot on the right: Make current, or the filled-play
-  // mark while this task is the current one.
-  const slot = document.createElement('span');
-  slot.className = 'task-row-action';
-  if (options.current) {
-    const mark = document.createElement('span');
-    mark.className = 'task-current-mark';
-    mark.setAttribute('role', 'img');
-    mark.setAttribute('aria-label', `Current task: ${task.content || ''}`);
-    mark.setAttribute('aria-current', 'true');
-    mark.innerHTML = iconMarkup('playFilled');
-    slot.appendChild(mark);
-  } else if (options.onMakeCurrent) {
-    const makeCurrent = createIconButton({
-      icon: iconMarkup('play'),
-      label: `Make current: ${task.content || ''}`,
-      tooltip: 'Make current',
-      className: 'icon-action--reveal',
-      onClick: () => options.onMakeCurrent(task)
-    });
-    makeCurrent.dataset.tooltipSide = 'left';
-    slot.appendChild(makeCurrent);
-  }
-  if (slot.children.length) row.appendChild(slot);
   return row;
 }
