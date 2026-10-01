@@ -1,0 +1,72 @@
+import { validateProviderColor } from './planner-model.js';
+
+const PAPER = { light: '#fafafa', dark: '#141414' };
+const INK = { light: '#1f1f1f', dark: '#ededed' };
+const CONTRAST_TARGET = 4.5;
+
+function hexToRgb(hex) {
+  return {
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16)
+  };
+}
+
+function rgbToHex({ r, g, b }) {
+  const channel = value => Math.round(Math.max(0, Math.min(255, value))).toString(16).padStart(2, '0');
+  return `#${channel(r)}${channel(g)}${channel(b)}`;
+}
+
+function mixRgb(a, b, t) {
+  return { r: a.r + (b.r - a.r) * t, g: a.g + (b.g - a.g) * t, b: a.b + (b.b - a.b) * t };
+}
+
+function mixHex(a, b, t) {
+  return rgbToHex(mixRgb(hexToRgb(a), hexToRgb(b), t));
+}
+
+function relativeLuminance(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  const channel = value => {
+    const srgb = value / 255;
+    return srgb <= 0.04045 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+
+export function contrastRatio(a, b) {
+  const lighter = Math.max(relativeLuminance(a), relativeLuminance(b));
+  const darker = Math.min(relativeLuminance(a), relativeLuminance(b));
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function alphaBlend(foreground, background, alpha) {
+  return rgbToHex(mixRgb(hexToRgb(background), hexToRgb(foreground), Math.max(0, Math.min(1, alpha))));
+}
+
+/**
+ * Theme-aware colors for a calendar event block. `bar` is the validated
+ * provider color; `background` mixes it into the theme paper; `text` starts
+ * from a color/ink blend and steps toward theme ink until its effective color
+ * (alpha-blended at `fade` over the background) reaches 4.5:1 contrast.
+ */
+export function eventColors(color, theme, { fade = 1 } = {}) {
+  const dark = theme === 'dark';
+  const bar = validateProviderColor(color);
+  const background = mixHex(dark ? PAPER.dark : PAPER.light, bar, dark ? 0.24 : 0.16);
+  const ink = dark ? INK.dark : INK.light;
+  const initialText = mixHex(dark ? '#ffffff' : '#000000', bar, dark ? 0.66 : 0.68);
+  const opacity = Math.max(0, Math.min(1, Number(fade)));
+
+  let text = initialText;
+  for (let step = 0; step <= 10; step += 1) {
+    const candidate = mixHex(initialText, ink, step / 10);
+    const effective = alphaBlend(candidate, background, opacity);
+    if (contrastRatio(effective, background) >= CONTRAST_TARGET) {
+      text = candidate;
+      break;
+    }
+    if (step === 10) text = ink;
+  }
+  return { bar, background, text };
+}

@@ -1,23 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Focus Extension",
-  "version": "1.0.0",
-  "description": "Block distracting websites and display your Todoist todos instead. Stay focused and productive.",
+  "version": "2.0.0",
+  "description": "A calm new tab with your Todoist tasks and today's Google Calendar.",
   "incognito": "split",
   "permissions": [
     "declarativeNetRequest",
-    "declarativeNetRequestFeedback",
     "storage",
     "identity",
-    "tabs",
-    "webNavigation",
-    "scripting",
-    "alarms",
-    "history",
-    "notifications"
-  ],
-  "optional_permissions": [
-    "identity.email"
+    "alarms"
   ],
   "oauth2": {
     "client_id": "979894583851-3n4pnn9kvst88iadnj0akiqat3lf38bq.apps.googleusercontent.com",
@@ -27,23 +18,16 @@
     ]
   },
   "host_permissions": [
-    "*://*/*",
-    "https://www.googleapis.com/*"
+    "https://api.todoist.com/*",
+    "https://www.googleapis.com/*",
+    "https://api.open-meteo.com/*",
+    "https://focus-extension-proxy.isaacaimdrone.workers.dev/*"
   ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content-redirect.js"],
-      "run_at": "document_start",
-      "all_frames": true
-    }
-  ],
   "action": {
-    "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
@@ -58,25 +42,5 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "blocked/blocked.html",
-        "blocked/blocked.css",
-        "blocked/blocked.js",
-        "lib/todoist.js",
-        "lib/icons.js",
-        "lib/common.css",
-        "stats/stats.html",
-        "stats/stats.css",
-        "stats/stats.js",
-        "newtab/newtab.html",
-        "newtab/newtab.css",
-        "newtab/newtab.js",
-        "newtab/quotes.js"
-      ],
-      "matches": ["<all_urls>"]
-    }
-  ]
+  }
 }

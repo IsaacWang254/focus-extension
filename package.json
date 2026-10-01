@@ -1,15 +1,10 @@
 {
   "name": "focus-extension",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "build:local": "node scripts/build-local.js",
-    "build:popup": "esbuild popup/radix.jsx --bundle --format=esm --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --minify --outfile=popup/radix.bundle.js",
-    "build:stats": "esbuild stats/radix.jsx --bundle --format=esm --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --minify --outfile=stats/radix.bundle.js",
-    "build:options": "esbuild options/radix-shell.jsx --bundle --format=esm --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --minify --outfile=options/radix-shell.bundle.js",
-    "build:blocked": "esbuild blocked/radix-shell.jsx --bundle --format=esm --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --minify --outfile=blocked/radix-shell.bundle.js",
-    "build:ui": "npm run build:popup && npm run build:stats && npm run build:options && npm run build:blocked",
     "copy-fonts": "node scripts/copy-fonts.js",
     "preview": "node scripts/preview/serve.mjs"
   },
@@ -17,14 +12,6 @@
     "@fontsource-variable/hanken-grotesk": "5.2.8",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
-    "@radix-ui/react-popover": "^1.1.15",
-    "@radix-ui/react-progress": "^1.1.8",
-    "@radix-ui/react-select": "^2.2.6",
-    "@radix-ui/react-toggle-group": "^1.1.11",
-    "@radix-ui/react-toolbar": "^1.1.11",
-    "dotenv": "^16.4.5",
-    "esbuild": "^0.28.0",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "dotenv": "^16.4.5"
   }
 }

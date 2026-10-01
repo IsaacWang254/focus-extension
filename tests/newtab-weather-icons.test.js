@@ -75,13 +75,13 @@ assert.match(Icons.moon, /M21 12\.79A9 9 0 1 1 11\.21 3/, 'Icons.moon baseline p
 const newtabCss = read('../newtab/newtab.css');
 assert.match(
   newtabCss,
-  /body\[data-surface="newtab"\]\s+\.weather-icon\s*\{[^}]*color:\s*var\(--foreground\)/s,
-  'weather icon uses the neutral foreground token'
+  /\.weather-icon\s*\{[^}]*color:\s*var\(--nt-muted\)/s,
+  'weather icon uses the muted homepage token'
 );
 assert.match(
   newtabCss,
-  /body\[data-surface="newtab"\]\s+\.weather-icon\s+svg\s*\{[^}]*width:\s*32px[^}]*stroke-width:\s*1\.5/s,
-  'weather svg sized 32px at stroke 1.5'
+  /\.weather-icon\s+svg\s*\{[^}]*width:\s*18px[^}]*stroke-width:\s*1\.5/s,
+  'weather svg sized 18px at stroke 1.5'
 );
 
 const newtabHtml = read('../newtab/newtab.html');

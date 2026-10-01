@@ -4,40 +4,31 @@
   <img src="./icons/icon128.png" alt="Focus Extension icon" width="128" height="128">
 </p>
 
-Chrome extension for blocking distracting sites and replacing them with a focused dashboard that shows your Todoist tasks, calendar, and helpful context. The interface uses a red, Modernist-inspired design with light/dark modes and optional animated backgrounds.
+Chrome extension that replaces the new tab page with a calm dashboard showing your Todoist tasks and today's Google Calendar. The interface uses a Modernist-inspired design with light/dark modes.
 
 ### Features
 
-- **Site blocking**: Blocked sites show an in-page focus screen (a full-page intervention rendered inside the tab, not a declarative redirect), with support for:
-  - **Blocklist / allowlist** modes
-  - **Categories** (e.g., social, entertainment, forums)
-  - **Keyword blocking** and URL whitelists
-- **Smart unblock flows**:
-  - Timed unlock, typing a phrase or reason, math challenge, optional password
-  - **Earned time** by completing Todoist tasks
-  - Task-goal unlocks based on completing one task now or a required number of tasks today
 - **New tab dashboard**:
-  - Clock, greeting, motivational quote
+  - Clock and date
   - Weather
-  - Google Calendar events
-  - Todoist tasks and completed-today summary
-- **Profiles & schedules**:
-  - Multiple blocking profiles (work, study, relaxed)
-  - Time-of-day and day-of-week schedules
+  - Today's Google Calendar timeline
+  - Todoist tasks with a centred spotlight Quick Add (⌘K / Ctrl+K) and an edit drawer
+- **Settings page** (opened via the toolbar icon):
+  - Todoist and Google Calendar connect/disconnect
+  - Calendar selection, new-tab visibility toggles, temperature unit, theme
 - **Todoist integration**:
   - OAuth via a Cloudflare Worker proxy (client secret stays server-side)
-  - View, complete, and create tasks from the blocked/new tab pages
+  - View, complete, create, and edit tasks from the new tab page
 - **Google Calendar integration**:
-  - Read-only access to your events to show what’s coming up
+  - Read-only access to your events to show what's coming up
 
 ### Architecture
 
 - **Browser extension (MV3)**
   - `manifest.json` – Chrome extension manifest
-  - `background.js` – service worker that manages blocking rules, timers, usage tracking, achievements, etc.
-  - `options/` – full settings UI
+  - `background.js` – service worker for Google Calendar auth/planner events and the one-time cleanup of removed features
+  - `options/` – settings UI
   - `newtab/` – new tab dashboard
-  - `blocked/` – blocked page with Todoist-based unblock flows
   - `lib/todoist.js` – Todoist API wrapper used by the extension UIs
 - **Cloudflare Worker**
   - Lives in `worker/`
@@ -120,20 +111,18 @@ If you change the deployed Worker URL, update `TOKEN_PROXY_URL` in `.env` and re
 
 ### Previewing the UI outside Chrome
 
-All five surfaces can be rendered in a normal browser with fixture data (no
+Both surfaces can be rendered in a normal browser with fixture data (no
 extension load needed):
 
 ```bash
 npm run preview   # http://localhost:4173
 ```
 
-- `/newtab/newtab.html`, `/blocked/blocked.html?url=…`, `/options/options.html`
-  get a `chrome.*` shim with realistic fixtures injected at request time
-  (`scripts/preview/shim.js`); the files on disk are untouched.
-- `/popup/popup.html` and `/stats/stats.html` use their built-in preview
-  fixtures; append `?shim=1` to use the shim fixtures instead.
-- Query params: `preview-theme=dark`, `preview-state=nuclear|limit|empty`
-  (blocked page), `preview-bg=ocean|dither` (new tab), `shim=0` to disable.
+- `/newtab/newtab.html` and `/options/options.html` get a `chrome.*` shim with
+  realistic fixtures injected at request time (`scripts/preview/shim.js`); the
+  files on disk are untouched.
+- Query params: `preview-theme=dark`, `preview-now=<iso>` (freeze the clock),
+  `preview-fixture=<name>` (see `scripts/preview/shim.js`), `shim=0` to disable.
 
 Design invariants (flat hairline surfaces and token-driven color) are
 enforced by `node tests/design-tokens.test.js`.
@@ -178,14 +167,7 @@ only share an entry when their scopes match exactly.
   `Retry-After` for 429s) so concurrent pages don't each retry a failing
   endpoint. Auth failures (401/403) are recorded as status-only entries with
   no cached value and are never served as stale data.
-- The daily task-goal check used for unblocking stays **live** — it always
-  queries Todoist directly — and arbitrary-range `getCompletedTasks` requests
-  are never cached.
-- Calendar's optional background sync (for auto profile switching) still runs
-  on its own 5-minute alarm, independent of the dashboard display cache.
-- Animated shader backgrounds load lazily: the module is imported only for the
-  selected background while the tab is visible, and the GL harness compiles
-  only the active quality program.
+- Arbitrary-range `getCompletedTasks` requests are never cached.
 
 #### Measuring
 
@@ -209,7 +191,7 @@ and saved weather coordinates. Each fixture endpoint returns one response page.
 | Weather | 1 → 1 | 5 → 1 |
 | **Total** | **17 → 5** | **25 → 5** |
 
-Eager shader imports also dropped from two to zero. These are deterministic
+These are deterministic
 fixture request counts, not real-account latency or Core Web Vitals measurements.
 The first uncached load still needs the network; subsequent matching opens reuse
 the cache until it expires or is invalidated.
@@ -225,7 +207,7 @@ for test in tests/*.test.js; do printf '\n=== %s ===\n' "$test"; node "$test" ||
 ### Privacy & data
 
 - **Local storage**:
-  - Extension settings, focus profiles, schedule configuration.
+  - Extension settings (new-tab visibility, temperature unit, theme).
   - Cached weather location (lat/lon) and weather responses.
   - Cached Todoist task/label/project responses and the new-tab calendar
     display range (see Performance and refresh behavior). Access tokens are
@@ -242,9 +224,9 @@ for test in tests/*.test.js; do printf '\n=== %s ===\n' "$test"; node "$test" ||
   - Access is read-only using the configured OAuth scopes.
   - Used solely to show upcoming events on the new tab page.
   - Disconnecting clears the token and all associated cached calendar data.
-- **Browsing history**:
-  - If enabled in settings, the extension uses the `history` permission to analyze productivity and usage patterns locally.
-  - Data is stored locally and not sent to any external server by default.
+- A one-time cleanup on install/update removes data left behind by removed
+  features (site lists, focus sessions, stats/history, shader and background
+  preferences, stale blocking rules); see `lib/cleanup.js`.
 
 ### Contributing
 

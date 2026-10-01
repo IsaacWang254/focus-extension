@@ -1,11 +1,15 @@
 @import '../lib/common.css';
+@import '../lib/nt-tokens.css';
 
 /* ============================================
    New Tab Page Layout
    ============================================ */
 
 html {
-  background-color: var(--background);
+  background-color: #fafafa;
+}
+html[data-theme$="dark"] {
+  background-color: #141414;
 }
 
 body {
@@ -17,255 +21,56 @@ body {
   background-color: transparent;
 }
 
-.bg-shader {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 0;
-  pointer-events: none;
-  /* Hidden until newtab.js picks one, so the two canvases never both paint. */
-  display: none;
-}
-
-/* The dither canvas renders far below CSS resolution on purpose; nearest-
-   neighbour upscaling is what keeps the stipple crisp instead of smearing it
-   into flat grey. */
-.bg-dither {
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bg-shader {
-    display: none !important;
-  }
-}
-
 /* ============================================
-   Readability over animated backgrounds
-   ============================================ */
-
-/* Panels carry no fill, so text sits almost directly on the shader. Rather
-   than giving every element its own shadow or frosted plate, one page-level
-   wash demotes the shader to ambient texture: flat ground under the content
-   column on the left, opening up toward the right where there is nothing but
-   background. Everything above it can then use ordinary token colors. */
-.bg-active::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: linear-gradient(
-    105deg,
-    var(--background) 0%,
-    var(--background) 32%,
-    color-mix(in srgb, var(--background) 80%, transparent) 56%,
-    color-mix(in srgb, var(--background) 55%, transparent) 100%
-  );
-}
-
-/* The dither is high-frequency stipple; it needs slightly more cover than the
-   ocean's smooth gradient before thin mono text stays crisp. */
-.bg-dither-active::before {
-  background: linear-gradient(
-    105deg,
-    var(--background) 0%,
-    var(--background) 38%,
-    color-mix(in srgb, var(--background) 86%, transparent) 60%,
-    color-mix(in srgb, var(--background) 62%, transparent) 100%
-  );
-}
-
-/* Panels are plain lists — no fill, no frosted plate — so over the shader
-   they rely entirely on the page-level wash for legibility. */
-.bg-active .panel {
-  background-color: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-/* ============================================
-   Background Color Swatches
-   ============================================ */
-
-.background-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.background-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.background-status {
-  margin: 0;
-  font-size: 0.82rem;
-  color: var(--muted-foreground);
-  line-height: 1.5;
-}
-
-.temp-unit-toggle {
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.temp-unit-btn {
-  padding: 8px 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  border: none;
-  background: transparent;
-  color: var(--muted-foreground);
-  cursor: pointer;
-  transition: background-color 0.15s, color 0.15s;
-}
-
-.temp-unit-btn:not(:last-child) {
-  border-right: 1px solid var(--border);
-}
-
-.temp-unit-btn.selected {
-  background-color: var(--indigo);
-  color: #fff;
-}
-
-.temp-unit-btn:hover:not(.selected) {
-  background-color: var(--accent);
-}
-
-.color-swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.color-swatch {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 2px solid var(--border);
-  cursor: pointer;
-  padding: 0;
-  background-color: var(--swatch-color, transparent);
-  transition: all var(--transition-fast);
-  position: relative;
-  flex-shrink: 0;
-}
-
-.color-swatch:hover {
-  transform: scale(1.1);
-  border-color: var(--muted-foreground);
-}
-
-.color-swatch.selected {
-  border-color: var(--indigo);
-  box-shadow: 0 0 0 2px var(--indigo-subtle);
-}
-
-.color-swatch.selected::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 8px;
-  height: 8px;
-  background-color: var(--indigo);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.swatch-default {
-  background-color: var(--background);
-}
-
-.swatch-custom {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: conic-gradient(#ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff, #ff0088, #ff0000);
-  overflow: hidden;
-}
-
-.swatch-custom input[type="color"] {
-  position: absolute;
-  width: 0;
-  height: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.swatch-custom.selected::after {
-  background-color: white;
-}
-
-/* ============================================
-   Main Content
+   Main column
    ============================================ */
 
 .main {
   position: relative;
-  /* Above the dither legibility scrim (z-index 1), which is itself above the
-     shader canvas (z-index 0). */
   z-index: 2;
-  width: 100%;
-  max-width: none;
-  min-height: 100vh;
-  padding: clamp(28px, 4vw, 52px);
-  margin: 0 auto;
   flex: 1;
-  overflow: hidden;
+  width: min(812px, 100% - 48px);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 96px 0 96px;
+  overflow: visible;
+  animation: newtabFadeIn 0.4s ease;
 }
 
-.center-stage {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
-  min-height: calc(100vh - 96px);
-  gap: clamp(8px, 1.2vh, 14px);
-  width: min(100%, 980px);
-  margin: 0;
-  padding: clamp(12px, 2.2vh, 24px) 0 clamp(40px, 6vh, 64px);
-  text-align: left;
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ============================================
-   Hero: Clock + Greeting
+   Header: clock + date/weather
    ============================================ */
 
-.hero {
-  text-align: left;
-  margin: -6px 0 0;
-  flex-shrink: 0;
+.home-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 48px;
 }
 
 .clock {
-  display: inline-flex;
+  display: flex;
   align-items: baseline;
-  justify-content: center;
-  gap: 0.02em;
-  font-size: clamp(4.2rem, 7.8vw, 6.3rem);
-  justify-content: flex-start;
-  /* The box is flush left with everything else, but at this size the glyph's
-     left side bearing reads as an indent. Pull it back optically. */
-  margin-left: -0.035em;
-  font-weight: 700;
-  line-height: 0.96;
-  color: var(--foreground);
-  letter-spacing: -0.045em;
+  margin: 0;
+  color: var(--nt-ink);
+  font-size: 56px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  margin-bottom: 0;
 }
 
 .clock-part {
@@ -274,169 +79,90 @@ body {
 
 .clock-separator {
   display: inline-block;
-  transform: translateY(-0.04em);
-  opacity: 0.72;
-  font-weight: 400;
-  letter-spacing: 0;
+  margin: 0;
 }
 
-/* ============================================
-   Bedtime Reminder
-   ============================================ */
-
-.bedtime-reminder {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
+.home-side {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 32px;
-  box-sizing: border-box;
-  background: var(--background);
-  animation: bedtimeReminderIn 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
-  text-align: center;
+  align-items: flex-end;
+  min-width: 0;
+  padding-top: 10px;
+  text-align: right;
 }
 
-.bedtime-reminder-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  color: var(--muted-foreground);
-  background: var(--secondary);
-  border: 1px solid var(--border);
-  margin-bottom: 28px;
-}
-
-.bedtime-reminder-icon svg {
-  width: 20px;
-  height: 20px;
-}
-
-.bedtime-reminder-title {
-  margin: 0 0 20px;
-  font-size: clamp(1.625rem, 4vw, 2.125rem);
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.025em;
-  color: var(--foreground);
-  word-break: keep-all;
-  overflow-wrap: normal;
-}
-
-.bedtime-reminder-divider {
-  width: 32px;
-  height: 0;
-  background: transparent;
-  margin: 0 auto 20px;
-}
-
-.bedtime-reminder-text {
+.full-date {
   margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.7;
-  color: var(--muted-foreground);
-  max-width: 320px;
-}
-
-.bedtime-reminder-elapsed {
-  color: var(--foreground);
-  font-weight: 500;
-}
-
-.bedtime-reminder-sub {
-  margin: 8px 0 0;
-  font-size: 0.8125rem;
-  color: var(--muted-foreground);
-  opacity: 0.7;
+  color: var(--nt-ink);
+  font-size: 17px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
 /* ============================================
-   Weather Section
+   Weather
    ============================================ */
 
 .weather-section {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 12px;
-  margin: -8px 0 0;
-  min-height: 30px;
-  flex-shrink: 0;
-  text-align: left;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 22px;
+  margin-top: 6px;
+  color: var(--nt-muted);
+  font-size: 15px;
+  line-height: 1.4;
+  text-align: right;
 }
 
 .weather-loading {
   display: flex;
   align-items: center;
-  justify-content: center;
-}
-
-.spinner-sm {
-  width: 20px;
-  height: 20px;
-  border-width: 2px;
 }
 
 .weather-content {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  justify-content: flex-start;
-  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* The H/L segment reads as a continuation of the description — one normal
+   space, not a full flex gap. */
+.weather-highlow {
+  margin-left: -3px;
 }
 
 .weather-icon {
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: var(--foreground);
+  color: var(--nt-muted);
 }
 
 .weather-icon svg {
-  width: 34px;
-  height: 34px;
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.5;
 }
 
 .weather-temp {
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: var(--foreground);
+  color: var(--nt-ink);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-}
-
-.weather-desc {
-  font-size: 1.05rem;
-  color: var(--muted-foreground);
 }
 
 .weather-highlow {
-  font-size: 0.95rem;
-  color: var(--muted-foreground);
-  opacity: 0.7;
   font-variant-numeric: tabular-nums;
 }
 
-.weather-highlow::before {
-  content: '\00B7\00A0';
-}
-
 .weather-error {
-  text-align: center;
+  font-size: 0.82rem;
 }
 
 /* ============================================
    Fade-in Animation
    ============================================ */
-
-.main {
-  animation: newtabFadeIn 0.4s ease;
-}
 
 @keyframes newtabFadeIn {
   from {
@@ -449,454 +175,83 @@ body {
   }
 }
 
-@keyframes bedtimeReminderIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 /* ============================================
-   Dashboard Theme
+   Homepage tokens + sections
    ============================================ */
 
-[data-theme="dashboard-light"] {
-  background: #f1f0ec;
+/* The page fits the viewport — no page scrollbar to reserve a gutter for. */
+html:has(> body[data-surface="newtab"]) {
+  background: #fafafa;
 }
 
-[data-theme="dashboard-dark"] {
-  background: #1f1f1f;
+html[data-theme$="dark"]:has(> body[data-surface="newtab"]) {
+  background: #141414;
 }
-
-[data-theme="dashboard-light"] body,
-[data-theme="dashboard-dark"] body {
-  background: transparent;
-}
-
-[data-theme="dashboard-light"] .main,
-[data-theme="dashboard-dark"] .main {
-  max-width: none;
-  padding: clamp(28px, 4vw, 52px);
-}
-
-[data-theme="dashboard-light"] .hero,
-[data-theme="dashboard-dark"] .hero {
-  display: block;
-  width: auto;
-  margin: 0;
-  text-align: center;
-}
-
-[data-theme="dashboard-light"] .clock,
-[data-theme="dashboard-dark"] .clock {
-  font-size: clamp(4.2rem, 7.8vw, 6.3rem);
-  line-height: 0.96;
-  letter-spacing: -0.035em;
-  margin-bottom: 0;
-}
-
-[data-theme="dashboard-light"] .weather-section,
-[data-theme="dashboard-dark"] .weather-section,
-[data-theme="dashboard-light"] .quote-section,
-[data-theme="dashboard-dark"] .quote-section {
-  width: auto;
-  max-width: none;
-  padding-left: 0;
-  padding-right: 0;
-}
-
-[data-theme="dashboard-light"] .weather-section,
-[data-theme="dashboard-dark"] .weather-section {
-  justify-content: center;
-  text-align: center;
-  margin-bottom: 0;
-  min-height: 0;
-}
-
-[data-theme="dashboard-light"] .weather-content,
-[data-theme="dashboard-dark"] .weather-content {
-  justify-content: center;
-  width: auto;
-  gap: 10px;
-}
-
-[data-theme="dashboard-light"] .focus-snapshot-metric + .focus-snapshot-metric,
-[data-theme="dashboard-dark"] .focus-snapshot-metric + .focus-snapshot-metric {
-  border-left-color: var(--border);
-}
-
-[data-theme="dashboard-light"] .weather-temp,
-[data-theme="dashboard-dark"] .weather-temp,
-[data-theme="dashboard-light"] .weather-desc,
-[data-theme="dashboard-dark"] .weather-desc,
-[data-theme="dashboard-light"] .weather-highlow,
-[data-theme="dashboard-dark"] .weather-highlow {
-  line-height: 1.1;
-}
-
-[data-theme="dashboard-light"] .quote-text,
-[data-theme="dashboard-dark"] .quote-text {
-  max-width: 48ch;
-  font-style: normal;
-  font-size: 0.9rem;
-  color: var(--muted-foreground);
-}
-
-[data-theme="dashboard-light"] .quote-author,
-[data-theme="dashboard-dark"] .quote-author {
-  margin-top: 6px;
-}
-
-[data-theme="dashboard-light"] .weather-temp,
-[data-theme="dashboard-dark"] .weather-temp {
-  font-size: 1.6rem;
-}
-
-[data-theme="dashboard-light"] .temp-unit-toggle,
-[data-theme="dashboard-dark"] .temp-unit-toggle {
-  border-color: var(--foreground);
-  background-color: var(--background);
-}
-
-[data-theme="dashboard-light"] .temp-unit-btn,
-[data-theme="dashboard-dark"] .temp-unit-btn {
-  color: var(--muted-foreground);
-  background-color: var(--background);
-}
-
-[data-theme="dashboard-light"] .temp-unit-btn:not(:last-child),
-[data-theme="dashboard-dark"] .temp-unit-btn:not(:last-child) {
-  border-right-color: var(--foreground);
-}
-
-[data-theme="dashboard-light"] .temp-unit-btn.selected,
-[data-theme="dashboard-dark"] .temp-unit-btn.selected {
-  background-color: var(--foreground);
-  color: var(--background);
-}
-
-[data-theme="dashboard-light"] .temp-unit-btn:hover:not(.selected),
-[data-theme="dashboard-dark"] .temp-unit-btn:hover:not(.selected) {
-  background-color: var(--muted);
-  color: var(--foreground);
-}
-
-[data-theme="dashboard-light"] .todo-checkbox,
-[data-theme="dashboard-dark"] .todo-checkbox {
-  border-color: var(--muted-foreground);
-  background-color: var(--background);
-}
-
-/* Priority rings inherit the token-driven base rules above — in the dashboard
-   themes the semantic tokens resolve to graphite tiers, matching the blocked
-   page. No hardcoded reds/ambers here. */
-[data-theme="dashboard-light"] .todo-checkbox:hover,
-[data-theme="dashboard-dark"] .todo-checkbox:hover {
-  border-color: var(--foreground);
-  background-color: var(--muted);
-}
-
-[data-theme="dashboard-light"] .todo-checkbox.checked,
-[data-theme="dashboard-dark"] .todo-checkbox.checked,
-[data-theme="dashboard-light"] .completed-item-check,
-[data-theme="dashboard-dark"] .completed-item-check {
-  background-color: var(--muted-foreground);
-  border-color: var(--muted-foreground);
-  color: var(--background);
-}
-
-[data-theme="dashboard-light"] .todo-checkbox.checked::after,
-[data-theme="dashboard-dark"] .todo-checkbox.checked::after {
-  border-color: var(--background);
-}
-
-[data-theme="dashboard-light"] .panel-count,
-[data-theme="dashboard-dark"] .panel-count {
-  color: var(--muted-foreground);
-}
-
-[data-theme="dashboard-light"] .show-more-btn,
-[data-theme="dashboard-dark"] .show-more-btn {
-  border-color: var(--border);
-}
-
-/* ============================================
-   Responsive
-   ============================================ */
-
-@media (max-width: 768px) {
-  .main {
-    padding: var(--space-6) var(--space-4) calc(var(--space-10) + 48px);
-  }
-
-  .hero,
-  .weather-section,
-  .focus-snapshot-inline {
-    text-align: center;
-    align-items: center;
-  }
-
-  .focus-snapshot-inline {
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 14px;
-    padding: 0;
-  }
-
-  .focus-snapshot-metric {
-    align-items: center;
-    width: 100%;
-    padding: 0;
-    gap: 6px;
-  }
-
-  .focus-snapshot-metric + .focus-snapshot-metric {
-    border-left: 0;
-    border-top: 0;
-    padding-left: 0;
-    padding-top: 14px;
-  }
-
-  .quote-section {
-    position: static;
-    left: auto;
-    transform: none;
-    width: 100%;
-    pointer-events: none;
-  }
-
-  .center-stage {
-    min-height: auto;
-    width: 100%;
-    padding: 0 0 calc(var(--space-8) + 24px);
-    gap: 10px;
-  }
-
-  .clock {
-    font-size: 3.5rem;
-  }
-
-  .focus-snapshot-inline-value {
-    font-size: 1.9rem;
-  }
-
-  .bedtime-reminder {
-    padding: 32px var(--space-4);
-  }
-
-  .content-panels {
-    grid-template-columns: 1fr;
-    max-width: none;
-  }
-
-  .panel-todos {
-    grid-column: 1;
-  }
-
-  /* The rail folds under the tasks, separated by a hairline. */
-  .side-rail {
-    grid-column: 1;
-    border-left: 0;
-    padding-left: 0;
-    border-top: 0;
-    padding-top: var(--space-4);
-    gap: var(--space-6);
-  }
-
-  .panel-body,
-  .panel-todos .panel-body {
-    max-height: 200px;
-  }
-}
-
-/* ============================================
-   Calm daily brief
-   ============================================ */
 
 body[data-surface="newtab"] {
   min-height: 100vh;
   height: auto;
   overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-gutter: stable;
   align-items: stretch;
+  color: var(--nt-ink);
 }
 
+html[data-design="modernist"] body[data-surface="newtab"] {
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+body[data-surface="newtab"] {
+  background-color: var(--nt-paper);
+}
+
+/* Full-viewport column: the Calendar section flexes to fill whatever the
+   header and tasks leave; the page itself never scrolls unless the 160px
+   timeline minimum can't fit (accessibility fallback). */
 body[data-surface="newtab"] .main {
-  width: min(100% - clamp(40px, 8vw, 176px), 1264px);
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  flex: none; /* the generic .main rule sets flex:1, which would re-stretch past 100dvh */
+  width: min(812px, 100% - 48px);
+  height: 100dvh;
   margin: 0 auto;
-  padding: clamp(28px, 4.2vw, 60px) 0 clamp(72px, 8vw, 112px);
+  padding: 96px 0 48px;
   overflow: visible;
 }
 
-.daily-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: flex-end;
-  gap: clamp(48px, 10vw, 160px);
-  margin-top: clamp(30px, 6vh, 66px);
+/* ≥12px between the weather/date block's bottom edge and the toolbar's
+   focus-ring edge (button box + 4px ring offset). */
+#tasks-section {
+  margin-top: 16px;
 }
 
-body[data-surface="newtab"] .clock {
+#today-timeline-section {
   display: flex;
-  align-items: baseline;
-  color: var(--modernist-signal, #e5352c);
-  font-size: clamp(5.2rem, 8.5vw, 7.6rem);
-  font-weight: 400;
-  line-height: 0.88;
-  letter-spacing: -0.075em;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: 48px;
 }
 
-body[data-surface="newtab"] .clock[data-leading-digit="1"] {
-  margin-left: -0.2em;
-}
 
-body[data-surface="newtab"] .clock-separator {
-  margin: 0 0.02em;
-}
 
-.full-date {
-  margin: clamp(14px, 2vh, 20px) 0 0;
-  color: var(--foreground);
-  font-size: clamp(1.1rem, 1.7vw, 1.45rem);
-  letter-spacing: -0.025em;
-}
-
-body[data-surface="newtab"] .weather-section {
-  min-width: 220px;
-  margin: 0 0 4px;
-  min-height: 70px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-}
-
-body[data-surface="newtab"] .weather-content {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-
-body[data-surface="newtab"] .weather-copy {
-  display: grid;
-  grid-template-columns: auto auto;
-  column-gap: 14px;
-  align-items: baseline;
-}
-
-body[data-surface="newtab"] .weather-temp {
-  grid-row: span 2;
-  font-size: clamp(2rem, 3vw, 2.7rem);
-  line-height: 1;
-  letter-spacing: -0.05em;
-}
-
-body[data-surface="newtab"] .weather-desc,
-body[data-surface="newtab"] .weather-highlow,
-body[data-surface="newtab"] .weather-error {
-  color: var(--muted-foreground);
-  font-size: 0.86rem;
-}
-
-body[data-surface="newtab"] .weather-icon {
-  display: flex;
-  color: var(--foreground);
-}
-
-body[data-surface="newtab"] .weather-icon svg {
-  width: 32px;
-  height: 32px;
-  stroke-width: 1.5;
-}
-
-.daily-brief {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: clamp(64px, 10vw, 150px);
-  margin-top: clamp(72px, 10vh, 118px);
-}
-
-.brief-feature {
-  min-width: 0;
-}
-
-.section-eyebrow {
-  margin: 0 0 18px;
-  color: var(--muted-foreground);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-}
-
-.feature-content {
-  min-height: 86px;
-}
-
-.planner-task-feature {
-  align-items: flex-start;
-}
-
-.planner-task-feature .planner-row-title {
-  font-size: clamp(1.65rem, 2.7vw, 2.25rem);
-  font-weight: 400;
-  line-height: 1.16;
-  letter-spacing: -0.04em;
-}
-
-.brief-empty {
-  margin: 0 0 10px;
-  color: var(--muted-foreground);
-  font-size: 0.88rem;
-  line-height: 1.55;
-}
-
-.text-action,
-.quiet-action,
-.planner-row-action {
+.text-action {
   padding: 0 0 4px;
   border: 0;
   border-radius: 0;
   background: none;
-  color: var(--foreground);
+  color: var(--nt-ink);
   font-size: 0.82rem;
   cursor: pointer;
   text-decoration: none;
 }
 
-.text-action:hover,
-.quiet-action:hover,
-.planner-row-action:hover {
-  color: var(--modernist-signal, #d8372f);
+.text-action:hover {
+  color: var(--nt-ink);
   text-decoration: underline;
 }
 
-.preview-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 12px;
-}
-
-.preview-heading h2 {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-}
-
-.preview-list,
-.planner-drawer-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.planner-task-row,
-.planner-event-row {
+.planner-task-row {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -904,16 +259,12 @@ body[data-surface="newtab"] .weather-icon svg {
   padding: 10px 0;
 }
 
-.planner-event-row {
-  cursor: pointer;
-}
-
 .planner-check {
   width: 19px;
   height: 19px;
   flex: 0 0 19px;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--foreground) 58%, transparent);
+  border: 1px solid color-mix(in srgb, var(--nt-ink) 58%, transparent);
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
@@ -921,11 +272,11 @@ body[data-surface="newtab"] .weather-icon svg {
 
 .planner-check:hover,
 .planner-check.is-pending {
-  border-color: var(--modernist-signal, #d8372f);
+  border-color: var(--task-priority-color, var(--nt-ink));
 }
 
 .planner-check.is-pending {
-  background: var(--modernist-signal, #d8372f);
+  background: var(--task-priority-color, var(--nt-ink));
   opacity: 0.45;
 }
 
@@ -939,28 +290,207 @@ body[data-surface="newtab"] .weather-icon svg {
 
 .planner-row-title {
   overflow: hidden;
-  color: var(--foreground);
+  color: var(--nt-ink);
   font-size: 0.95rem;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.planner-row-meta,
-.planner-event-time,
-.integration-status,
-.preview-empty,
-.drawer-loading,
-.planner-empty-copy,
-.form-status {
-  color: var(--muted-foreground);
-  font-size: 0.76rem;
-  line-height: 1.5;
+.task-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.planner-event-time {
-  width: 86px;
-  flex: 0 0 86px;
+.task-list .planner-task-row {
+  align-items: flex-start;
+  gap: 12px;
+  /* Symmetric 8px block padding keeps the hover wash balanced above/below the
+     content; the remaining 8px of the old 24px bottom padding lives in the
+     inter-row margin so the row pitch is unchanged and adjacent washes keep
+     a real gap. */
+  padding: 8px 0;
+  margin-bottom: 8px;
+}
+
+/* ≥8px between the toolbar's outermost paint (focus ring: box + 4px) and the
+   first row's hover wash — no overlap when both are shown. */
+.task-list > .planner-task-row:first-child {
+  margin-top: 12px;
+}
+
+/* Round priority ring: 19px glyph inside a 36px hit target. */
+.task-list .planner-check {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  margin: -7px 0 -6px -4px;
+  border: 0;
+  background: transparent;
+}
+
+.task-list .planner-check::after {
+  content: '';
+  position: absolute;
+  inset: 8.5px;
+  border: 1px solid var(--task-priority-color, color-mix(in srgb, var(--nt-ink) 58%, transparent));
+  border-radius: 50%;
+}
+
+.task-list .planner-check:hover::after {
+  border-width: 1.5px;
+  inset: 7.5px;
+}
+
+.task-list .planner-check.is-pending {
+  background: transparent;
+  opacity: 1;
+}
+
+.task-list .planner-check.is-pending::after {
+  border-color: var(--task-priority-color);
+  background: var(--task-priority-color);
+  opacity: 0.45;
+}
+
+.task-list .planner-check:focus-visible {
+  outline: 2px solid var(--nt-ink);
+  outline-offset: 2px;
+}
+
+.task-list .planner-row-copy {
+  padding-top: 1px;
+}
+
+/* The copy column is a real button that opens the edit modal; reset the
+   button chrome so title/meta keep their exact geometry. */
+.task-open {
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Keyboard focus on the row copy reads as the row's wash plus a 2px ink ring
+   on the wash edge — the same rounded rectangle as hover. */
+.task-open:focus-visible {
+  outline: none;
+}
+
+.planner-task-row:has(.task-open:focus-visible)::before {
+  opacity: 1;
+  box-shadow: inset 0 0 0 2px var(--nt-ink);
+}
+
+.task-list .planner-row-title {
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  color: var(--nt-ink);
+  white-space: normal;
+}
+
+.task-list > .planner-task-row:first-child .planner-row-title {
+  font-weight: 600;
+}
+
+.planner-task-row {
+  --task-priority-color: #808080;
+}
+
+/* Soft row highlight: a ::before wash bleeding 12px past the content box on
+   each side, so ring/title/meta/action geometry never reflows. Hover only on
+   fine pointers; :has(:focus-visible) on all devices; suppressed while a completion
+   is pending. */
+.planner-task-row {
+  position: relative;
+}
+
+.planner-task-row::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset-block: 0;
+  /* The wash's *visual* inset is symmetric: the ring glyph sits ~4.5px inside
+     the content's left edge while the action glyph sits ~11px inside the
+     right edge, so 12px left bleed vs 7.5px right bleed gives equal visual
+     padding on both sides — and the wash never pokes past the toolbar icons
+     above it. */
+  inset-inline: -12px -7.5px;
+  border-radius: 8px;
+  background: var(--nt-wash);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .planner-task-row:not(:has(.is-pending)):hover::before {
+    opacity: 1;
+  }
+}
+
+.planner-task-row:not(:has(.is-pending)):has(:focus-visible)::before {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .planner-task-row::before {
+    transition: none;
+  }
+}
+
+.planner-check {
+  border-color: var(--task-priority-color);
+}
+
+.task-list .planner-row-meta {
+  color: var(--nt-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* Permanently reserved 36px action slot on every home task row, centred on
+   the whole row (title + meta), not the title line. */
+.task-row-action {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+}
+
+.task-current-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--nt-ink);
+}
+
+.task-current-mark svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.planner-row-meta,
+.integration-status,
+.preview-empty,
+.planner-empty-copy {
+  color: var(--nt-muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
 }
 
 .integration-status,
@@ -968,154 +498,343 @@ body[data-surface="newtab"] .weather-icon svg {
   margin: 8px 0;
 }
 
-/* Planner drawers keep controls out of the daily brief. */
-.planner-drawer {
+/* Centred Edit task modal — same overlay scaffold as the spotlight. */
+.edit-modal {
   position: fixed;
   inset: 0;
   z-index: 100;
 }
 
-.planner-drawer.hidden {
+.edit-modal.hidden {
   display: none;
 }
 
-.planner-drawer-backdrop {
+.edit-modal-panel {
   position: absolute;
-  inset: 0;
-  background: color-mix(in srgb, #000 22%, transparent);
-}
-
-.planner-drawer-panel {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: min(560px, 100%);
-  height: 100%;
-  overflow-y: auto;
-  background: var(--background);
-  color: var(--foreground);
-  padding: clamp(28px, 4vw, 52px);
-}
-
-.planner-drawer-header {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 48px;
+  flex-direction: column;
+  width: min(560px, calc(100vw - 48px));
+  max-height: calc(100dvh - 96px);
+  border: 1px solid var(--nt-rule);
+  border-radius: 12px;
+  background: var(--nt-paper);
+  box-shadow: 0 0 24px var(--nt-shadow);
 }
 
-.planner-drawer-header h2 {
-  margin: 0;
-  font-size: clamp(1.8rem, 3vw, 2.45rem);
-  font-weight: 400;
-  letter-spacing: -0.04em;
-}
-
-.drawer-close {
-  flex: 0 0 auto;
-  color: var(--muted-foreground);
-}
-
-.drawer-toolbar,
-.schedule-nav,
-.drawer-tabs,
-.event-detail-actions {
+.edit-modal-head {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 18px;
-}
-
-.drawer-toolbar {
   justify-content: space-between;
-  margin-bottom: 34px;
-}
-
-.drawer-tab,
-.schedule-nav button {
-  padding: 6px 0;
-  border: 0;
-  background: none;
-  color: var(--muted-foreground);
-  cursor: pointer;
-}
-
-.drawer-tab.is-active {
-  color: var(--foreground);
-  font-weight: 600;
-}
-
-.planner-drawer-group {
-  margin-bottom: 38px;
-}
-
-.planner-drawer-group h3 {
-  margin: 0 0 12px;
-  color: var(--muted-foreground);
-  font-size: 0.76rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-}
-
-.planner-drawer-list .planner-task-row,
-.planner-drawer-list .planner-event-row {
-  padding: 13px 0;
-}
-
-.planner-row-action {
+  gap: 24px;
+  padding: 18px 16px 0 24px;
   flex: 0 0 auto;
-  margin-left: auto;
+}
+
+.edit-modal-head h2 {
+  margin: 0;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--nt-ink);
+}
+
+.edit-modal-head .icon-action {
+  flex: 0 0 auto;
+  color: var(--nt-muted);
+}
+
+.edit-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 24px 0;
 }
 
 .task-form {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  margin-top: 4px;
+}
+
+/* Sticky footer: muted shortcut hint left, Cancel + Save right. */
+.task-form-foot {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px -24px 0;
+  padding: 12px 24px 16px;
+  background: var(--nt-paper);
+}
+
+.edit-hint {
+  margin-right: auto;
+  color: var(--nt-muted);
+  font-size: 12px;
+}
+
+.edit-cancel {
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--nt-muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.edit-cancel:hover:not(:disabled) {
+  color: var(--nt-ink);
+}
+
+.edit-save {
+  height: 36px;
+  min-width: 72px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--nt-ink);
+  color: var(--nt-paper);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.edit-save:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.edit-save:focus-visible,
+.edit-cancel:focus-visible {
+  outline: 2px solid var(--nt-ink);
+  outline-offset: 2px;
+}
+
+.edit-save .planner-spinner {
+  border-top-color: var(--nt-paper);
+}
+
+.form-error {
+  margin: 16px 0 0;
+  color: var(--nt-danger);
+  font-size: 13px;
+}
+
+/* Saved-row flash: hold the wash on briefly after a successful edit. */
+.planner-task-row.is-flash::before {
+  opacity: 1;
+}
+
+/* Bottom-centre toast; fixed so it never shifts layout. */
+.nt-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  z-index: 140;
+  padding: 8px 16px;
+  border: 1px solid var(--nt-rule);
+  border-radius: 8px;
+  background: var(--nt-paper);
+  color: var(--nt-ink);
+  font-size: 13px;
+  box-shadow: 0 0 12px var(--nt-shadow);
+}
+
+/* Quick Add suggestion listbox. */
+.qa-suggest {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 6;
+  padding: 4px;
+  border: 1px solid var(--nt-rule);
+  border-radius: 8px;
+  background: var(--nt-paper);
+  box-shadow: 0 0 8px var(--nt-shadow);
+}
+
+.qa-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--nt-ink);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.qa-option:hover,
+.qa-option[aria-selected="true"] {
+  background: var(--nt-wash);
+}
+
+.qa-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: var(--nt-muted);
+}
+
+.qa-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--nt-rule);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--nt-ink);
+  font: inherit;
+  font-size: 12px;
+}
+
+button.qa-chip {
+  cursor: pointer;
+}
+
+.qa-label-chip[aria-pressed="true"] {
+  border-color: var(--nt-ink);
+  background: var(--nt-wash);
+}
+
+.qa-hint {
+  margin: 0;
+  color: var(--nt-muted);
+  font-size: 12px;
+}
+
+.task-form p.qa-hint {
+  margin-top: 8px;
+}
+
+.qa-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--nt-rule);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--nt-ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.qa-submit:hover:not(:disabled) {
+  background: var(--nt-wash);
+}
+
+.qa-submit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.qa-submit .planner-spinner {
+  width: 16px;
+  height: 16px;
+}
+
+/* P1–P4 flag toggles (Todoist colours via --flag-color). */
+.qa-priority {
+  display: flex;
+  gap: 6px;
+}
+
+.qa-flag {
+  height: 28px;
+  min-width: 38px;
+  padding: 0 8px;
+  border: 1px solid var(--nt-rule);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--flag-color, var(--nt-muted));
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.qa-flag:hover {
+  background: var(--nt-wash);
+}
+
+.qa-flag[aria-pressed="true"] {
+  border-color: var(--flag-color);
+  background: color-mix(in srgb, var(--flag-color) 14%, transparent);
+  color: var(--nt-ink);
+}
+
+.qa-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Vertical rhythm for the labelled fields in the edit form. */
+.task-form > .field-label[for],
+.task-form > .qa-caption {
+  display: block;
+  margin: 20px 0 8px;
+}
+
+.task-form > .field-label[for]:first-child {
+  margin-top: 0;
+}
+
+.task-form textarea.field-input {
+  height: auto;
+  min-height: 72px;
+  padding: 10px 12px;
+  resize: none;
+  line-height: 20px;
+}
+
+.qa-submit:focus-visible,
+.qa-flag:focus-visible,
+.qa-label-chip:focus-visible,
+.quick-add-link:focus-visible {
+  outline: 2px solid var(--nt-ink);
+  outline-offset: 1px;
 }
 
 .field-label {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  color: var(--muted-foreground);
-  font-size: 0.76rem;
+  color: var(--nt-muted);
+  font-size: 13px;
 }
 
-.task-title-input,
-.field-input,
-.schedule-nav input {
+.field-input {
   width: 100%;
-  border: 1px solid var(--border);
+  padding: 10px;
+  border: 1px solid var(--nt-rule);
   border-radius: 0;
   background: transparent;
-  color: var(--foreground);
+  color: var(--nt-ink);
   font: inherit;
 }
 
-.task-title-input {
-  padding: 15px 0;
-  border-width: 0 0 1px;
-  font-size: 1.45rem;
-}
 
-.field-input,
-.schedule-nav input {
-  padding: 10px;
-}
-
-.task-details summary {
-  color: var(--muted-foreground);
-  cursor: pointer;
-  font-size: 0.82rem;
-}
-
-.task-details-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
-  margin-top: 20px;
-}
 
 .primary-action {
   display: inline-flex;
@@ -1123,10 +842,10 @@ body[data-surface="newtab"] .weather-icon svg {
   justify-content: center;
   align-self: flex-start;
   padding: 11px 16px;
-  border: 1px solid var(--foreground);
-  border-radius: 0;
-  background: var(--foreground);
-  color: var(--background);
+  border: 1px solid var(--nt-ink);
+  border-radius: 8px;
+  background: var(--nt-ink);
+  color: var(--nt-paper);
   font-size: 0.84rem;
   cursor: pointer;
   text-decoration: none;
@@ -1134,22 +853,6 @@ body[data-surface="newtab"] .weather-icon svg {
 
 .primary-action:disabled {
   opacity: 0.5;
-}
-
-.event-detail-list {
-  display: grid;
-  grid-template-columns: 92px 1fr;
-  gap: 15px 22px;
-  margin: 0 0 34px;
-}
-
-.event-detail-list dt {
-  color: var(--muted-foreground);
-  font-size: 0.78rem;
-}
-
-.event-detail-list dd {
-  margin: 0;
 }
 
 body.planner-open {
@@ -1163,250 +866,284 @@ html.planner-open {
   overflow: hidden;
 }
 
-@media (max-width: 1000px) {
-  body[data-surface="newtab"] .main {
-    width: min(100% - 48px, 760px);
-  }
-
-  .daily-brief {
-    grid-template-columns: 1fr;
-    gap: 58px;
-  }
-
-  .daily-hero {
-    align-items: flex-start;
-  }
-}
-
 @media (max-width: 640px) {
   body[data-surface="newtab"] .main {
     width: calc(100% - 36px);
-    padding-top: 24px;
-  }
-
-  .daily-hero {
-    grid-template-columns: 1fr;
-    gap: 16px;
-    margin-top: 0;
+    padding-top: 56px;
   }
 
   body[data-surface="newtab"] .clock {
-    font-size: clamp(4.2rem, 22vw, 6rem);
+    font-size: 44px;
   }
 
-  body[data-surface="newtab"] .weather-section {
-    min-height: 0;
-    justify-content: flex-start;
+  .edit-modal-panel {
+    width: calc(100vw - 24px);
   }
 
-  .daily-brief {
-    margin-top: 28px;
+  .task-list > .planner-task-row:nth-child(n+4) {
+    display: none;
   }
-
-  .planner-drawer-panel {
-    width: 100%;
-    padding: 28px 22px;
-  }
-
-  .task-details-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.planner-row-actions {
-  display: flex;
-  flex: 0 0 auto;
-  gap: 14px;
-  margin-left: auto;
-}
-
-.planner-task-feature .planner-row-title {
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-}
-
-.planner-event-time {
-  width: 100px;
-  flex-basis: 100px;
-  white-space: nowrap;
-}
-
-.schedule-nav {
-  display: grid;
-  grid-template-columns: auto minmax(180px, 1fr) auto auto;
-  width: 100%;
-  margin-bottom: 26px;
-}
-
-.schedule-nav input {
-  width: auto;
-}
-
-@media (max-width: 520px) {
-  .schedule-nav {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .schedule-nav input {
-    grid-column: 1 / -1;
-    grid-row: 1;
-  }
-}
-
-.drawer-filters {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.7fr);
-  gap: 12px;
-  margin-bottom: 30px;
-}
-
-@media (max-width: 520px) {
-  .drawer-filters {
-    grid-template-columns: 1fr;
-  }
-}
-
-.schedule-now-marker {
-  margin: 10px 0;
-  color: var(--modernist-signal, #d8372f);
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  list-style: none;
 }
 
 /* ============================================
-   Today timeline
+   Homepage controls
    ============================================ */
-
-.task-column {
-  display: grid;
-  align-content: start;
-  gap: clamp(64px, 8vh, 92px);
-  min-width: 0;
-}
 
 body[data-surface="newtab"] button,
 body[data-surface="newtab"] input,
 body[data-surface="newtab"] select,
 body[data-surface="newtab"] textarea {
-  font-family: var(--font-sans);
+  font-family: "Inter", system-ui, sans-serif;
 }
 
-.section-heading-row,
-.timeline-heading {
+.sec-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  min-height: 32px;
+  margin-bottom: 4px;
+}
+
+.sec-head-tools {
+  justify-content: flex-end;
+  margin-bottom: 0;
+}
+
+/* ≥8px between the Calendar action ring edge (button box + 4px) and the
+   timeline viewport below. */
+.cal-head {
+  /* Never shrink below the wrapped all-day row when the section flexes. */
+  flex-shrink: 0;
+  margin-bottom: 16px;
+}
+
+.cal-label {
+  margin: 0;
+  color: var(--nt-muted);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
 .icon-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .icon-action {
-  position: relative;
-  display: inline-grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
   padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  color: var(--foreground);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--nt-muted);
   cursor: pointer;
-  transition: color 160ms ease, opacity 160ms ease;
+}
+
+.icon-action svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.icon-action-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .icon-action:hover {
-  color: var(--modernist-signal, #d8372f);
+  color: var(--nt-ink);
+  border-color: var(--nt-rule);
 }
 
 .icon-action:active {
-  opacity: 0.55;
+  opacity: 0.6;
 }
 
 .icon-action:focus-visible {
-  outline: 2px solid var(--ring, var(--modernist-signal, #d8372f));
-  outline-offset: 3px;
+  outline: 2px solid var(--nt-ink);
+  outline-offset: 2px;
 }
 
-.icon-action span,
-.icon-action svg {
-  display: block;
-  width: 15px;
-  height: 15px;
+.icon-action:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
-.icon-action::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 8px);
-  z-index: 10;
-  width: max-content;
-  max-width: 160px;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--foreground);
-  font-size: 0.75rem;
-  line-height: 1.2;
+/* Reserved slot: keeps geometry while the action is unavailable. */
+.icon-action.is-reserved {
+  visibility: hidden;
+}
+
+.icon-action--compact {
+  flex-basis: 24px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+
+.icon-action--compact svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Reveal-on-intent actions keep their slot but hide visually at rest. */
+.icon-action--reveal {
   opacity: 0;
   pointer-events: none;
-  transform: translateY(3px);
-  transition: opacity 120ms ease, transform 120ms ease;
 }
 
-.icon-action:hover::after,
-.icon-action:focus-visible::after {
+.planner-task-row:hover .icon-action--reveal,
+.planner-task-row:has(:focus-visible) .icon-action--reveal,
+.icon-action--reveal:focus-visible,
+.timeline-blk:hover .icon-action--reveal,
+.timeline-blk:has(:focus-visible) .icon-action--reveal,
+.timeline-ad:hover .icon-action--reveal,
+.timeline-ad:has(:focus-visible) .icon-action--reveal,
+.timeline-unavailable-row:hover .icon-action--reveal,
+.timeline-unavailable-row:has(:focus-visible) .icon-action--reveal {
   opacity: 1;
-  transform: translateY(0);
+  pointer-events: auto;
 }
 
-.today-timeline-section {
-  grid-column: 2;
-  grid-row: 1 / span 2;
+/* Task-row reveal actions are bare glyphs: no box, no fill, at any state.
+   Muted when revealed by the row; ink only when the pointer/focus is on the
+   button itself. */
+.planner-task-row .icon-action--reveal,
+.planner-task-row .icon-action--reveal:hover,
+.planner-task-row .icon-action--reveal:focus-visible {
+  background: transparent;
+  border-color: transparent;
+}
+
+.planner-task-row .icon-action--reveal {
+  color: var(--nt-muted);
+}
+
+.planner-task-row .icon-action--reveal:hover,
+.planner-task-row .icon-action--reveal:focus-visible {
+  color: var(--nt-ink);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .icon-action--reveal {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.planner-spinner {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--nt-rule);
+  border-top-color: var(--nt-ink);
+  animation: plannerSpin 0.8s linear infinite;
+}
+
+@keyframes plannerSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Single floating tooltip; fixed position, never in flow. */
+#planner-tooltip {
+  position: fixed;
+  z-index: 130;
+  max-width: 240px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--nt-ink, #1f1f1f);
+  color: var(--nt-paper, #fafafa);
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.35;
+  box-shadow: 0 0 8px var(--nt-shadow, rgba(0, 0, 0, 0.08));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+#planner-tooltip.is-visible {
+  opacity: 1;
+}
+
+/* ============================================
+   Calendar day grid
+   ============================================ */
+
+#today-timeline-section {
   min-width: 0;
 }
 
-.preview-column {
-  grid-column: 1;
-  grid-row: 2;
+.timeline-shell {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.timeline-heading {
-  align-items: center;
-  margin-bottom: 18px;
+/* Floating Back to now: centred over the timeline's bottom edge, above the
+   blocks and the edge fade, never in layout. The glyph points toward Now. */
+.back-to-now {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 10;
+  flex: none;
+  background: var(--nt-paper);
+  border-color: var(--nt-rule);
+  color: var(--nt-ink);
+  box-shadow: 0 0 8px var(--nt-shadow);
+  transition: opacity 150ms ease, visibility 150ms;
 }
 
-.timeline-heading .section-eyebrow {
-  margin-bottom: 7px;
+.back-to-now:hover {
+  background: var(--nt-wash);
 }
 
-.timeline-heading h2,
-.preview-heading h2 {
-  margin: 0;
-  font-size: 1.2rem;
-  font-weight: 500;
-  letter-spacing: -0.035em;
+.back-to-now.is-reserved {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .back-to-now {
+    transition: none;
+  }
 }
 
 .timeline-viewport {
+  --nt-rail: 56px;
   position: relative;
-  max-height: min(46vh, 430px);
-  min-height: min(320px, 50vh);
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 160px;
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
-  scroll-padding-block: 36%;
-  border-block: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
-  background: var(--background);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+}
+
+.timeline-viewport:focus-visible {
+  outline: 2px solid var(--nt-ink);
+  outline-offset: 2px;
 }
 
 .timeline-viewport::-webkit-scrollbar {
@@ -1423,309 +1160,599 @@ body[data-surface="newtab"] textarea {
   border-radius: 999px;
   background: transparent;
   background-clip: padding-box;
-  transition: background-color 160ms ease;
 }
 
 .timeline-viewport.timeline-scrolling {
-  scrollbar-color: color-mix(in srgb, var(--foreground) 28%, transparent) transparent;
+  scrollbar-color: color-mix(in srgb, var(--nt-ink) 28%, transparent) transparent;
 }
 
 .timeline-viewport.timeline-scrolling::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--foreground) 28%, transparent);
+  background: color-mix(in srgb, var(--nt-ink) 28%, transparent);
   background-clip: padding-box;
 }
 
 .timeline-viewport.timeline-scrolling::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--foreground) 46%, transparent);
+  background: color-mix(in srgb, var(--nt-ink) 46%, transparent);
   background-clip: padding-box;
 }
 
-.timeline-all-day {
-  padding: 16px 0 12px;
+.timeline-canvas {
+  position: relative;
+  width: 100%;
 }
 
-.timeline-all-day-label {
-  margin: 0 0 8px;
-  color: var(--muted-foreground);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+.timeline-hour {
+  position: absolute;
+  left: var(--nt-rail);
+  right: 0;
+  height: 1px;
+  background: var(--nt-hair);
 }
 
-.timeline-list,
-.timeline-all-day-list {
+.timeline-hour-label {
+  position: absolute;
+  left: 0;
+  width: calc(var(--nt-rail) - 10px);
+  transform: translateY(-50%);
+  color: var(--nt-muted);
+  font-size: 11px;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-hour-label .hz {
+  display: block;
+  color: var(--nt-faint);
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.timeline-rail {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--nt-rail);
+  width: 1px;
+  background: var(--nt-hair);
+}
+
+.timeline-list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.timeline-list {
-  position: relative;
-  padding: 150px 0 180px;
-}
-
-.timeline-list::before {
-  content: '';
+.timeline-blk {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 114.5px;
-  width: 1px;
-  background: color-mix(in srgb, var(--foreground) 13%, transparent);
+  box-sizing: border-box;
+  /* clip (not hidden) so the sticky .blk-inner still tracks the outer scroll
+     container — overflow:hidden would make the block itself the scrollport. */
+  overflow: clip;
+  border-left: 3px solid var(--bar, var(--nt-muted));
+  border-radius: 4px;
+  background: var(--bg, var(--nt-wash));
+  color: var(--fg, var(--nt-ink));
 }
 
-.timeline-now {
-  position: relative;
-  display: grid;
-  grid-template-columns: 98px 12px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
+/* Sticky within the (taller-than-viewport) block: when the event's start has
+   scrolled above the viewport, the content rides the top edge instead of
+   clipping out under the fade. --blk-stick clears the mask fade on the home
+   viewport. */
+.timeline-blk .blk-inner {
+  position: sticky;
+  top: var(--blk-stick, 4px);
+  box-sizing: border-box;
+  padding: 3px 6px 3px 7px;
 }
 
-.timeline-event {
-  position: relative;
-  min-height: 72px;
+.timeline-viewport .timeline-blk .blk-inner {
+  --blk-stick: 26px;
 }
 
-.timeline-event-button {
-  display: grid;
-  grid-template-columns: 98px 12px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+.timeline-blk:hover,
+.timeline-blk:has(:focus-visible) {
+  box-shadow: 0 0 0 1.5px var(--fg, var(--nt-ink));
 }
 
-.timeline-event-time {
-  padding-top: 3px;
-  color: var(--muted-foreground);
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.35;
-  text-align: right;
-  white-space: normal;
+.timeline-blk:focus-visible {
+  outline: 2px solid var(--nt-ink);
+  outline-offset: 2px;
 }
 
-.timeline-event-marker {
-  position: relative;
-  z-index: 1;
-  width: 9px;
-  height: 9px;
-  margin-top: 6px;
-  border: 2px solid var(--background);
-  border-radius: 50%;
-  background: var(--event-color, var(--muted-foreground));
-  box-shadow: 0 0 0 1px var(--event-color, var(--muted-foreground));
-}
-
-.timeline-event-copy {
-  min-width: 0;
-  padding: 0 4px 20px 0;
-}
-
-.timeline-event-title {
-  display: block;
-  color: var(--foreground);
-  font-size: 1rem;
+.timeline-blk .t {
+  overflow: hidden;
+  font-size: 12.5px;
   font-weight: 500;
   line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: var(--blk-fade, 1);
 }
 
-.timeline-event-meta,
-.timeline-event-state {
-  display: block;
-  margin-top: 3px;
-  color: var(--muted-foreground);
-  font-size: 0.78rem;
-  line-height: 1.35;
+.timeline-blk .tm {
+  overflow: hidden;
+  font-size: 11.5px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  opacity: calc(var(--blk-fade, 1) * 0.85);
 }
 
-.timeline-event-state {
-  color: var(--foreground);
-  font-weight: 600;
-}
-
-.timeline-event.is-past .timeline-event-title {
-  opacity: var(--past-opacity, 0.85);
-}
-
-.timeline-event.is-past:focus-within .timeline-event-title,
-.timeline-event.is-past:hover .timeline-event-title {
+.timeline-blk.is-past:hover .t,
+.timeline-blk.is-past:hover .tm,
+.timeline-blk.is-past:has(:focus-visible) .t,
+.timeline-blk.is-past:has(:focus-visible) .tm {
   opacity: 1;
 }
 
-.timeline-event.is-current .timeline-event-title {
-  font-weight: 650;
+.timeline-blk.is-current .t {
+  font-weight: 600;
 }
 
-.timeline-event-button:focus-visible {
-  outline: 2px solid var(--ring, var(--modernist-signal, #d8372f));
-  outline-offset: 4px;
+.timeline-blk.inline .blk-inner,
+.timeline-blk.tiny .blk-inner {
+  position: static;
+}
+
+.timeline-blk.inline .blk-inner {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.timeline-blk.inline .t {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.timeline-blk.inline .tm {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.timeline-blk.inline.no-time .tm,
+.timeline-blk.tiny .t,
+.timeline-blk.tiny .tm {
+  display: none;
+}
+
+.timeline-blk.tiny {
+  padding: 0;
+}
+
+.timeline-blk.cont-before {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.timeline-blk.cont-after {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.timeline-blk .icon-action--compact {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  border-color: transparent;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.timeline-blk .icon-action--compact:hover,
+.timeline-blk .icon-action--compact:focus-visible {
+  background: var(--nt-paper);
+  border-color: var(--fg);
+  color: var(--fg);
 }
 
 .timeline-now {
-  min-height: 58px;
-  align-items: center;
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
 }
 
-.timeline-now-label {
-  color: var(--modernist-signal, #d8372f);
-  font-size: 0.76rem;
-  font-weight: 650;
+.timeline-now .line {
+  position: absolute;
+  top: -1px;
+  left: var(--nt-rail);
+  right: 0;
+  height: 2px;
+  background: var(--nt-ink);
+}
+
+.timeline-now .line::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3.5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--nt-ink);
+}
+
+.timeline-now .lbl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--nt-rail) - 10px);
+  transform: translateY(-50%);
+  color: var(--nt-ink);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1;
+  text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* ============================================
+   All-day chips
+   ============================================ */
+
+.timeline-all-day {
+  display: flex;
+  align-items: flex-start;
+  flex: 0 0 100%;
+  order: 2;
+  padding: 6px 0 10px;
+}
+
+.timeline-all-day.hidden {
+  display: none;
+}
+
+.timeline-all-day-label {
+  flex: 0 0 var(--nt-rail);
+  margin: 0;
+  padding-right: 10px;
+  color: var(--nt-muted);
+  font-size: 11px;
+  line-height: 24px;
   text-align: right;
 }
 
-.timeline-now-dot {
+.timeline-all-day-list {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline-ad {
   position: relative;
-  z-index: 2;
-  width: 11px;
-  height: 11px;
-  border: 3px solid var(--background);
-  border-radius: 50%;
-  background: var(--modernist-signal, #d8372f);
-  box-shadow: 0 0 0 1px var(--modernist-signal, #d8372f);
-}
-
-.timeline-now-rule {
-  height: 1px;
-  background: color-mix(in srgb, var(--modernist-signal, #d8372f) 48%, transparent);
-}
-
-.timeline-all-day-event {
-  display: grid;
-  grid-template-columns: 98px 12px minmax(0, 1fr);
-  gap: 12px;
+  display: inline-flex;
   align-items: center;
-  min-height: 42px;
+  height: 24px;
+  max-width: 100%;
+  padding: 0 8px;
+  border-left: 3px solid var(--bar, var(--nt-muted));
+  border-radius: 4px;
+  background: var(--bg, var(--nt-wash));
+  color: var(--fg, var(--nt-ink));
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.timeline-all-day-event .timeline-event-marker {
-  grid-column: 2;
+.timeline-ad:focus-visible {
+  outline: 2px solid var(--nt-ink);
+  outline-offset: 2px;
 }
 
-.timeline-all-day-event button {
-  grid-column: 3;
-  padding: 5px 0;
-  border: 0;
-  background: none;
-  color: var(--foreground);
-  text-align: left;
-  cursor: pointer;
+.timeline-ad .ad-c {
+  margin-left: 6px;
+  font-size: 11.5px;
+  font-weight: 400;
+  opacity: 0.8;
 }
 
-.back-to-now {
-  margin-top: 12px;
-  padding: 0 0 3px;
-  border: 0;
-  background: none;
-  color: var(--foreground);
-  font-size: 0.8rem;
-  cursor: pointer;
+.timeline-ad .icon-action--compact {
+  width: 22px;
+  height: 22px;
+  flex-basis: 22px;
+  margin: 0 -4px 0 4px;
+  border-color: transparent;
+  background: var(--bg);
+  color: var(--fg);
 }
 
-.planner-task-row {
-  --task-priority-color: #808080;
+.timeline-ad .icon-action--compact:hover,
+.timeline-ad .icon-action--compact:focus-visible {
+  background: var(--nt-paper);
+  border-color: var(--fg);
 }
 
-.planner-check {
-  border-color: var(--task-priority-color);
+.timeline-ad-more {
+  align-self: center;
 }
 
-.planner-task-row.is-current .planner-check {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--task-priority-color) 18%, transparent);
+/* ============================================
+   Unavailable time rows
+   ============================================ */
+
+.timeline-unavailable {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-@media (max-width: 1000px) {
-  .daily-brief {
-    grid-template-columns: 1fr;
+.timeline-unavailable.hidden {
+  display: none;
+}
+
+.timeline-unavailable-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+  color: var(--nt-muted);
+  font-size: 13px;
+}
+
+.timeline-unavailable-row .unav-title {
+  overflow: hidden;
+  color: var(--nt-ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-unavailable-row .unav-time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================
+   Statuses + heights
+   ============================================ */
+
+.integration-status,
+.preview-empty {
+  color: var(--nt-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@media (max-height: 800px) {
+  body[data-surface="newtab"] .main {
+    padding-top: 64px;
+    padding-bottom: 32px;
   }
 
-  .today-timeline-section {
-    grid-column: auto;
-    grid-row: auto;
+  body[data-surface="newtab"] .clock {
+    font-size: 48px;
   }
 
-  .preview-column {
-    grid-column: auto;
-    grid-row: auto;
+  #tasks-section {
+    margin-top: 16px;
   }
 
-  .timeline-viewport {
-    max-height: 380px;
+  .task-list .planner-task-row {
+    padding: 8px 0;
+    margin-bottom: 8px;
   }
 
-  .timeline-list {
-    padding-block: 120px 150px;
+  #today-timeline-section {
+    margin-top: 36px;
+  }
+
+  /* All-day chips move up onto the Calendar heading line, between the
+     label and the action icons. */
+  .cal-head .cal-label {
+    order: 0;
+  }
+
+  .timeline-all-day {
+    flex: 1 1 0;
+    order: 1;
+    min-width: 0;
+    padding: 0;
+  }
+
+  .cal-head .icon-actions {
+    order: 2;
+  }
+
+  .timeline-all-day-label {
+    display: none;
+  }
+
+  .timeline-all-day-list {
+    justify-content: flex-end;
   }
 }
 
 @media (max-width: 640px) {
-  .daily-brief {
-    gap: 24px;
+  .sec-head {
+    margin-bottom: 6px;
   }
-
-  .daily-hero {
-    grid-template-columns: 1fr;
-  }
-
-  .timeline-viewport {
-    min-height: min(300px, 50vh);
-    max-height: 360px;
-  }
-
-  .timeline-heading {
-    margin-bottom: 8px;
-  }
-
-  .timeline-heading .section-eyebrow {
-    margin-bottom: 3px;
-  }
-
-  .timeline-all-day {
-    padding: 8px 0 4px;
-  }
-
-  .timeline-all-day-label {
-    margin-bottom: 4px;
-  }
-
-  .timeline-all-day-event {
-    min-height: 36px;
-  }
-
-  .timeline-list::before {
-    left: 86.5px;
-  }
-
-  .timeline-now {
-    grid-template-columns: 72px 10px minmax(0, 1fr);
-    gap: 10px;
-  }
-
-  .timeline-event-button {
-    grid-template-columns: 72px 10px minmax(0, 1fr);
-    gap: 10px;
-  }
-
-  .timeline-all-day-event {
-    grid-template-columns: 72px 10px minmax(0, 1fr);
-    gap: 10px;
-  }
-
-  .timeline-event-time {
-    white-space: normal;
-  }
+  .cal-head {
+  /* Never shrink below the wrapped all-day row when the section flexes. */
+  flex-shrink: 0;
+  margin-bottom: 16px;
+}
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .icon-action::after {
+  #planner-tooltip {
     transition: none;
   }
+}
+
+/* ============================================
+   Edit task modal fields
+   ============================================ */
+
+/* Boxed close control inside the modal. */
+.edit-modal .icon-action {
+  border-color: var(--nt-rule, var(--border));
+  color: var(--nt-ink, var(--foreground));
+}
+
+.edit-modal .icon-action:hover {
+  background: var(--nt-wash, var(--background));
+  border-color: var(--nt-ink, var(--foreground));
+  color: var(--nt-ink, var(--foreground));
+}
+
+/* Modal fields: boxed nt controls, 36px, Inter, custom select chevron. */
+.edit-modal .field-input {
+  height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--nt-rule);
+  border-radius: 8px;
+  background-color: var(--nt-paper);
+  color: var(--nt-ink);
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 14px;
+  color-scheme: light;
+}
+
+html[data-theme$="dark"] .edit-modal .field-input {
+  color-scheme: dark;
+}
+
+/* common.css paints a --ring (modernist red) border + 4px box-shadow on
+   input:focus; modal fields get the plain 2px ink ring instead. */
+.edit-modal .field-input:focus {
+  border-color: var(--nt-ink);
+  box-shadow: none;
+}
+
+.edit-modal .field-input:focus-visible {
+  outline: 2px solid var(--nt-ink);
+  outline-offset: 1px;
+}
+
+.edit-modal select.field-input {
+  appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23626262' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+html[data-theme$="dark"] .edit-modal select.field-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239a9a9a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+
+
+/* ============================================
+   Quick Add spotlight (⌘K / + button)
+   ============================================ */
+
+.quick-add {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+}
+
+.quick-add.hidden {
+  display: none;
+}
+
+.quick-add-backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, #000 22%, transparent);
+}
+
+.quick-add-panel {
+  position: absolute;
+  top: 20vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, calc(100vw - 48px));
+  border: 1px solid var(--nt-rule);
+  border-radius: 12px;
+  background: var(--nt-paper);
+  box-shadow: 0 0 24px var(--nt-shadow);
+}
+
+.quick-add-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 16px;
+}
+
+.quick-add-glyph {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  color: var(--nt-muted);
+}
+
+.quick-add-glyph svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+#quick-add-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--nt-ink);
+  font: inherit;
+  font-size: 17px;
+  appearance: none;
+  outline: none;
+  box-shadow: none;
+}
+
+#quick-add-input::placeholder {
+  color: var(--nt-muted);
+}
+
+.quick-add-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  width: 36px;
+  /* Reserved slot: the spinner is hidden by visibility (not display) so the
+     input row's geometry never shifts, and the [hidden] attribute stays. */
+  visibility: hidden;
+}
+
+.quick-add-spinner:not([hidden]) {
+  visibility: visible;
+}
+
+/* Suggestions render inside the panel, full width, under the input row. */
+.quick-add-list .qa-suggest {
+  position: static;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 6px;
+}
+
+.quick-add-foot {
+  margin: 0;
+  padding: 12px 16px 14px;
+  color: var(--nt-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.quick-add-foot[data-mode="error"] {
+  color: var(--nt-danger);
+}
+
+.quick-add-link {
+  color: var(--nt-ink);
+  text-decoration: underline;
 }
