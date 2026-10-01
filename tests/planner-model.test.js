@@ -9,11 +9,15 @@ import {
   rankTasks,
   safeExternalUrl,
   selectCurrentEvents,
+  selectHomepageTasks,
   selectNextEvent,
   selectNowTask,
+  parseTaskDeadline,
+  rankSuggestedTasks,
   toLocalDateKey,
   validateProviderColor
 } from '../newtab/planner-model.js';
+import { taskMeta } from '../newtab/planner-tasks.js';
 import {
   clearCurrentTaskState,
   loadCurrentTaskState,
@@ -40,8 +44,115 @@ const flat = flattenTasks(tasks);
 assert.equal(flat.length, 5);
 assert.equal(flat.find(task => task.id === 'child').parentContent, 'Today');
 assert.deepEqual(rankTasks(flat, now).map(task => task.id), ['overdue', 'today', 'child', 'later', 'undated']);
-assert.equal(selectNowTask(tasks, 'today', now).id, 'today');
-assert.equal(selectNowTask(tasks, '', now).id, 'overdue');
+// --- Homepage deadline-first suggestions ---
+const dateOnly = value => ({ date: value });
+const timedAt = value => ({ datetime: value });
+const floatingAt = value => ({ date: value });
+
+assert.deepEqual(parseTaskDeadline({ due: dateOnly('2026-09-29') }), {
+  kind: 'date',
+  localDate: '2026-09-29',
+  sortMs: new Date(2026, 8, 30).getTime()
+}, 'date-only due sorts at the next local midnight');
+assert.deepEqual(parseTaskDeadline({ due: timedAt('2026-09-29T14:30:00Z') }), {
+  kind: 'timed',
+  localDate: toLocalDateKey(new Date('2026-09-29T14:30:00Z')),
+  instantMs: Date.UTC(2026, 8, 29, 14, 30),
+  sortMs: Date.UTC(2026, 8, 29, 14, 30)
+});
+assert.equal(parseTaskDeadline({ due: timedAt('2026-09-29T14:30:00+05:30') }).instantMs, Date.UTC(2026, 8, 29, 9, 0), 'explicit offsets resolve to real instants');
+assert.equal(parseTaskDeadline({ due: timedAt('2026-09-29T14:30:00-0230') }).instantMs, Date.UTC(2026, 8, 29, 17, 0), 'compact offsets parse');
+assert.deepEqual(parseTaskDeadline({ due: timedAt('2026-09-29T14:30:00') }), { kind: 'none' }, 'offset-free due.datetime is invalid');
+assert.deepEqual(parseTaskDeadline({ due: floatingAt('2026-09-29T14:30:00') }), {
+  kind: 'timed',
+  localDate: '2026-09-29',
+  instantMs: new Date(2026, 8, 29, 14, 30).getTime(),
+  sortMs: new Date(2026, 8, 29, 14, 30).getTime()
+}, 'offset-free due.date is floating local time');
+assert.deepEqual(parseTaskDeadline({ due: dateOnly('2026-02-30') }), { kind: 'none' }, 'impossible calendar dates are unusable');
+assert.deepEqual(parseTaskDeadline({ due: dateOnly('2026-13-01') }), { kind: 'none' });
+assert.deepEqual(parseTaskDeadline({ due: dateOnly('eventually') }), { kind: 'none' });
+assert.deepEqual(parseTaskDeadline({ due: timedAt('2026-02-30T10:00:00Z') }), { kind: 'none' }, 'invalid timed dates are never sliced to a date');
+assert.deepEqual(parseTaskDeadline({ due: dateOnly('2028-02-29') }).kind, 'date', 'real leap days are valid');
+assert.deepEqual(parseTaskDeadline({}), { kind: 'none' });
+assert.deepEqual(parseTaskDeadline({ due: null }), { kind: 'none' });
+
+assert.deepEqual(rankSuggestedTasks(tasks, now).map(task => task.id), ['overdue', 'today', 'child', 'later', 'undated'], 'due/overdue precede future, undated last');
+
+const tieTasks = [
+  { id: 'low', content: 'Low', priority: 2, due: dateOnly('2026-09-29') },
+  { id: 'high', content: 'High', priority: 4, due: dateOnly('2026-09-29') }
+];
+assert.deepEqual(rankSuggestedTasks(tieTasks, now).map(task => task.id), ['high', 'low'], 'same-day date-only ties break on priority');
+
+const overdueRace = [
+  { id: 'newer', content: 'Newer overdue', priority: 4, due: dateOnly('2026-09-28') },
+  { id: 'older', content: 'Older overdue', priority: 1, due: dateOnly('2026-09-26') }
+];
+assert.deepEqual(rankSuggestedTasks(overdueRace, now).map(task => task.id), ['older', 'newer'], 'an older deadline outranks a newer higher-priority one');
+
+const futureRace = [
+  { id: 'soon-low', content: 'Soon', priority: 1, due: dateOnly('2026-09-30') },
+  { id: 'later-high', content: 'Later', priority: 4, due: dateOnly('2026-10-03') }
+];
+assert.deepEqual(rankSuggestedTasks(futureRace, now).map(task => task.id), ['soon-low', 'later-high'], 'a low-priority earlier deadline outranks a high-priority later one');
+
+const timedRace = [
+  { id: 'late-high', content: 'Late', priority: 4, due: floatingAt('2026-09-29T17:00:00') },
+  { id: 'early-low', content: 'Early', priority: 1, due: floatingAt('2026-09-29T09:00:00') }
+];
+assert.deepEqual(rankSuggestedTasks(timedRace, now).map(task => task.id), ['early-low', 'late-high'], 'timed deadlines compare by instant, not priority');
+
+const equalInstants = [
+  { id: 'b', content: 'B', priority: 4, due: timedAt('2026-09-29T08:00:00Z') },
+  { id: 'a', content: 'A', priority: 4, due: timedAt('2026-09-29T10:00:00+02:00') }
+];
+assert.deepEqual(rankSuggestedTasks(equalInstants, now).map(task => task.id), ['a', 'b'], 'equal instants under different offsets tie on priority then id');
+
+const mixedSameDay = [
+  { id: 'date-only', content: 'Date only', priority: 4, due: dateOnly('2026-09-29') },
+  { id: 'timed', content: 'Timed', priority: 1, due: floatingAt('2026-09-29T23:00:00') }
+];
+assert.deepEqual(rankSuggestedTasks(mixedSameDay, now).map(task => task.id), ['timed', 'date-only'], 'date-only tasks sort after the day’s timed deadlines');
+
+const upcomingOnly = [
+  { id: 'f2', content: 'F2', priority: 4, due: dateOnly('2026-10-05') },
+  { id: 'f1', content: 'F1', priority: 1, due: dateOnly('2026-10-01') },
+  { id: 'und', content: 'Und', priority: 4, due: null }
+];
+assert.deepEqual(rankSuggestedTasks(upcomingOnly, now).map(task => task.id), ['f1', 'f2', 'und'], 'future deadlines rank before undated fallbacks');
+assert.equal(selectNowTask(upcomingOnly, '', now).id, 'f1', 'upcoming work is suggested when nothing is due');
+
+const undatedOnly = [
+  { id: 'b', content: 'B', priority: 1, due: null },
+  { id: 'a', content: 'A', priority: 1, due: null },
+  { id: 'urgent', content: 'U', priority: 4, due: null }
+];
+assert.deepEqual(rankSuggestedTasks(undatedOnly, now).map(task => task.id), ['urgent', 'a', 'b'], 'undated tasks rank by priority then id');
+
+const override = selectHomepageTasks(tasks, 'undated', now);
+assert.equal(override.tasks[0].id, 'undated', 'a valid override leads even without a deadline');
+assert.equal(override.currentIsOverride, true);
+assert.deepEqual(override.tasks.slice(1).map(task => task.id), ['overdue', 'today'], 'ranked tasks follow the override');
+assert.equal(override.tasks.length, 3, 'the homepage list is limited to three');
+assert.equal(override.tasks.filter(task => task.id === 'undated').length, 1, 'the override is not duplicated');
+assert.deepEqual(selectHomepageTasks(tasks, 'missing', now).currentIsOverride, false, 'an unknown override falls back to automatic ranking');
+assert.equal(selectNowTask(tasks, 'missing', now).id, 'overdue');
+
+const malformed = [
+  { id: 'bad-date', content: 'Bad', priority: 4, due: dateOnly('2026-02-30') },
+  { id: 'bad-string', content: 'Bad', priority: 4, due: dateOnly('yesterday-ish') },
+  { id: 'real', content: 'Real', priority: 1, due: dateOnly('2026-09-30') }
+];
+assert.deepEqual(rankSuggestedTasks(malformed, now).map(task => task.id), ['real', 'bad-date', 'bad-string'], 'malformed dues join the undated fallback');
+assert.equal(taskMeta({ content: 'Bad', priority: 4, due: dateOnly('2026-02-30') }, new Map(), now).includes('Overdue'), false, 'malformed dues are never labeled overdue');
+assert.equal(taskMeta({ content: 'Bad', priority: 4, due: dateOnly('yesterday-ish') }, new Map(), now), 'P1');
+assert.equal(taskMeta({ content: 'Ok', priority: 1, due: dateOnly('2026-09-30') }, new Map(), now), 'Sep 30');
+
+const shuffled = [...tasks].reverse();
+assert.deepEqual(rankSuggestedTasks(shuffled, now).map(task => task.id), rankSuggestedTasks(tasks, now).map(task => task.id), 'input order never affects ranking');
+assert.deepEqual(selectHomepageTasks(), { tasks: [], currentIsOverride: false }, 'no tasks yields an empty list');
+assert.equal(selectNowTask([], '', now), null, 'no tasks yields no suggestion');
 
 const day = groupTasks(tasks, 'day', '2026-09-29');
 assert.deepEqual(day.map(group => group.key), ['overdue', '2026-09-29']);
@@ -78,15 +189,15 @@ const timeline = buildDayTimeline([
   { id: 'unavailable', calendarId: 'work', title: 'No time', start: 'not-a-date', end: 'not-a-date' }
 ], '2026-09-29', timelineNow);
 assert.deepEqual(timeline.allDay.map(row => row.id), ['all-first', 'all-later'], 'all-day rows use a stable identity order');
-assert.deepEqual(timeline.timed.map(row => row.id), ['cross-midnight', 'past', 'current-long', 'end-now', 'current-short', 'start-now', 'future', 'bad-end']);
+assert.deepEqual(timeline.timed.map(row => row.id), ['cross-midnight', 'past', 'current-long', 'end-now', 'current-short', 'start-now', 'future']);
 assert.deepEqual(timeline.timed.filter(row => row.state === 'current').map(row => row.id), ['current-long', 'current-short', 'start-now']);
 assert.equal(timeline.timed.find(row => row.id === 'end-now').state, 'past', 'end equals now is past');
-assert.equal(timeline.timed.find(row => row.id === 'bad-end').state, 'unknown', 'invalid intervals cannot become active');
+assert.equal(timeline.unavailable.find(row => row.id === 'bad-end').state, 'unknown', 'invalid intervals cannot become active');
 assert.equal(timeline.timed.find(row => row.id === 'cross-midnight').color, '#a4BDFC');
 assert.match(timeline.timed.find(row => row.id === 'cross-midnight').timeText, /Yesterday/, 'cross-midnight times retain date context');
 assert.equal(timeline.marker.index, 6, 'the marker follows every start at or before now');
 assert.equal(timeline.rows[6].type, 'now-marker');
-assert.deepEqual(timeline.unavailable.map(row => row.id), ['unavailable']);
+assert.deepEqual(timeline.unavailable.map(row => row.id), ['bad-end', 'unavailable'], 'malformed times land under Time unavailable');
 
 const fadeTimeline = buildDayTimeline([
   { id: 'just-ended', start: '2026-09-29T08:00:00', end: '2026-09-29T10:00:00' },
@@ -105,8 +216,6 @@ assert.equal(exclusiveAllDay.allDay.length, 0, 'exclusive and invalid all-day en
 assert.equal(validateProviderColor('#A4BDFC'), '#A4BDFC');
 assert.equal(validateProviderColor('rgb(0, 0, 0)'), '#73736c');
 
-const futureOnly = [{ id: 'future', content: 'Future', due: { date: '2026-10-01' } }];
-assert.equal(selectNowTask(futureOnly, '', now), null, 'future tasks are not suggested as current work');
 const unsortedUpcoming = [
   { id: 'later-high', content: 'Later high', priority: 4, due: { date: '2026-10-03' } },
   { id: 'tomorrow-low', content: 'Tomorrow low', priority: 1, due: { date: '2026-09-30' } }

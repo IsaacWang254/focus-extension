@@ -3,43 +3,32 @@ import fs from 'node:fs';
 
 const dir = new URL('../', import.meta.url);
 
+// Remaining surfaces: the new tab and Settings. Sections and rows separate
+// with whitespace — no decorative horizontal rules anywhere.
 const files = [
   'lib/modernist.css',
   'lib/common.css',
+  'lib/nt-tokens.css',
   'newtab/newtab.css',
-  'blocked/blocked.css',
-  'options/options.css',
-  'popup/popup.css',
-  'stats/stats.css'
+  'options/options.css'
 ];
 
-let chartBaselines = 0;
 for (const file of files) {
   const css = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
   for (const [, selectors, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    for (const [, side, value] of body.matchAll(/\bborder-(top|bottom)\s*:\s*([^;]+);/g)) {
-      const chartBaseline = file === 'stats/stats.css' && side === 'bottom'
-        && /(?:^|\n)\.(hourly-chart|weekly-day-bar-container)\s*$/.test(selectors.trim());
-      if (chartBaseline) {
-        assert.equal(value.trim(), '1px solid var(--border)');
-        chartBaselines += 1;
-      } else {
-        assert.match(
-          value.trim(),
-          /^(?:0(?:px)?|none)$/,
-          `${file}: ${selectors.trim()} must not draw a horizontal divider`
-        );
-      }
+    for (const [, side, value] of body.matchAll(/\bborder-(top|bottom|block|block-start|block-end)\s*:\s*([^;]+);/g)) {
+      assert.match(
+        value.trim(),
+        /^(?:0(?:px)?|none)$/,
+        `${file}: ${selectors.trim()} must not draw a horizontal divider`
+      );
     }
   }
 }
-assert.equal(chartBaselines, 2, 'expected exactly the two chart baselines to keep their rule');
 
-const stats = fs.readFileSync(new URL('../stats/stats.css', import.meta.url), 'utf8');
 const common = fs.readFileSync(new URL('../lib/common.css', import.meta.url), 'utf8');
 const newtab = fs.readFileSync(new URL('../newtab/newtab.css', import.meta.url), 'utf8');
-const blocked = fs.readFileSync(new URL('../blocked/blocked.css', import.meta.url), 'utf8');
-const popup = fs.readFileSync(new URL('../popup/popup.css', import.meta.url), 'utf8');
+const options = fs.readFileSync(new URL('../options/options.css', import.meta.url), 'utf8');
 
 function ruleBody(css, selector) {
   const match = css.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\{]*\\{([^{}]*)\\}`));
@@ -48,9 +37,13 @@ function ruleBody(css, selector) {
 }
 
 assert.match(common, /\.input,[\s\S]*?border:\s*1px solid var\(--input\);/, 'input keeps full outline');
-assert.match(ruleBody(popup, '.focus-preset-btn'), /border:\s*1px solid/, 'focus preset button keeps full outline');
 assert.match(common, /outline:\s*2px solid var\(--ring\)/, 'focus outline preserved');
-assert.match(ruleBody(blocked, '.unblock-col'), /border-left:\s*1px solid/, 'vertical unblock rail kept');
+
+// Settings controls keep functional outlines: quiet connect button, switch
+// focus ring, segmented control border.
+assert.match(ruleBody(options, '.st-btn'), /border:\s*1px solid var\(--nt-rule\)/, 'connect button keeps its rule outline');
+assert.match(ruleBody(options, '.seg'), /border:\s*1px solid var\(--nt-rule\)/, 'segmented control keeps its outline');
+assert.match(options, /\.st-switch:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--nt-ink\)/s, 'switch keeps a 2px ink focus ring');
 
 const dividerBody = ruleBody(common, '.divider,');
 assert.match(dividerBody, /height:\s*0;/, 'divider occupies no height');
@@ -58,11 +51,9 @@ assert.match(dividerBody, /background-color:\s*transparent;/, 'divider draws not
 assert.match(dividerBody, /margin:\s*var\(--space-4\) 0;/, 'divider whitespace spacing kept');
 assert.match(dividerBody, /border:\s*none;/, 'divider border stays none');
 
-const bedtime = ruleBody(newtab, '.bedtime-reminder-divider');
-assert.match(bedtime, /height:\s*0;/, 'bedtime divider occupies no height');
-assert.match(bedtime, /background(-color)?:\s*transparent;/, 'bedtime divider draws nothing');
-assert.match(bedtime, /width:\s*32px;/, 'bedtime divider width kept');
-assert.match(bedtime, /margin:\s*0 auto 20px;/, 'bedtime divider spacing kept');
+// The new-tab timeline keeps its structural lines (calendar chart baseline,
+// rails) — only decorative separators are banned, which the sweep above covers.
+assert.ok(newtab.length > 0);
 
 for (const file of files) {
   const css = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');

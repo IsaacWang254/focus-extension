@@ -9,100 +9,85 @@
   <link rel="stylesheet" href="../lib/modernist.css">
 </head>
 <body data-surface="newtab">
-  <canvas class="bg-shader" id="bg-ocean" aria-hidden="true"></canvas>
-  <canvas class="bg-shader bg-dither" id="bg-dither" aria-hidden="true"></canvas>
-
   <main class="main">
-    <section class="bedtime-reminder hidden" id="bedtime-reminder" aria-live="polite">
-      <div class="bedtime-reminder-icon" id="bedtime-reminder-icon"></div>
-      <h2 class="bedtime-reminder-title">Time to shut down.</h2>
-      <div class="bedtime-reminder-divider"></div>
-      <p class="bedtime-reminder-text" id="bedtime-reminder-text"></p>
-      <p class="bedtime-reminder-sub" id="bedtime-reminder-sub"></p>
-    </section>
+    <header class="home-head" aria-label="Current day">
+      <h1 class="clock" id="clock" aria-label="Current time">
+        <span class="clock-part">00</span><span class="clock-separator" aria-hidden="true">:</span><span class="clock-part">00</span>
+      </h1>
 
-    <section class="daily-hero" aria-label="Current day">
-      <div>
-        <div class="clock" id="clock" aria-label="Current time">
-          <span class="clock-part">00</span><span class="clock-separator" aria-hidden="true">:</span><span class="clock-part">00</span>
-        </div>
+      <div class="home-side">
         <p class="full-date" id="full-date"></p>
-      </div>
-
-      <div class="weather-section" id="weather-section" aria-label="Weather">
-        <div class="weather-loading" id="weather-loading"><div class="spinner spinner-sm"></div></div>
-        <div class="weather-content hidden" id="weather-content">
-          <span class="weather-icon" id="weather-icon" aria-hidden="true"></span>
-          <div class="weather-copy">
+        <div class="weather-section" id="weather-section" aria-label="Weather">
+          <div class="weather-loading" id="weather-loading"><div class="spinner spinner-sm"></div></div>
+          <div class="weather-content hidden" id="weather-content">
+            <span class="weather-icon" id="weather-icon" aria-hidden="true"></span>
             <span class="weather-temp" id="weather-temp"></span>
             <span class="weather-desc" id="weather-desc"></span>
             <span class="weather-highlow" id="weather-highlow"></span>
           </div>
+          <div class="weather-error hidden" id="weather-error"><span id="weather-error-text"></span></div>
         </div>
-        <div class="weather-error hidden" id="weather-error"><span id="weather-error-text"></span></div>
       </div>
+    </header>
+
+    <section id="tasks-section" aria-labelledby="tasks-heading">
+      <h2 class="visually-hidden" id="tasks-heading">Tasks</h2>
+      <div class="sec-head sec-head-tools">
+        <div class="icon-actions" role="group" aria-label="Task actions">
+          <button class="icon-action is-reserved" id="todos-connect-btn" type="button" aria-label="Connect Todoist" data-tooltip-label="Connect Todoist" aria-hidden="true" tabindex="-1"></button>
+          <button class="icon-action" id="add-task-btn" type="button" aria-label="Add task" data-tooltip-label="Add task"></button>
+          <a class="icon-action" id="view-tasks-btn" href="https://app.todoist.com/app/today" target="_blank" rel="noreferrer" aria-label="Open Todoist (opens in new tab)" data-tooltip-label="Open Todoist (opens in new tab)"></a>
+        </div>
+      </div>
+      <p class="integration-status hidden" id="tasks-status" aria-live="polite"></p>
+      <ul class="task-list" id="task-list"></ul>
+      <p class="preview-empty hidden" id="task-list-empty">Your task list is clear.</p>
     </section>
 
-    <section class="daily-brief" aria-label="Daily brief">
-      <div class="task-column">
-        <article class="brief-feature brief-now" id="brief-now">
-          <div class="section-heading-row">
-            <p class="section-eyebrow" id="now-task-label">Current task</p>
-            <div class="icon-actions" role="group" aria-label="Task actions">
-              <button class="icon-action" id="add-task-btn" type="button" aria-label="Add task" data-tooltip="Add task"><span id="add-task-icon" aria-hidden="true"></span></button>
-              <button class="icon-action" id="view-tasks-btn" type="button" aria-label="View tasks" data-tooltip="View tasks"><span id="view-tasks-icon" aria-hidden="true"></span></button>
-            </div>
-          </div>
-          <div id="now-task" class="feature-content"><p class="brief-empty">Loading your day…</p></div>
-        </article>
-
-      </div>
-
-      <article class="today-timeline-section" id="today-timeline-section">
-        <div class="preview-heading timeline-heading">
-          <div>
-            <p class="section-eyebrow">Calendar</p>
-            <h2>Today</h2>
-          </div>
-          <div class="icon-actions">
-            <button class="quiet-action hidden" id="calendar-connect-btn" type="button">Connect Calendar</button>
-            <button class="icon-action" id="view-schedule-btn" type="button" aria-label="View schedule" data-tooltip="View schedule"><span id="view-schedule-icon" aria-hidden="true"></span></button>
-          </div>
-        </div>
-        <p class="integration-status hidden" id="calendar-status" aria-live="polite"></p>
+    <section id="today-timeline-section" aria-labelledby="calendar-heading">
+      <div class="sec-head cal-head">
+        <p class="cal-label" id="calendar-heading">Calendar</p>
         <div class="timeline-all-day hidden" id="timeline-all-day"></div>
-        <div class="timeline-viewport" id="timeline-viewport" role="region" aria-label="Today's calendar timeline" tabindex="0">
-          <ol class="timeline-list" id="timeline-list"></ol>
+        <div class="icon-actions" role="group" aria-label="Calendar actions">
+          <button class="icon-action is-reserved" id="calendar-connect-btn" type="button" aria-label="Connect Google Calendar" data-tooltip-label="Connect Google Calendar" aria-hidden="true" tabindex="-1"></button>
+          <a class="icon-action" id="view-schedule-btn" href="https://calendar.google.com/calendar/r/day" target="_blank" rel="noreferrer" aria-label="Open Google Calendar (opens in new tab)" data-tooltip-label="Open Google Calendar (opens in new tab)"></a>
         </div>
-        <button class="back-to-now hidden" id="back-to-now-btn" type="button">Back to now</button>
-        <p class="preview-empty hidden" id="timeline-empty">No events scheduled today.</p>
-      </article>
-
-      <article class="preview-column" id="tasks-preview">
-        <div class="preview-heading">
-          <h2>Tasks</h2>
-          <button class="quiet-action hidden" id="todos-connect-btn" type="button">Connect Todoist</button>
-        </div>
-        <p class="integration-status hidden" id="tasks-status" aria-live="polite"></p>
-        <ul class="preview-list" id="task-preview-list"></ul>
-        <p class="preview-empty hidden" id="task-preview-empty">Your task list is clear.</p>
-      </article>
+      </div>
+      <p class="integration-status hidden" id="calendar-status" aria-live="polite"></p>
+      <div class="timeline-shell">
+        <div class="timeline-viewport" id="timeline-viewport" role="region" aria-label="Today's calendar timeline" tabindex="0"></div>
+        <button class="icon-action back-to-now is-reserved" id="back-to-now-btn" type="button" aria-label="Back to now" data-tooltip-label="Back to now" data-tooltip-side="top" aria-hidden="true" tabindex="-1"></button>
+      </div>
+      <p class="preview-empty hidden" id="timeline-empty">No events scheduled today.</p>
+      <ul class="timeline-unavailable hidden" id="timeline-unavailable"></ul>
     </section>
   </main>
 
-  <div class="planner-drawer hidden" id="planner-drawer" aria-hidden="true">
-    <div class="planner-drawer-backdrop" id="planner-drawer-backdrop"></div>
-    <section class="planner-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="planner-drawer-title">
-      <header class="planner-drawer-header">
-        <div>
-          <p class="section-eyebrow" id="planner-drawer-eyebrow"></p>
-          <h2 id="planner-drawer-title"></h2>
-        </div>
-        <button class="icon-action drawer-close" id="planner-drawer-close" type="button" aria-label="Close planner" data-tooltip="Close">
-          <span id="planner-drawer-close-icon" aria-hidden="true"></span>
-        </button>
+  <div class="edit-modal hidden" id="edit-modal" aria-hidden="true">
+    <div class="quick-add-backdrop" id="edit-modal-backdrop"></div>
+    <section class="edit-modal-panel" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+      <header class="edit-modal-head">
+        <h2 id="edit-modal-title">Edit task</h2>
+        <button class="icon-action" id="edit-modal-close" type="button" aria-label="Close" data-tooltip-label="Close"></button>
       </header>
-      <div class="planner-drawer-body" id="planner-drawer-body"></div>
+      <div class="edit-modal-body" id="edit-modal-body"></div>
+    </section>
+  </div>
+
+  <div class="quick-add hidden" id="quick-add" aria-hidden="true">
+    <div class="quick-add-backdrop" id="quick-add-backdrop"></div>
+    <section class="quick-add-panel" role="dialog" aria-modal="true" aria-label="Add a task">
+      <form id="quick-add-form" autocomplete="off">
+        <div class="quick-add-row">
+          <span class="quick-add-glyph" id="quick-add-glyph" aria-hidden="true"></span>
+          <input id="quick-add-input" name="quick_add_text" type="text" required
+            role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="quick-add-suggest"
+            placeholder="Add a task — e.g. Review PR tomorrow 4pm #Work p2">
+          <span class="quick-add-spinner" id="quick-add-spinner" hidden><span class="planner-spinner" aria-hidden="true"></span></span>
+        </div>
+      </form>
+      <div class="quick-add-list" id="quick-add-list"></div>
+      <p class="quick-add-foot" id="quick-add-foot" aria-live="polite">Enter to add · Esc to close · dates, #project, @label, p1–p4</p>
     </section>
   </div>
 

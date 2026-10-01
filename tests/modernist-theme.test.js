@@ -151,92 +151,31 @@ for (const [base, sync, darkOS, expected] of [
   assert.equal(gear.getAttribute('title'), null, 'no restoration behavior exists to cycle');
 }
 
-const surfaces = [
-  ['../newtab/newtab.html', 'newtab.css', 'newtab'],
-  ['../blocked/blocked.html', 'blocked.css', 'blocked'],
-  ['../options/options.html', 'options.css', 'options'],
-  ['../popup/popup.html', 'popup.css', 'popup'],
-  ['../stats/stats.html', 'stats.css', 'stats']
-];
-
-for (const [file, pageCss, surface] of surfaces) {
+// Remaining surfaces: new tab + Settings. Both carry data-design on <html>,
+// the shared token sheet, and a body data-surface marker.
+for (const [file, surface] of [
+  ['../newtab/newtab.html', 'newtab'],
+  ['../options/options.html', 'settings']
+]) {
   const html = read(file);
-  const pageIndex = html.indexOf(`href="${pageCss}"`);
-  const modernistIndex = html.indexOf('href="../lib/modernist.css"');
   assert.match(html, /<html lang="en" data-design="modernist">/, `${file} ships the design on the root element`);
   assert.match(html, /<link rel="icon" type="image\/png" href="\.\.\/icons\/icon16\.png">/, `${file} uses the brand PNG favicon`);
-  assert.ok(pageIndex > -1, `${file} keeps its page stylesheet`);
-  assert.ok(modernistIndex > pageIndex, `${file} loads modernist.css after ${pageCss}`);
   assert.match(html, new RegExp(`<body data-surface="${surface}"`), `${file} marks its body as ${surface}`);
 }
+assert.match(read('../options/options.html'), /lib\/nt-tokens\.css/, 'options loads the shared token sheet');
+assert.match(read('../newtab/newtab.css'), /@import '\.\.\/lib\/nt-tokens\.css'/, 'newtab loads the shared token sheet');
 
-const optionsHtml = read('../options/options.html');
-const optionsSource = read('../options/options.js');
-assert.doesNotMatch(optionsHtml, /data-design-toggle|modernist-enabled|modernist-status|modernist-setting/, 'the options toggle markup must be gone');
-assert.doesNotMatch(optionsSource, /setupModernistToggle|setModernistDesign/, 'the options toggle wiring must be gone');
-
-for (const src of ['../lib/theme.js', '../lib/design-theme.js', '../newtab/newtab.js', '../blocked/blocked.js']) {
-  assert.doesNotMatch(read(src), /modernistEnabled/, `${src} must not depend on the retired flag`);
-}
-
-const newtabHtml = read('../newtab/newtab.html');
 const newtabCss = read('../newtab/newtab.css');
 const modernistCss = read('../lib/modernist.css');
 
-assert.doesNotMatch(newtabHtml, /modernist-caption|A space for/, 'the masthead tagline must be gone');
-assert.doesNotMatch(
-  modernistCss,
-  /\[data-surface="newtab"\]\s+\.main\s*\{[^}]*border-inline/s,
-  'the new tab frame must not draw outer left/right rules'
-);
-assert.doesNotMatch(modernistCss, /modernist-setting/, 'the options row CSS must be gone');
 assert.match(newtabCss, /body\[data-surface="newtab"\][^{]*\{[^}]*overflow-y:\s*auto/s,
   'the new tab keeps natural page scrolling');
 assert.doesNotMatch(modernistCss, /\[data-surface="newtab"\][^{]*\{[^}]*overflow:\s*hidden/s,
   'the shared theme must not clip the new tab');
 
-assert.match(modernistCss, /--brand-red:\s*#e5342a/i, 'brand red token present');
-assert.match(modernistCss, /--modernist-highlight:\s*var\(--brand-red\)/, 'highlight aliases brand red');
-assert.match(modernistCss, /--indigo-hover:\s*#d9231b/i, 'light hover uses the deeper safe red');
-assert.match(modernistCss, /--ring:\s*var\(--modernist-highlight\)/, 'focus ring follows the highlight');
-assert.match(modernistCss, /--modernist-display:\s*var\(--brand-red\)/, 'display color follows brand red');
-const darkBlock = modernistCss.slice(modernistCss.indexOf('[data-theme$="dark"]'));
-assert.match(darkBlock, /--modernist-highlight:\s*#ff4e3a/i, 'dark highlight token');
-assert.match(darkBlock, /--indigo-hover:\s*#ff705e/i, 'dark hover uses the readable bright red');
-assert.match(darkBlock, /--ring:\s*var\(--modernist-highlight\)/, 'dark ring follows the highlight');
-assert.match(
-  modernistCss,
-  /:is\(\.theme-toggle,\s*\.settings-dialog-close\):is\(:hover,\s*:focus-visible\)\s*\{[^}]*color:\s*var\(--modernist-highlight\)/s,
-  'icon hover/focus uses the vibrant highlight'
-);
-assert.match(
-  modernistCss,
-  /:is\(\.btn-secondary,\s*\.btn-ghost,\s*\.profile-select,\s*\.time-range-select,\s*\.focus-preset-btn\):hover:not\(:disabled\)\s*\{[^}]*background-color:\s*var\(--background\)/s,
-  'text-button hover keeps the plain page background for contrast'
-);
-assert.match(
-  modernistCss,
-  /\.radix-select-item\[data-highlighted\]\s*\{[^}]*background-color:\s*var\(--background\)/s,
-  'highlighted select items keep the plain background for contrast'
-);
-
 const newtabSource = read('../newtab/newtab.js');
-const blockedSource = read('../blocked/blocked.js');
 assert.doesNotMatch(newtabSource, /setupThemeToggle|theme-toggle|setIconButtonLabel/, 'newtab must not retain the removed theme control');
-assert.match(blockedSource, /setIconButtonLabel\(toggle/, 'blocked/blocked.js must label the theme toggle through the design-aware helper');
-assert.doesNotMatch(blockedSource, /toggle\.title\s*=/, 'blocked/blocked.js must not assign native titles directly');
-assert.match(modernistCss, /\.settings-launch::after\s*\{[^}]*content:\s*none/s, 'the pseudo tooltip must be disabled');
-assert.match(
-  modernistCss,
-  /:is\(\.theme-toggle,\s*\.settings-dialog-close\)\s*\{[^}]*border:\s*0[^}]*transition:[^}]*transform/s,
-  'icon buttons must be borderless with a transform transition'
-);
-const reducedBlock = modernistCss.slice(modernistCss.indexOf('@media (prefers-reduced-motion: reduce)'));
-assert.match(
-  reducedBlock,
-  /\.theme-toggle:not\(\.settings-launch\):is\(:hover,\s*:focus-visible\)\s+svg[^{]*\{[^}]*transform:\s*none/s,
-  'the reduced-motion rule must outrank the moon/sun hover rotation selector'
-);
+assert.doesNotMatch(newtabSource, /bedtime|shader|ocean|dither|bgImage/i, 'newtab must not retain removed features');
 
 for (const [file, w, h] of [
   ['../icons/icon16.svg', 16, 16],
@@ -250,22 +189,6 @@ for (const [file, w, h] of [
   assert.match(svg, new RegExp(`width="${w}" height="${h}"`), `${file} dimensions intact`);
 }
 
-const social = read('../icons/social-preview.svg');
-for (const [from, to] of [
-  ['#F5F5F4', '#F7F5EF'], ['#18181B', '#E5342A'], ['#F59E0B', '#F7F5EF'],
-  ['#52525B', '#656259'], ['#D4D4D8', '#CBC6BA']
-]) {
-  assert.doesNotMatch(social, new RegExp(from, 'i'), `social preview keeps no ${from}`);
-  assert.match(social, new RegExp(to, 'i'), `social preview carries ${to}`);
-}
-assert.match(social, /font-family="Hanken Grotesk, sans-serif"/, 'social preview uses the bundled face');
-assert.doesNotMatch(social, /font-weight="700"/, 'social heading drops to 500');
-
-const favicon = read('../icons/newtab-favicon.svg');
-assert.match(favicon, /#E5342A/i, 'sunrise favicon recolored to brand red');
-assert.match(favicon, /#F7F5EF/i, 'sunrise favicon carries paper');
-assert.doesNotMatch(favicon, /#F59E0B|#FBBF24|#0a0a0a/i, 'sunrise favicon keeps no amber/black');
-
 const pngSize = (rel) => {
   const buf = fs.readFileSync(new URL(rel, import.meta.url));
   assert.equal(buf.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', `${rel} is a PNG`);
@@ -274,8 +197,7 @@ const pngSize = (rel) => {
 for (const [rel, w, h] of [
   ['../icons/icon16.png', 16, 16],
   ['../icons/icon48.png', 48, 48],
-  ['../icons/icon128.png', 128, 128],
-  ['../icons/social-preview.png', 1280, 640]
+  ['../icons/icon128.png', 128, 128]
 ]) {
   const { w: pw, h: ph } = pngSize(rel);
   assert.equal(pw, w, `${rel} width`);
@@ -283,31 +205,5 @@ for (const [rel, w, h] of [
 }
 
 assert.match(read('../manifest.json'), /icons\/icon128\.png/, 'manifest points at the regenerated PNG set');
-assert.match(read('../README.md'), /icons\/icon128\.png/, 'README points at the regenerated PNG set');
-assert.match(read('../README.md'), /Modernist-inspired design/, 'README describes the permanent design');
-assert.doesNotMatch(read('../README.md'), /preview-design/, 'README no longer documents the retired preview param');
-
-const shim = read('../scripts/preview/shim.js');
-assert.doesNotMatch(shim, /focus-preview-modernist|modernistEnabled|preview-design/, 'preview shim returns to pre-session state');
-
-const popupStatus = modernistCss.match(/\[data-surface="popup"\]\s+\.status\s*\{([^}]*)\}/s);
-assert.ok(popupStatus, 'popup status rule exists');
-assert.match(popupStatus[1], /border:\s*0/, 'popup status removes the divider');
-assert.doesNotMatch(popupStatus[1], /border-bottom/, 'popup status has no bottom border');
-assert.match(
-  modernistCss,
-  /\[data-surface="popup"\]\s+:is\(\.current-site,\s*\.focus-section,\s*\.footer\)\s*\{[^}]*border-top:\s*0/s,
-  'popup secondary dividers removed'
-);
-assert.match(
-  modernistCss,
-  /\[data-surface="popup"\]\s+\.header\s*\{[^}]*border-bottom:\s*0/s,
-  'popup header separates with whitespace, no decorative divider'
-);
-assert.match(
-  read('../popup/popup.css'),
-  /\.focus-preset-btn\s*\{[^}]*border:\s*1px solid var\(--border\)/s,
-  'preset buttons keep their visible outline'
-);
 
 console.log('modernist-theme.test.js: all assertions passed');

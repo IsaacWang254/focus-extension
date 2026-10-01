@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { centerTimelineOnNow, renderDayTimeline } from '../newtab/planner-timeline.js';
+import { createPlannerCalendarData } from '../newtab/planner-calendar-data.js';
 
 class ClassList {
   constructor(owner) {
@@ -151,17 +152,22 @@ globalThis.document = documentStub;
 function timelineElements() {
   return {
     viewport: new MiniNode('section'),
-    list: new MiniNode('ul'),
     allDay: new MiniNode('section'),
-    empty: new MiniNode('p')
+    empty: new MiniNode('p'),
+    unavailable: new MiniNode('ul')
   };
 }
 
+function timelineList(elements) {
+  return elements.viewport.querySelector('.timeline-list');
+}
+
+const gcal = id => `https://calendar.google.com/calendar/event?eid=${id}`;
 const timelineEvents = [
-  { id: 'later', calendarId: 'work', title: 'Later review', calendarName: 'Work', color: '#4285F4', start: '2026-09-29T11:00:00', end: '2026-09-29T11:30:00' },
-  { id: 'all', calendarId: 'personal', title: 'Birthday', calendarName: 'Personal', color: '#0F9D58', isAllDay: true, start: '2026-09-29', end: '2026-09-30' },
-  { id: 'past', calendarId: 'work', title: 'Standup', calendarName: 'Work', color: '#EA4335', start: '2026-09-29T08:00:00', end: '2026-09-29T09:00:00' },
-  { id: 'current', calendarId: 'work', title: 'Planning', calendarName: 'Work', color: '#FBBC04', start: '2026-09-29T09:30:00', end: '2026-09-29T10:30:00' }
+  { id: 'later', calendarId: 'work', title: 'Later review', calendarName: 'Work', color: '#4285F4', start: '2026-09-29T11:00:00', end: '2026-09-29T11:30:00', htmlLink: gcal('later') },
+  { id: 'all', calendarId: 'personal', title: 'Birthday', calendarName: 'Personal', color: '#0F9D58', isAllDay: true, start: '2026-09-29', end: '2026-09-30', htmlLink: gcal('all') },
+  { id: 'past', calendarId: 'work', title: 'Standup', calendarName: 'Work', color: '#EA4335', start: '2026-09-29T08:00:00', end: '2026-09-29T09:00:00', htmlLink: gcal('past') },
+  { id: 'current', calendarId: 'work', title: 'Planning', calendarName: 'Work', color: '#FBBC04', start: '2026-09-29T09:30:00', end: '2026-09-29T10:30:00', htmlLink: gcal('current') }
 ];
 const timelineNow = new Date(2026, 8, 29, 10, 0, 0);
 const eventKey = (calendarId, id, start) => `${calendarId}\0${id}\0${start}`;
@@ -172,48 +178,59 @@ const firstRender = renderDayTimeline(elements, timelineEvents, {
   onOpen: (event, trigger) => opened.push({ event, trigger })
 });
 
+const list = timelineList(elements);
+assert.ok(list, 'timed blocks render inside the grid list');
 assert.deepEqual(
-  elements.list.querySelectorAll('.timeline-event').map(row => row.dataset.eventKey),
+  list.querySelectorAll('.timeline-blk').map(row => row.dataset.eventKey),
   [
     eventKey('work', 'past', '2026-09-29T08:00:00'),
     eventKey('work', 'current', '2026-09-29T09:30:00'),
     eventKey('work', 'later', '2026-09-29T11:00:00')
   ],
-  'timed rows render in chronological order independent of input order'
+  'timed blocks render in chronological order independent of input order'
 );
 assert.equal(elements.allDay.classList.contains('hidden'), false, 'all-day events render in their separate group');
 assert.equal(elements.allDay.querySelector('.timeline-all-day-label').textContent, 'All day');
-assert.equal(elements.allDay.querySelector('.timeline-all-day-event').style.getPropertyValue('--event-color'), '#0F9D58');
-assert.equal(elements.list.querySelector(`[data-event-key="${eventKey('work', 'past', '2026-09-29T08:00:00')}"]`).classList.contains('is-past'), true);
-const currentRow = elements.list.querySelector(`[data-event-key="${eventKey('work', 'current', '2026-09-29T09:30:00')}"]`);
+const allDayChip = elements.allDay.querySelector('.timeline-ad');
+assert.equal(allDayChip.style.getPropertyValue('--bar'), '#0F9D58');
+assert.ok(list.querySelector(`[data-event-key="${eventKey('work', 'past', '2026-09-29T08:00:00')}"]`).classList.contains('is-past'));
+const currentRow = list.querySelector(`[data-event-key="${eventKey('work', 'current', '2026-09-29T09:30:00')}"]`);
 assert.equal(currentRow.classList.contains('is-current'), true);
-assert.equal(currentRow.querySelector('.timeline-event-state').textContent, 'In progress');
-assert.equal(currentRow.querySelector('.timeline-event-button').getAttribute('aria-label'), 'Planning, 9:30 AM–10:30 AM, Work, In progress');
-assert.equal(currentRow.style.getPropertyValue('--event-color'), '#FBBC04');
-assert.equal(elements.list.querySelector(`[data-event-key="${eventKey('work', 'later', '2026-09-29T11:00:00')}"]`).classList.contains('is-future'), true);
-assert.match(firstRender.marker.querySelector('.timeline-now-label').textContent, /^Now · 10:00 AM$/);
+assert.equal(currentRow.getAttribute('aria-label'), 'Planning, 9:30 AM–10:30 AM, Work, In progress');
+assert.equal(currentRow.querySelector('.blk-sr').textContent, 'Planning, 9:30 AM–10:30 AM, Work, In progress');
+assert.equal(currentRow.style.getPropertyValue('--bar'), '#FBBC04');
+assert.match(firstRender.marker.querySelector('.sr').textContent, /^Now · 10:00 AM$/);
+assert.equal(firstRender.marker.querySelector('.lbl').textContent, '10:00', 'the rail label drops the meridiem to fit the column');
 
-const currentButton = currentRow.querySelector('.timeline-event-button');
-currentButton.dispatch('click');
-elements.allDay.querySelector('.timeline-all-day-event').querySelector('button').dispatch('click');
-assert.deepEqual(opened.map(result => result.event.id), ['current', 'all'], 'timed and all-day rows retain event activation');
-assert.equal(opened[0].trigger, currentButton);
+const currentButton = currentRow.querySelector('.icon-action');
+assert.equal(currentButton.tagName, 'A', 'Open control is a link to the event in Google Calendar');
+assert.equal(currentButton.href, gcal('current'));
+assert.equal(currentButton.target, '_blank');
+assert.equal(currentButton.rel, 'noreferrer');
+assert.equal(currentButton.getAttribute('aria-label'), 'Open Planning in Google Calendar (opens in new tab)');
+const allDayLink = elements.allDay.querySelector('.timeline-ad').querySelector('.icon-action');
+assert.equal(allDayLink.href, gcal('all'), 'all-day chips link to the event in Google Calendar');
+const noLinkRow = timelineElements();
+renderDayTimeline(noLinkRow, [
+  { id: 'nolink', calendarId: 'work', title: 'No link', start: '2026-09-29T11:00:00', end: '2026-09-29T11:30:00' }
+], { date: '2026-09-29', now: timelineNow });
+assert.equal(noLinkRow.viewport.querySelector('.icon-action'), null, 'no Open control without a safe htmlLink');
 
 currentButton.focus();
 renderDayTimeline(elements, timelineEvents, {
   date: '2026-09-29', now: new Date(2026, 8, 29, 10, 1, 0),
   onOpen: (event, trigger) => opened.push({ event, trigger })
 });
-assert.equal(elements.list.querySelector(`[data-event-key="${eventKey('work', 'current', '2026-09-29T09:30:00')}"]`), currentRow, 'minute renders retain keyed row nodes');
+assert.equal(list.querySelector(`[data-event-key="${eventKey('work', 'current', '2026-09-29T09:30:00')}"]`), currentRow, 'minute renders retain keyed block nodes');
 assert.equal(documentStub.activeElement, currentButton, 'focused event buttons retain focus while the marker moves');
 
-const boundaryEvent = { id: 'starting', calendarId: 'team', title: 'Starting now', calendarName: 'Team', color: '#4285F4', start: '2026-09-29T10:01:00', end: '2026-09-29T10:45:00' };
+const boundaryEvent = { id: 'starting', calendarId: 'team', title: 'Starting now', calendarName: 'Team', color: '#4285F4', start: '2026-09-29T10:01:00', end: '2026-09-29T10:45:00', htmlLink: gcal('starting') };
 renderDayTimeline(elements, [...timelineEvents, boundaryEvent], {
   date: '2026-09-29', now: new Date(2026, 8, 29, 10, 0, 0),
   onOpen: (event, trigger) => opened.push({ event, trigger })
 });
-const boundaryRow = elements.list.querySelector(`[data-event-key="${eventKey('team', 'starting', boundaryEvent.start)}"]`);
-const boundaryButton = boundaryRow.querySelector('.timeline-event-button');
+const boundaryRow = list.querySelector(`[data-event-key="${eventKey('team', 'starting', boundaryEvent.start)}"]`);
+const boundaryButton = boundaryRow.querySelector('.icon-action');
 boundaryButton.focus();
 renderDayTimeline(elements, [...timelineEvents, boundaryEvent], {
   date: '2026-09-29', now: new Date(2026, 8, 29, 10, 2, 0),
@@ -221,8 +238,8 @@ renderDayTimeline(elements, [...timelineEvents, boundaryEvent], {
 });
 assert.equal(documentStub.activeElement, boundaryButton, 'crossing an event start moves only the Now marker, not the focused row');
 
-const currentRowAfterBoundary = elements.list.querySelector(`[data-event-key="${eventKey('work', 'current', '2026-09-29T09:30:00')}"]`);
-const currentButtonAfterBoundary = currentRowAfterBoundary.querySelector('.timeline-event-button');
+const currentRowAfterBoundary = list.querySelector(`[data-event-key="${eventKey('work', 'current', '2026-09-29T09:30:00')}"]`);
+const currentButtonAfterBoundary = currentRowAfterBoundary.querySelector('.icon-action');
 currentButtonAfterBoundary.focus();
 renderDayTimeline(elements, [...timelineEvents.filter(event => event.id !== 'past'), boundaryEvent], {
   date: '2026-09-29', now: new Date(2026, 8, 29, 10, 2, 0),
@@ -264,9 +281,13 @@ function plannerHarness() {
   const calls = { status: 0, events: 0, renders: 0, centers: 0 };
   const elementsById = new Map();
   const documentListeners = new Map();
+  // Homepage Now-marker geometry: starts above the viewport so the floating
+  // Back to now button has something to point at once the user anchors.
+  let nowMarkerRect = { top: -60, bottom: -60 };
+  const nowMarker = { getBoundingClientRect: () => nowMarkerRect };
 
   const makeElement = id => {
-    const classes = new Set(id === 'planner-drawer' ? ['hidden'] : id === 'back-to-now-btn' ? ['hidden'] : []);
+    const classes = new Set(id === 'edit-modal' ? ['hidden'] : id === 'back-to-now-btn' ? ['is-reserved'] : []);
     const listeners = new Map();
     return {
       id, dataset: {}, textContent: '',
@@ -274,9 +295,14 @@ function plannerHarness() {
         add: name => classes.add(name), remove: name => classes.delete(name),
         contains: name => classes.has(name), toggle: (name, force) => force ? classes.add(name) : classes.delete(name)
       },
-      setAttribute() {}, addEventListener: (type, listener) => listeners.set(type, listener),
+      attributes: {},
+    setAttribute(name, value) { this.attributes[name] = String(value); },
+    getAttribute(name) { return this.attributes[name] || null; },
+    addEventListener: (type, listener) => listeners.set(type, listener),
       fire: (type, event = {}) => listeners.get(type)?.({ currentTarget: null, ...event }),
-      querySelector: () => null, querySelectorAll: () => [], contains: () => false, focus() {}
+      querySelector: sel => (id === 'timeline-viewport' && sel === '[data-timeline-now="true"]' ? nowMarker : null),
+      querySelectorAll: () => [], contains: () => false, focus() {},
+      getBoundingClientRect: id === 'timeline-viewport' ? () => ({ top: 0, right: 800, bottom: 200, left: 0, width: 800, height: 200 }) : undefined
     };
   };
   const element = id => {
@@ -316,17 +342,31 @@ function plannerHarness() {
       let latest = 0;
       return { begin: () => ++latest, isLatest: value => value === latest };
     },
+    setActionAvailable: (target, available) => {
+      target.classList.toggle('is-reserved', !available);
+    },
+    setIconButton: (target, options = {}) => {
+      const el = typeof target === 'string' ? element(target) : target;
+      if (options.label) el.setAttribute('aria-label', options.label);
+      el.textContent = options.label || '';
+    },
+    setButtonPending: () => {},
     normalizeEvents: events => events || [],
     normalizePlannerEventsPayload: (payload, requestedDate) => Array.isArray(payload) ? { date: requestedDate, events: payload } : { date: requestedDate, ...payload },
     renderDayTimeline: () => { calls.renders++; return { marker: { id: 'now' }, hasEvents: true }; },
     centerTimelineOnNow: () => { calls.centers++; },
     PLANNER_STATE_KEY: 'newtabPlannerState',
     flattenTasks: tasks => tasks,
-    rankTasks: () => [], selectNowTask: () => null, safeExternalUrl: () => '', addLocalDays: value => value,
+    rankTasks: () => [], selectHomepageTasks: () => ({ tasks: [], currentIsOverride: false }), safeExternalUrl: () => '', addLocalDays: value => value,
     clearCurrentTaskState: async () => {}, loadCurrentTaskState: async () => null, saveCurrentTaskState: async () => {},
     createTaskRow: () => ({}), renderTaskGroups() {}, taskMeta: () => '',
     createEventRow: () => ({}), formatEventTime: () => '', getMeetingUrl: () => '', renderEventList: () => 0,
     buildCreateTaskPayload: () => ({}), buildUpdateTaskPayload: () => ({}), nextCurrentTaskIdAfterCompletion: () => '',
+    // Phase 3: the real range-loading data store drives the homepage gate.
+    createPlannerCalendarData,
+    createIconButton: () => ({}),
+    renderWeekGrid: () => ({}),
+    weekDates: value => [value],
     todoist: {}
   };
   vm.runInNewContext(plannerSource, sandbox, { filename: 'planner.js' });
@@ -335,7 +375,8 @@ function plannerHarness() {
     exports: sandbox.__plannerExports,
     advance(milliseconds) { now += milliseconds; },
     runTimer() { const callback = pendingTimer; pendingTimer = null; callback?.(); },
-    setDate(value) { date = value; }
+    setDate(value) { date = value; },
+    setNowRect(rect) { nowMarkerRect = rect; }
   };
 }
 
@@ -360,12 +401,18 @@ planner.element('timeline-viewport').fire('wheel');
 assert.equal(planner.element('timeline-viewport').classList.contains('timeline-scrolling'), true, 'timeline scrolling reveals its scrollbar');
 planner.exports.refreshPlannerTime();
 assert.equal(planner.calls.centers, 2, 'manual timeline scrolling preserves the user anchor');
-assert.equal(planner.element('back-to-now-btn').classList.contains('hidden'), false, 'manual scrolling reveals Back to now');
+assert.equal(planner.element('back-to-now-btn').classList.contains('is-reserved'), false, 'manual scrolling with Now off-viewport reveals Back to now');
+planner.setNowRect({ top: 60, bottom: 60 });
+planner.element('timeline-viewport').fire('scroll');
+assert.equal(planner.element('back-to-now-btn').classList.contains('is-reserved'), true, 'Back to now hides while Now stays in view even when anchored');
+planner.setNowRect({ top: 260, bottom: 260 });
+planner.element('timeline-viewport').fire('scroll');
+assert.equal(planner.element('back-to-now-btn').classList.contains('is-reserved'), false, 'Back to now reappears when Now scrolls below the viewport');
 planner.runTimer();
 assert.equal(planner.element('timeline-viewport').classList.contains('timeline-scrolling'), false, 'the scrollbar hides after scrolling stops');
 planner.element('back-to-now-btn').fire('click');
 assert.equal(planner.calls.centers, 3, 'Back to now explicitly recenters the marker');
-assert.equal(planner.element('back-to-now-btn').classList.contains('hidden'), true);
+assert.equal(planner.element('back-to-now-btn').classList.contains('is-reserved'), true, 'Back to now reserves itself again after recentering');
 
 planner.exports.handlePlannerStorageChange({ calendarSettings: {
   oldValue: { connected: true, email: 'a@example.com', selectedCalendars: ['work'], lastSync: 1 },
@@ -404,7 +451,8 @@ disconnectedPlanner.api.nextPayload = { events: [], disconnected: true };
 disconnectedPlanner.exports.initPlannerDashboard(disconnectedPlanner.api);
 await disconnectedPlanner.exports.refreshPlannerDashboard();
 assert.match(disconnectedPlanner.element('calendar-status').textContent, /connection expired/, 'expired Calendar connections remain distinct from an empty day');
-assert.equal(disconnectedPlanner.element('calendar-connect-btn').textContent, 'Reconnect Calendar');
+assert.equal(disconnectedPlanner.element('calendar-connect-btn').getAttribute('aria-label'), 'Reconnect Google Calendar', 'expired connections keep a distinct reconnect action');
+assert.equal(disconnectedPlanner.element('calendar-connect-btn').classList.contains('is-reserved'), false, 'the reconnect action is no longer reserved');
 
 const stalePlanner = plannerHarness();
 stalePlanner.api.nextPayload = { events: [], stale: true };

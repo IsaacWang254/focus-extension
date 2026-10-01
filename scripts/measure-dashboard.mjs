@@ -109,13 +109,12 @@ function harness() {
   }
   async function calendarPage() {
     const start = backgroundSource.indexOf("const GOOGLE_CALENDAR_API =");
-    const end = backgroundSource.indexOf('function scoreKeywordMatch(', start);
-    assert.ok(start > 0 && end > start);
-    const source = backgroundSource.slice(start, end);
+    assert.ok(start > 0);
+    const source = backgroundSource.slice(start);
     const imports = [...backgroundSource.matchAll(/^import[\s\S]*?from\s+['"]([^'"]+)['"];?/gm)]
       .map(match => match[0]).join('\n');
     const ctx = context();
-    const module = new vm.SourceTextModule(`${imports}\n${source}\nexport { getNewTabEvents };`, {
+    const module = new vm.SourceTextModule(`${imports}\n${source}\nexport { getPlannerEvents };`, {
       context: ctx, identifier: new URL('background.js', root).href
     });
     const modules = new Map();
@@ -125,7 +124,7 @@ function harness() {
   }
   async function weatherPage() {
     const start = newtabSource.indexOf('async function getCoordinates(');
-    const end = newtabSource.indexOf('// SETTINGS', start);
+    const end = newtabSource.indexOf('async function loadSettings(', start);
     assert.ok(start > 0 && end > start);
     const nodes = new Map();
     const getElementById = id => {
@@ -158,11 +157,15 @@ for (const concurrent of [false, true]) {
   const calendar = await state.calendarPage();
   const open = async () => {
     state.advance();
-    await Promise.all([state.todoistPage(), calendar.getNewTabEvents(), state.weatherPage()]);
+    const day = '2026-09-13';
+    await Promise.all([state.todoistPage(), calendar.getPlannerEvents(day), state.weatherPage()]);
   };
   if (concurrent) await Promise.all(Array.from({ length: 5 }, open));
   else for (let i = 0; i < 5; i++) await open();
   results[concurrent ? 'concurrentColdOpens' : 'oneColdFourWarmOpens'] = state.counts;
 }
 results.eagerShaderImports = [...newtabSource.matchAll(/^import .* from ['"].*shader\.js['"];$/gm)].length;
+assert.equal(results.eagerShaderImports, 0, 'no shader modules remain');
+assert.doesNotMatch(backgroundSource, /scoreKeywordMatch|declarativeNetRequest\.updateDynamicRules|focusSession/i,
+  'blocking code must be gone from the worker (DNR lives only in lib/cleanup.js)');
 console.log(JSON.stringify(results, null, 2));

@@ -2,16 +2,13 @@
  * Static preview server for the extension's UI surfaces.
  *
  * Serves the repo root and injects scripts/preview/shim.js into the pages
- * that require a chrome.* context (blocked, options, newtab), so every
+ * that require a chrome.* context (options, newtab), so every
  * surface can be opened in a normal browser:
  *
  *   node scripts/preview/serve.mjs [port]
  *
  *   http://localhost:4173/newtab/newtab.html
- *   http://localhost:4173/blocked/blocked.html?url=https%3A%2F%2Fx.com%2Fhome
  *   http://localhost:4173/options/options.html
- *   http://localhost:4173/popup/popup.html        (built-in preview fixtures)
- *   http://localhost:4173/stats/stats.html        (built-in preview fixtures)
  */
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -21,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const port = Number(process.argv[2]) || 4173;
 
-const SHIMMED_PAGES = ['/blocked/blocked.html', '/options/options.html', '/newtab/newtab.html'];
+const SHIMMED_PAGES = ['/options/options.html', '/newtab/newtab.html'];
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',

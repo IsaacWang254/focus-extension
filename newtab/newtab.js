@@ -1,15 +1,13 @@
 /**
  * New Tab Page
- * Shows clock, motivational quote, Google Calendar events, and Todoist tasks
+ * Shows clock, weather, Google Calendar events, and Todoist tasks
  */
 
-import { createRuntimeMessenger, hasExtensionRuntime } from '../lib/runtime.js';
+import { createRuntimeMessenger } from '../lib/runtime.js';
 import {
-  applyAccentColorFromStorage,
   isThemeSyncEnabled,
   loadTheme
 } from '../lib/theme.js';
-import { resolveNewtabBackground } from '../lib/newtab-background.js';
 import { getCachedResource, withSharedLock } from '../lib/request-cache.js';
 import { runWhenVisible } from '../lib/when-visible.js';
 import {
@@ -18,6 +16,7 @@ import {
   refreshPlannerDashboard,
   refreshPlannerTime
 } from './planner.js';
+import { setIconButton, setupPlannerTooltips } from './planner-controls.js';
 
 // =============================================================================
 // CONSTANTS
@@ -30,19 +29,9 @@ const DEFAULTS = {
   newtabShowWeather: true,
   newtabShowCalendar: true,
   newtabShowTodos: true,
-  newtabBackground: 'ocean',
-  newtabShowOceanBackground: true,
-  newtabOceanBatterySaver: false,
-  newtabOceanWaveSpeed: 0.8,
   newtabTempUnit: 'C', // 'C' or 'F'
-  newtabBgImageLight: '',
-  newtabBgImageDark: '',
-  bedtimeReminderEnabled: false,
-  bedtimeReminderTime: '22:30',
-  bedtimeReminderEndTime: '07:00',
 };
 
-let reminderIntervalId = null;
 let dashboardSettings = { ...DEFAULTS };
 
 function isWidgetVisible(key) {
@@ -57,13 +46,8 @@ function getPreviewResponse(message) {
       return { ...DEFAULTS };
     case 'GET_CALENDAR_STATUS':
       return { connected: false };
-    case 'GET_NEWTAB_EVENTS':
-    case 'GET_TODAY_EVENTS':
-      return [];
     case 'GET_PLANNER_EVENTS':
       return { date: message.date, events: [] };
-    case 'ADD_EARNED_TIME':
-      return { added: 0 };
     default:
       return null;
   }
@@ -105,160 +89,12 @@ async function setLocal(values) {
   return undefined;
 }
 
-function getCurrentTheme() {
-  return document.documentElement.getAttribute('data-theme') || 'light';
-}
-
-function getBgImageStorageKey() {
-  const theme = getCurrentTheme();
-  return (theme === 'dark' || theme === 'dashboard-dark') ? 'newtabBgImageDark' : 'newtabBgImageLight';
-}
-
-// Light themes get the "day" variant, dark themes the night variant. Both
-// backgrounds share the convention so one mode value drives either shader.
-const SHADER_MODE = { DAY: 2, NIGHT: 1 };
-
-const BACKGROUND_SHADERS = {
-  ocean: { canvasId: 'bg-ocean', load: () => import('./ocean-shader.js').then(module => module.initOceanShader) },
-  dither: { canvasId: 'bg-dither', load: () => import('./dither-shader.js').then(module => module.initDitherShader) }
-};
-
-function getShaderModeForTheme() {
-  const theme = document.documentElement.getAttribute('data-theme') || '';
-  return theme.includes('dark') ? SHADER_MODE.NIGHT : SHADER_MODE.DAY;
-}
-
-let activeBackground = null;      // { kind, handle } for the running shader
-let backgroundInitFailed = false; // WebGL unavailable or shader failed to build
-let backgroundThemeObserver = null;
-let backgroundBatterySaver = false;
-let backgroundSpeed = 0.8;
-let backgroundGeneration = 0;
-let pendingBackgroundLoad = null;
-let requestedBackgroundKind = 'none';
-
-function prefersReducedMotion() {
-  return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-}
-
-function hideAllBackgroundCanvases() {
-  Object.values(BACKGROUND_SHADERS).forEach(({ canvasId }) => {
-    const canvas = document.getElementById(canvasId);
-    if (canvas) canvas.style.display = 'none';
-  });
-}
-
-function teardownActiveBackground() {
-  if (backgroundThemeObserver) {
-    backgroundThemeObserver.disconnect();
-    backgroundThemeObserver = null;
-  }
-  if (activeBackground) {
-    // destroy() rather than stop(): only one WebGL context should be alive at
-    // a time, so switching backgrounds must release the previous one.
-    activeBackground.handle.destroy();
-    activeBackground = null;
-  }
-  hideAllBackgroundCanvases();
-}
-
-async function applyBackgroundSetting(kind) {
-  requestedBackgroundKind = kind;
-  const generation = ++backgroundGeneration;
-  if (pendingBackgroundLoad) {
-    pendingBackgroundLoad();
-    pendingBackgroundLoad = null;
-  }
-
-  const shader = BACKGROUND_SHADERS[kind];
-  const active = !!shader && !prefersReducedMotion() && !backgroundInitFailed;
-
-  document.body.classList.toggle('bg-active', active);
-  document.body.classList.toggle('bg-dither-active', active && kind === 'dither');
-
-  if (!active) {
-    teardownActiveBackground();
-    return;
-  }
-
-  if (document.visibilityState === 'hidden') {
-    pendingBackgroundLoad = runWhenVisible(() => {
-      pendingBackgroundLoad = null;
-      applyBackgroundSetting(requestedBackgroundKind);
-    });
-    return;
-  }
-
-  if (activeBackground && activeBackground.kind === kind) {
-    activeBackground.handle.start();
-    return;
-  }
-
-  const canvas = document.getElementById(shader.canvasId);
-  if (!canvas) return;
-
-  let init;
-  try {
-    init = await shader.load();
-  } catch (error) {
-    console.error('Failed to load background shader:', error);
-    if (generation === backgroundGeneration) {
-      backgroundInitFailed = true;
-      document.body.classList.remove('bg-active', 'bg-dither-active');
-    }
-    return;
-  }
-
-  if (generation !== backgroundGeneration ||
-      document.visibilityState === 'hidden' ||
-      prefersReducedMotion() ||
-      backgroundInitFailed) {
-    return;
-  }
-
-  teardownActiveBackground();
-  canvas.style.display = 'block';
-
-  const handle = init(canvas, {
-    mode: getShaderModeForTheme(),
-    powerSave: backgroundBatterySaver
-  });
-  if (!handle) {
-    backgroundInitFailed = true;
-    canvas.style.display = 'none';
-    document.body.classList.remove('bg-active', 'bg-dither-active');
-    return;
-  }
-
-  handle.setSpeed(backgroundSpeed);
-  activeBackground = { kind, handle };
-
-  backgroundThemeObserver = new MutationObserver(() => {
-    handle.setMode(getShaderModeForTheme());
-  });
-  backgroundThemeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-theme']
-  });
-}
-
-function applyBackgroundBatterySaver(enabled) {
-  backgroundBatterySaver = enabled === true;
-  if (activeBackground) activeBackground.handle.setBatterySaver(backgroundBatterySaver);
-}
-
-function applyBackgroundSpeed(speed) {
-  backgroundSpeed = Number.isFinite(speed) ? speed : 0.8;
-  if (activeBackground) activeBackground.handle.setSpeed(backgroundSpeed);
-}
-
 function setupBrowserThemeSyncListener() {
   const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
   mediaQuery.addEventListener('change', async () => {
     const result = await getLocal('themeSyncWithBrowser');
     if (!isThemeSyncEnabled(result.themeSyncWithBrowser)) return;
     await loadTheme();
-    await refreshBgColor();
   });
 }
 
@@ -267,17 +103,12 @@ function setupBrowserThemeSyncListener() {
 // =============================================================================
 
 function setupIcons() {
-  const icons = {
-    'bedtime-reminder-icon': Icons.moon,
-    'add-task-icon': Icons.plus,
-    'view-tasks-icon': Icons.list,
-    'view-schedule-icon': Icons.calendar,
-    'planner-drawer-close-icon': Icons.x
-  };
-  for (const [id, markup] of Object.entries(icons)) {
-    const target = document.getElementById(id);
-    if (target) target.innerHTML = markup;
-  }
+  const modKey = /mac/i.test(navigator.platform || navigator.userAgent || '') ? '⌘K' : 'Ctrl+K';
+  setIconButton('add-task-btn', { icon: Icons.plus, label: `Add task (${modKey})` });
+  setIconButton('view-tasks-btn', { icon: Icons.externalLink });
+  setIconButton('view-schedule-btn', { icon: Icons.calendarDot });
+  setIconButton('back-to-now-btn', { icon: Icons.chevronUp, label: 'Back to now' });
+  setIconButton('edit-modal-close', { icon: Icons.x, label: 'Close' });
 }
 
 // =============================================================================
@@ -321,162 +152,6 @@ function stopClock() {
     clearInterval(clockIntervalId);
     clockIntervalId = null;
   }
-}
-
-function parseTimeString(timeString) {
-  if (typeof timeString !== 'string') {
-    return null;
-  }
-
-  const match = timeString.match(/^(\d{2}):(\d{2})$/);
-  if (!match) {
-    return null;
-  }
-
-  const hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-
-  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-    return null;
-  }
-
-  return { hours, minutes };
-}
-
-function formatReminderTime(timeString) {
-  const parsed = parseTimeString(timeString);
-  if (!parsed) {
-    return timeString;
-  }
-
-  const date = new Date();
-  date.setHours(parsed.hours, parsed.minutes, 0, 0);
-
-  return date.toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit'
-  });
-}
-
-function isWithinReminderWindow(startTime, endTime, now = new Date()) {
-  const start = parseTimeString(startTime);
-  const end = parseTimeString(endTime);
-  if (!start || !end) {
-    return false;
-  }
-
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  const startMinutes = start.hours * 60 + start.minutes;
-  const endMinutes = end.hours * 60 + end.minutes;
-
-  if (startMinutes === endMinutes) {
-    return true;
-  }
-
-  if (startMinutes < endMinutes) {
-    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
-  }
-
-  return currentMinutes >= startMinutes || currentMinutes < endMinutes;
-}
-
-function getReminderElapsedMinutes(startTime, now = new Date()) {
-  const start = parseTimeString(startTime);
-  if (!start) {
-    return null;
-  }
-
-  let currentMinutes = now.getHours() * 60 + now.getMinutes();
-  const startMinutes = start.hours * 60 + start.minutes;
-
-  if (currentMinutes < startMinutes) {
-    currentMinutes += 24 * 60;
-  }
-
-  return currentMinutes - startMinutes;
-}
-
-function formatElapsedDuration(totalMinutes) {
-  if (typeof totalMinutes !== 'number' || totalMinutes < 0) {
-    return '';
-  }
-
-  if (totalMinutes < 60) {
-    return `${totalMinutes} minute${totalMinutes === 1 ? '' : 's'}`;
-  }
-
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  if (minutes === 0) {
-    return `${hours} hour${hours === 1 ? '' : 's'}`;
-  }
-
-  return `${hours} hour${hours === 1 ? '' : 's'} ${minutes} minute${minutes === 1 ? '' : 's'}`;
-}
-
-function renderBedtimeReminder(settings) {
-  const reminderEl = document.getElementById('bedtime-reminder');
-  const textEl = document.getElementById('bedtime-reminder-text');
-  const subEl = document.getElementById('bedtime-reminder-sub');
-  if (!reminderEl || !textEl || !subEl) {
-    return;
-  }
-
-  const enabled = !!settings.bedtimeReminderEnabled;
-  const startTime = settings.bedtimeReminderTime || DEFAULTS.bedtimeReminderTime;
-  const endTime = settings.bedtimeReminderEndTime || DEFAULTS.bedtimeReminderEndTime;
-  const showReminder = enabled && isWithinReminderWindow(startTime, endTime);
-
-  reminderEl.classList.toggle('hidden', !showReminder);
-
-  if (!showReminder) {
-    return;
-  }
-
-  const elapsedMinutes = getReminderElapsedMinutes(startTime);
-  const elapsedText = formatElapsedDuration(elapsedMinutes);
-
-  if (elapsedText) {
-    textEl.innerHTML = `You're <span class="bedtime-reminder-elapsed">${elapsedText}</span> past your ${formatReminderTime(startTime)} shutdown time.`;
-  } else {
-    textEl.textContent = `You planned to shut down at ${formatReminderTime(startTime)}.`;
-  }
-
-  subEl.textContent = `Stay off until ${formatReminderTime(endTime)}`;
-}
-
-async function refreshBedtimeReminder() {
-  const settings = await getBedtimeReminderSettings();
-  renderBedtimeReminder(settings);
-}
-
-async function getBedtimeReminderSettings() {
-  const [{ settings = {} }, localSettings] = await Promise.all([
-    getLocal('settings'),
-    getLocal(['bedtimeReminderEnabled', 'bedtimeReminderTime', 'bedtimeReminderEndTime'])
-  ]);
-
-  return {
-    ...DEFAULTS,
-    ...settings,
-    ...localSettings
-  };
-}
-
-function startBedtimeReminderRefresh() {
-  if (reminderIntervalId) {
-    clearInterval(reminderIntervalId);
-  }
-
-  reminderIntervalId = window.setInterval(() => {
-    if (document.visibilityState !== 'visible') {
-      return;
-    }
-    refreshBedtimeReminder().catch(error => {
-      console.error('Failed to refresh bedtime reminder:', error);
-    });
-  }, 60000);
 }
 
 function updateDate() {
@@ -635,7 +310,7 @@ async function renderWeather(data) {
   document.getElementById('weather-icon').innerHTML = iconHtml;
   document.getElementById('weather-temp').textContent = `${temp}°`;
   document.getElementById('weather-desc').textContent = info.desc;
-  document.getElementById('weather-highlow').textContent = `H:${high}° L:${low}°`;
+  document.getElementById('weather-highlow').textContent = `· H ${high}° · L ${low}°`;
 
   loadingEl.classList.add('hidden');
   contentEl.classList.remove('hidden');
@@ -759,7 +434,6 @@ async function loadWeather() {
 async function loadSettings() {
   const settings = {
     ...DEFAULTS,
-    ...(await getBedtimeReminderSettings()),
     ...(await sendRuntimeMessage({ type: 'GET_SETTINGS' }))
   };
 
@@ -767,14 +441,6 @@ async function loadSettings() {
 
   // Apply visibility
   applyVisibility(settings);
-  applyBackgroundBatterySaver(settings.newtabOceanBatterySaver === true);
-  applyBackgroundSpeed(Number.isFinite(settings.newtabOceanWaveSpeed) ? settings.newtabOceanWaveSpeed : 0.8);
-  applyBackgroundSetting(resolveNewtabBackground(settings));
-  renderBedtimeReminder(settings);
-
-  const bgImageKey = getBgImageStorageKey();
-  const bgImage = settings[bgImageKey] || '';
-  applyBackgroundAppearance(bgImage);
 
   return settings;
 }
@@ -782,70 +448,8 @@ async function loadSettings() {
 function applyVisibility(settings) {
   const weatherSection = document.getElementById('weather-section');
   weatherSection?.classList.toggle('hidden', !settings.newtabShowWeather);
-  document.getElementById('brief-now')?.classList.toggle('hidden', !settings.newtabShowTodos);
-  document.getElementById('tasks-preview')?.classList.toggle('hidden', !settings.newtabShowTodos);
+  document.getElementById('tasks-section')?.classList.toggle('hidden', !settings.newtabShowTodos);
   document.getElementById('today-timeline-section')?.classList.toggle('hidden', !settings.newtabShowCalendar);
-}
-
-// =============================================================================
-// BACKGROUND COLOR
-// =============================================================================
-
-function applyBackgroundAppearance(image = '') {
-  document.body.style.backgroundImage = image ? `url("${image}")` : '';
-  document.body.style.backgroundSize = image ? 'cover' : '';
-  document.body.style.backgroundPosition = image ? 'center center' : '';
-  document.body.style.backgroundRepeat = image ? 'no-repeat' : '';
-}
-
-async function refreshBgColor() {
-  const imageKey = getBgImageStorageKey();
-  const result = await getLocal(imageKey);
-  const image = result[imageKey] || '';
-  applyBackgroundAppearance(image);
-}
-
-function setupBgImagePicker() {
-  const uploadButton = document.getElementById('upload-bg-image-btn');
-  const removeButton = document.getElementById('remove-bg-image-btn');
-  const input = document.getElementById('bg-image-input');
-
-  if (!uploadButton || !removeButton || !input) return;
-
-  uploadButton.addEventListener('click', () => {
-    input.click();
-  });
-
-  input.addEventListener('change', async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const imageData = await readFileAsDataUrl(file);
-      const imageKey = getBgImageStorageKey();
-      await setLocal({ [imageKey]: imageData });
-      applyBackgroundAppearance(imageData);
-    } catch (error) {
-      console.error('Failed to upload background image:', error);
-    } finally {
-      input.value = '';
-    }
-  });
-
-  removeButton.addEventListener('click', async () => {
-    const imageKey = getBgImageStorageKey();
-    await setLocal({ [imageKey]: '' });
-    applyBackgroundAppearance('');
-  });
-}
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
-    reader.readAsDataURL(file);
-  });
 }
 
 const DASHBOARD_WIDGETS = {
@@ -916,11 +520,7 @@ function setupVisibilityLifecycle() {
       if (dashboardRefreshStarted) {
         startDashboardRefresh();
       }
-      if (!pendingBackgroundLoad) {
-        applyBackgroundSetting(requestedBackgroundKind);
-      }
     } else {
-      backgroundGeneration++;
       stopClock();
       stopDashboardRefresh();
     }
@@ -929,27 +529,10 @@ function setupVisibilityLifecycle() {
   window.addEventListener('pagehide', () => {
     stopClock();
     stopDashboardRefresh();
-    if (reminderIntervalId) {
-      clearInterval(reminderIntervalId);
-      reminderIntervalId = null;
-    }
-    backgroundGeneration++;
     if (pendingDashboardStart) {
       pendingDashboardStart();
       pendingDashboardStart = null;
     }
-    if (pendingBackgroundLoad) {
-      pendingBackgroundLoad();
-      pendingBackgroundLoad = null;
-    }
-    teardownActiveBackground();
-  });
-}
-
-function setupReducedMotionListener() {
-  if (!window.matchMedia) return;
-  window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => {
-    applyBackgroundSetting(requestedBackgroundKind);
   });
 }
 
@@ -959,16 +542,7 @@ function setupStorageSync() {
   const visibilityKeys = [
     'newtabShowWeather',
     'newtabShowCalendar',
-    'newtabShowTodos',
-    'newtabBackground',
-    'newtabShowOceanBackground',
-    'newtabOceanBatterySaver',
-    'newtabOceanWaveSpeed',
-    'bedtimeReminderEnabled',
-    'bedtimeReminderTime',
-    'bedtimeReminderEndTime',
-    'newtabBgImageLight',
-    'newtabBgImageDark'
+    'newtabShowTodos'
   ];
 
   const WIDGET_SETTING_KEYS = {
@@ -1013,7 +587,6 @@ function setupStorageSync() {
       }
       if (reloadTheme) {
         await loadTheme();
-        await refreshBgColor();
       }
       for (const name of authClears) {
         clearAuthFailedWidget(name);
@@ -1086,10 +659,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Setup icons
   setupIcons();
+  setupPlannerTooltips();
 
   // Setup interactions
   setupBrowserThemeSyncListener();
-  setupReducedMotionListener();
   setupStorageSync();
   setupVisibilityLifecycle();
   initPlannerDashboard({
@@ -1101,7 +674,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Start clock
   startClock();
-  startBedtimeReminderRefresh();
 
   // Load settings and apply visibility
   await loadSettings();

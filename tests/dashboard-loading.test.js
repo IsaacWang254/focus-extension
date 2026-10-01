@@ -6,7 +6,6 @@ const read = (p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8');
 const flush = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
 
 const whenVisibleSource = read('../lib/when-visible.js').replace(/^export /gm, '');
-const bgResolverSource = read('../lib/newtab-background.js').replace(/^export /gm, '');
 const cacheSource = read('../lib/request-cache.js').replace(/^export /gm, '');
 const todoistSource = read('../lib/todoist.js')
   .replace(/^import[^\n]*\n/gm, '')
@@ -14,11 +13,9 @@ const todoistSource = read('../lib/todoist.js')
 
 const newtabSource = read('../newtab/newtab.js')
   .replace(/^import[^;]*;\n/gm, '')
-  .replace("import('./ocean-shader.js')", "__importShader('ocean')")
-  .replace("import('./dither-shader.js')", "__importShader('dither')")
   .replace('import.meta.url', "'https://fixture.invalid/newtab/newtab.js'");
 
-assert.ok(!/import\s*\(/.test(newtabSource), 'shader imports must be stubbed for the harness');
+assert.ok(!/import\s*\(/.test(newtabSource), 'dynamic imports must be stubbed for the harness');
 
 function makeElement(id) {
   const classes = new Set();
@@ -52,7 +49,7 @@ function harness({ settings = {}, visibility = 'visible', summaryDelay = 0, cale
   authenticated = true, coords = true, taskFailureStatus = 0, seed = {} } = {}) {
   const calls = {
     tasks: 0, completed: 0, planner: 0, plannerTime: 0, weather: 0, geolocation: 0,
-    messages: {}, shaderImports: [], shaderInits: []
+    messages: {}
   };
   let now = new Date(2026, 8, 13, 12, 0, 0).getTime();
   class Clock extends Date {
@@ -103,11 +100,6 @@ function harness({ settings = {}, visibility = 'visible', summaryDelay = 0, cale
       case 'GET_NEWTAB_EVENTS':
         if (eventsPayload) return eventsPayload;
         return { title: "Today's Schedule", displayDate: 'x', events: [{ id: 'e1', title: 'Standup', start: new Date(now + 3600000).toISOString(), end: new Date(now + 7200000).toISOString(), isAllDay: false }] };
-      case 'GET_TODAY_EVENTS': return [];
-      case 'GET_BLOCKING_SUMMARY':
-        if (summaryDelay === Infinity) await new Promise(() => {});
-        return { totalBlockAttempts: 0 };
-      case 'ADD_EARNED_TIME': return { added: 0 };
       default: return null;
     }
   };
@@ -196,8 +188,6 @@ function harness({ settings = {}, visibility = 'visible', summaryDelay = 0, cale
     throw new Error(`Unexpected fixture request: ${url.origin}${url.pathname}`);
   };
 
-  let shaderGate = null;
-  const pendingShaderReleases = [];
   const sandbox = {
     console: { log() {}, warn() {}, error() {} },
     chrome: {
@@ -233,22 +223,13 @@ function harness({ settings = {}, visibility = 'visible', summaryDelay = 0, cale
     loadTheme: async () => {},
     resolveThemeVariant: (b) => b,
     setIconButtonLabel: () => {},
-    getDailyQuote: () => ({ text: 'q', author: 'a' }),
+    setIconButton: () => {},
+    setupPlannerTooltips: () => {},
     initPlannerDashboard: () => {},
     refreshPlannerDashboard: async () => { calls.planner++; },
     refreshPlannerTime: () => { calls.plannerTime++; },
     handlePlannerStorageChange: () => {},
-    TODOIST_CLIENT_ID: 'fixture', TOKEN_PROXY_URL: 'https://fixture.invalid/token',
-    __importShader: (name) => {
-      calls.shaderImports.push(name);
-      const ready = shaderGate ? new Promise(r => pendingShaderReleases.push(r)) : Promise.resolve();
-      return ready.then(() => ({
-        [name === 'ocean' ? 'initOceanShader' : 'initDitherShader']: (canvas, opts) => {
-          calls.shaderInits.push(name);
-          return { start() {}, stop() {}, destroy() { calls.shaderDestroys = (calls.shaderDestroys || 0) + 1; }, setSpeed() {}, setMode() {}, setBatterySaver() {} };
-        }
-      }));
-    }
+    TODOIST_CLIENT_ID: 'fixture', TOKEN_PROXY_URL: 'https://fixture.invalid/token'
   };
 
   vm.createContext(sandbox);
@@ -257,10 +238,9 @@ function harness({ settings = {}, visibility = 'visible', summaryDelay = 0, cale
 this.todoist = { isAuthenticated, getTasksWithSubtasks, getCompletedTasksToday, getCompletedTasks,
   completeTask, reopenTask, createTask, logout, authenticate, getPriorityClass, formatDueDate };`, sandbox);
   vm.runInContext(whenVisibleSource + '\nthis.runWhenVisible = runWhenVisible;', sandbox);
-  vm.runInContext(bgResolverSource + '\nthis.resolveNewtabBackground = resolveNewtabBackground;', sandbox);
   vm.runInContext(`${newtabSource}
 this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, startDashboardRefresh,
-  applyBackgroundSetting, updateClock, startClock, getCoordinates };`, sandbox);
+  updateClock, startClock, getCoordinates };`, sandbox);
 
   return {
     calls, store, elements, intervals, clockWrites, sandbox,
@@ -271,8 +251,6 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
     },
     fireStorage: fireChange,
     tickIntervals() { for (const rec of intervals) if (rec.active) rec.fn(); },
-    releaseShaders() { pendingShaderReleases.forEach(r => r()); shaderGate = null; },
-    gateShaders() { shaderGate = true; },
     setReducedMotion(v) { reducedMotion = v; motionListeners.forEach(fn => fn()); },
     advanceMinute() { now += 61000; },
     advanceMs(ms) { now += ms; },
@@ -294,17 +272,16 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
 }
 
 {
-  const h = harness({ visibility: 'hidden', settings: { newtabBackground: 'none' } });
+  const h = harness({ visibility: 'hidden' });
   await h.start();
   await flush(10);
   assert.equal(h.calls.planner, 0, 'hidden tab must not refresh the planner');
   assert.equal(h.calls.weather, 0, 'hidden tab must not fetch weather');
   assert.equal(h.calls.geolocation, 0, 'hidden tab must not request geolocation');
-  assert.equal(h.calls.shaderImports.length, 0, 'hidden tab must not import shaders');
 }
 
 {
-  const h = harness({ visibility: 'visible', settings: { newtabBackground: 'none' } });
+  const h = harness({ visibility: 'visible' });
   await h.start();
   await flush(10);
   assert.equal(h.calls.planner, 1, 'planner refreshes once at startup');
@@ -319,11 +296,11 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
   h.setVisibility('visible');
   await flush(10);
   assert.equal(h.calls.planner, 2, 'visible resume triggers one planner refresh');
-  assert.equal(h.activeIntervals(60000), 2, 'reminder plus one dashboard interval remain active');
+  assert.equal(h.activeIntervals(60000), 1, 'the dashboard refresh interval remains active');
 }
 
 {
-  const h = harness({ visibility: 'visible', settings: { newtabBackground: 'none' } });
+  const h = harness({ visibility: 'visible' });
   await h.start();
   await flush(10);
   const plannerCalls = h.calls.planner;
@@ -336,7 +313,7 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
 }
 
 {
-  const h = harness({ visibility: 'visible', settings: { newtabBackground: 'none' } });
+  const h = harness({ visibility: 'visible' });
   await h.start();
   await flush(5);
   const writes = h.clockWrites.count;
@@ -348,38 +325,9 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
   assert.equal(h.clockWrites.count, writes + 1, 'a new minute rewrites exactly once');
 }
 
-{
-  const h = harness({ visibility: 'visible', settings: { newtabBackground: 'ocean' } });
-  h.gateShaders();
-  await h.start();
-  await flush(5);
-  assert.deepEqual(h.calls.shaderImports, ['ocean'], 'only the selected shader imports');
-  assert.equal(h.calls.shaderInits.length, 0, 'pending import has not initialized yet');
-
-  await h.api.applyBackgroundSetting('none');
-  h.releaseShaders();
-  await flush(5);
-  assert.equal(h.calls.shaderInits.length, 0, 'a superseded import must never initialize');
-
-  await h.api.applyBackgroundSetting('dither');
-  await flush(5);
-  assert.deepEqual(h.calls.shaderInits, ['dither'], 'the latest selection initializes once the import lands');
-}
-
-{
-  const h = harness({ visibility: 'visible', settings: { newtabBackground: 'ocean' } });
-  h.gateShaders();
-  await h.start();
-  await flush(5);
-  h.setReducedMotion(true);
-  h.releaseShaders();
-  await flush(5);
-  assert.equal(h.calls.shaderInits.length, 0, 'reduced motion must win over a pending import');
-}
-
 // Legacy task-list and calendar-panel rendering tests were removed with the retired homepage panels.
 {
-  const h = harness({ settings: { newtabBackground: 'none' } });
+  const h = harness();
   await h.start();
   await flush(10);
   assert.equal(h.calls.weather, 1);
@@ -390,7 +338,7 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
 }
 
 {
-  const h = harness({ settings: { newtabBackground: 'none' } });
+  const h = harness({ });
   await h.start();
   await flush(10);
   h.nextDay();
@@ -398,7 +346,7 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
   assert.equal(h.calls.weather, 2, 'a new day refetches weather');
 }
 {
-  const h = harness({ settings: { newtabBackground: 'none' } });
+  const h = harness({ });
   await h.start();
   await flush(10);
   h.store.weatherLat = 50;
@@ -411,7 +359,7 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
 
 {
   const stamp = new Date(2026, 8, 13, 12, 0, 0).getTime();
-  const h = harness({ settings: { newtabBackground: 'none' }, seed: {
+  const h = harness({ seed: {
     weatherCache: { current: { temperature_2m: 20, weather_code: 0, is_day: 1 }, daily: { temperature_2m_max: [22], temperature_2m_min: [15] } },
     weatherCacheTime: stamp
   } });
@@ -422,7 +370,7 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
 }
 
 {
-  const h = harness({ settings: { newtabBackground: 'none' } });
+  const h = harness({ });
   const release = h.holdWeather();
   const pending = h.api.loadWeather();
   await flush(5);
@@ -438,7 +386,7 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
 {
   const stamp = new Date(2026, 8, 13, 12, 0, 0).getTime() - 40 * 60 * 1000;
   const scope = JSON.stringify([40, -74, new Date(2026, 8, 13, 12, 0, 0).toDateString()]);
-  const h = harness({ settings: { newtabBackground: 'none' }, weatherFail: true, seed: {
+  const h = harness({ weatherFail: true, seed: {
     weatherCache: { current: { temperature_2m: 20, weather_code: 0, is_day: 1 }, daily: { temperature_2m_max: [22], temperature_2m_min: [15] } },
     weatherCacheTime: stamp, weatherCacheScope: scope
   } });
@@ -450,7 +398,7 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
 }
 
 {
-  const h = harness({ settings: { newtabBackground: 'none' }, coords: false, geo: 'deny' });
+  const h = harness({ coords: false, geo: 'deny' });
   for (let i = 0; i < 5; i++) await h.api.loadWeather();
   assert.equal(h.calls.geolocation, 1, 'repeat loads inside the cooldown must not re-prompt');
   h.advanceMs(5 * 60 * 1000 + 1);
@@ -459,7 +407,7 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
 }
 
 {
-  const h = harness({ settings: { newtabBackground: 'none' } });
+  const h = harness({ });
   const releaseSettings = h.holdSettings();
   const started = h.start();
   await flush(5);
@@ -475,33 +423,15 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
 }
 
 {
-  const h = harness({ visibility: 'visible', settings: { newtabBackground: 'ocean' } });
-  h.gateShaders();
+  const h = harness({ visibility: 'visible' });
   await h.start();
   await flush(5);
-  assert.deepEqual(h.calls.shaderImports, ['ocean']);
-  h.setVisibility('hidden');
-  h.releaseShaders();
-  await flush(5);
-  assert.equal(h.calls.shaderInits.length, 0, 'a hidden page never initializes the shader');
-  h.setVisibility('visible');
-  await flush(5);
-  assert.equal(h.calls.shaderInits.length, 1, 'reveal initializes the background exactly once');
-  assert.equal(h.calls.shaderInits[0], 'ocean');
-}
-
-{
-  const h = harness({ visibility: 'visible', settings: { newtabBackground: 'ocean' } });
-  await h.start();
-  await flush(5);
-  assert.equal(h.calls.shaderInits.length, 1);
   h.pagehide();
-  assert.equal(h.calls.shaderDestroys, 1, 'pagehide destroys the active background');
-  assert.equal(h.activeIntervals(60000), 0, 'pagehide stops the refresh and reminder intervals');
+  assert.equal(h.activeIntervals(60000), 0, 'pagehide stops the refresh interval');
 }
 
 {
-  const h = harness({ settings: { newtabBackground: 'none' } });
+  const h = harness({ });
   await h.start();
   await flush(10);
   assert.ok(!h.el('weather-content').classList.contains('hidden'), 'weather rendered warm');
@@ -517,7 +447,7 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
 {
   const stamp = new Date(2026, 8, 13, 12, 0, 0).getTime() - (2 * 60 + 15) * 60 * 1000;
   const scope = JSON.stringify([40, -74, new Date(2026, 8, 13, 12, 0, 0).toDateString()]);
-  const h = harness({ settings: { newtabBackground: 'none' }, weatherFail: true, seed: {
+  const h = harness({ weatherFail: true, seed: {
     weatherCache: { current: { temperature_2m: 20, weather_code: 0, is_day: 1 }, daily: { temperature_2m_max: [22], temperature_2m_min: [15] } },
     weatherCacheTime: stamp, weatherCacheScope: scope
   } });
@@ -529,7 +459,7 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
 {
   const stamp = new Date(2026, 8, 13, 12, 0, 0).getTime() - (2 * 60 + 31) * 60 * 1000;
   const scope = JSON.stringify([40, -74, new Date(2026, 8, 13, 12, 0, 0).toDateString()]);
-  const h = harness({ settings: { newtabBackground: 'none' }, weatherFail: true, seed: {
+  const h = harness({ weatherFail: true, seed: {
     weatherCache: { current: { temperature_2m: 20, weather_code: 0, is_day: 1 }, daily: { temperature_2m_max: [22], temperature_2m_min: [15] } },
     weatherCacheTime: stamp, weatherCacheScope: scope
   } });
