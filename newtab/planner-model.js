@@ -200,21 +200,8 @@ export function rankSuggestedTasks(tasks = [], now = new Date()) {
     .map(entry => entry.task);
 }
 
-export function selectHomepageTasks(tasks = [], overrideId = '', now = new Date(), limit = 3) {
-  const ranked = rankSuggestedTasks(tasks, now);
-  let currentIsOverride = false;
-  if (overrideId !== '' && overrideId != null) {
-    const index = ranked.findIndex(task => String(task.id) === String(overrideId));
-    if (index >= 0) {
-      ranked.unshift(ranked.splice(index, 1)[0]);
-      currentIsOverride = true;
-    }
-  }
-  return { tasks: ranked.slice(0, limit), currentIsOverride };
-}
-
-export function selectNowTask(tasks = [], overrideId = '', now = new Date()) {
-  return selectHomepageTasks(tasks, overrideId, now).tasks[0] || null;
+export function selectHomepageTasks(tasks = [], now = new Date(), limit = 3) {
+  return rankSuggestedTasks(tasks, now).slice(0, limit);
 }
 
 /**

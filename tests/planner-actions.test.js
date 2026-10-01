@@ -7,7 +7,6 @@ import {
   escapeQuickAddName,
   insertCompletion,
   matchSuggestions,
-  nextCurrentTaskIdAfterCompletion,
   parseQuickAddTokens,
   readPriorityToken,
   setPriorityToken,
@@ -136,9 +135,6 @@ assert.equal(
   describeCreatedTask({ content: 'Dated', due: { date: '2026-10-01', is_recurring: false } }, projects),
   'Added "Dated" · Thu, Oct 1'
 );
-
-assert.equal(nextCurrentTaskIdAfterCompletion('task-a', 'task-a'), '');
-assert.equal(nextCurrentTaskIdAfterCompletion('task-a', 'task-b'), 'task-a');
 
 const guard = createLatestRequestGuard();
 const first = guard.begin();

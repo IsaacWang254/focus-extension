@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Focus Extension",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A calm new tab with your Todoist tasks and today's Google Calendar.",
   "incognito": "split",
   "permissions": [

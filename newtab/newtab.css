@@ -418,12 +418,10 @@ body[data-surface="newtab"] .main {
   position: absolute;
   z-index: -1;
   inset-block: 0;
-  /* The wash's *visual* inset is symmetric: the ring glyph sits ~4.5px inside
-     the content's left edge while the action glyph sits ~11px inside the
-     right edge, so 12px left bleed vs 7.5px right bleed gives equal visual
-     padding on both sides — and the wash never pokes past the toolbar icons
-     above it. */
-  inset-inline: -12px -7.5px;
+  /* Symmetric 12px bleed on both sides of the content — the row's right
+     action slot is gone, so both edges mirror each other — and the wash
+     never pokes past the toolbar icons above it. */
+  inset-inline: -12px;
   border-radius: 8px;
   background: var(--nt-wash);
   opacity: 0;
@@ -454,34 +452,6 @@ body[data-surface="newtab"] .main {
   color: var(--nt-muted);
   font-size: 14px;
   line-height: 1.45;
-}
-
-/* Permanently reserved 36px action slot on every home task row, centred on
-   the whole row (title + meta), not the title line. */
-.task-row-action {
-  display: inline-flex;
-  align-items: center;
-  align-self: center;
-  justify-content: center;
-  flex: 0 0 36px;
-  width: 36px;
-  height: 36px;
-  margin: 0;
-}
-
-.task-current-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  color: var(--nt-ink);
-}
-
-.task-current-mark svg {
-  width: 14px;
-  height: 14px;
-  display: block;
 }
 
 .planner-row-meta,
@@ -1003,8 +973,6 @@ body[data-surface="newtab"] textarea {
   pointer-events: none;
 }
 
-.planner-task-row:hover .icon-action--reveal,
-.planner-task-row:has(:focus-visible) .icon-action--reveal,
 .icon-action--reveal:focus-visible,
 .timeline-blk:hover .icon-action--reveal,
 .timeline-blk:has(:focus-visible) .icon-action--reveal,
@@ -1014,25 +982,6 @@ body[data-surface="newtab"] textarea {
 .timeline-unavailable-row:has(:focus-visible) .icon-action--reveal {
   opacity: 1;
   pointer-events: auto;
-}
-
-/* Task-row reveal actions are bare glyphs: no box, no fill, at any state.
-   Muted when revealed by the row; ink only when the pointer/focus is on the
-   button itself. */
-.planner-task-row .icon-action--reveal,
-.planner-task-row .icon-action--reveal:hover,
-.planner-task-row .icon-action--reveal:focus-visible {
-  background: transparent;
-  border-color: transparent;
-}
-
-.planner-task-row .icon-action--reveal {
-  color: var(--nt-muted);
-}
-
-.planner-task-row .icon-action--reveal:hover,
-.planner-task-row .icon-action--reveal:focus-visible {
-  color: var(--nt-ink);
 }
 
 @media (hover: none), (pointer: coarse) {

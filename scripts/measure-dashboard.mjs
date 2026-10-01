@@ -11,7 +11,7 @@ const fixedNow = new Date(2026, 8, 13, 12).getTime();
 
 function harness() {
   let now = fixedNow;
-  const counts = { tasks: 0, completed: 0, calendarList: 0, calendarEvents: 0, weather: 0 };
+  const counts = { tasks: 0, calendarList: 0, calendarEvents: 0, weather: 0 };
   const locks = new Map();
   const store = {
     todoistToken: 'fixture-only-token',
@@ -48,8 +48,6 @@ function harness() {
     if (url.hostname === 'api.todoist.com' && url.pathname.endsWith('/tasks')) {
       counts.tasks++;
       body = { results: [{ id: 'task-1', content: 'Fixture task', priority: 1 }], next_cursor: null };
-    } else if (url.hostname === 'api.todoist.com' && url.pathname.includes('/completed/')) {
-      counts.completed++;
       body = { items: [], next_cursor: null };
     } else if (url.hostname === 'www.googleapis.com' && url.pathname.endsWith('/calendarList')) {
       counts.calendarList++;
@@ -100,12 +98,7 @@ function harness() {
     const module = await loadModule('lib/todoist.js', ctx);
     await module.evaluate();
     const api = module.namespace;
-    await Promise.all([
-      api.getTasksWithSubtasks(),
-      api.getCompletedTasksToday
-        ? api.getCompletedTasksToday({ limit: 50 })
-        : api.getCompletedTasks({ since: new Clock(2026, 8, 13).toISOString(), until: new Clock().toISOString(), limit: 50 })
-    ]);
+    await api.getTasksWithSubtasks();
   }
   async function calendarPage() {
     const start = backgroundSource.indexOf("const GOOGLE_CALENDAR_API =");

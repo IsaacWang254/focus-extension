@@ -4,18 +4,22 @@
   <img src="./icons/icon128.png" alt="Focus Extension icon" width="128" height="128">
 </p>
 
-Chrome extension that replaces the new tab page with a calm dashboard showing your Todoist tasks and today's Google Calendar. The interface uses a Modernist-inspired design with light/dark modes.
+Chrome extension that replaces the new tab page with a calm daily command centre showing your Todoist tasks and today's Google Calendar. Sections and rows are separated by whitespace rather than dividers, with a paper-toned light/dark design.
 
 ### Features
 
 - **New tab dashboard**:
   - Clock and date
-  - Weather
-  - Today's Google Calendar timeline
-  - Todoist tasks with a centred spotlight Quick Add (⌘K / Ctrl+K) and an edit drawer
+  - Weather (°C/°F, saved coordinates)
+  - Today's Google Calendar timeline: hour rails, side-by-side lanes for overlapping events, all-day chips, a Now marker with a "Back to now" shortcut, and links out to Google Calendar
+  - The top three Todoist tasks ranked deadline-first (overdue, then today's timed deadlines, then date-only, then upcoming, then undated) — the top task is shown in bold
+  - Complete a task from its priority-coloured ring; click a task to edit it in a centred modal (title, description, due date, priority, project, labels)
+  - Quick Add spotlight (⌘K / Ctrl+K) using Todoist's own `/tasks/quick` parser — dates, `#project`, `@label`, `p1`–`p4` — with inline project and label suggestions
 - **Settings page** (opened via the toolbar icon):
   - Todoist and Google Calendar connect/disconnect
-  - Calendar selection, new-tab visibility toggles, temperature unit, theme
+  - "Calendars shown" — pick which calendars feed the timeline
+  - New-tab visibility toggles (tasks / calendar / weather) and temperature unit
+  - Theme: System / Light / Dark
 - **Todoist integration**:
   - OAuth via a Cloudflare Worker proxy (client secret stays server-side)
   - View, complete, create, and edit tasks from the new tab page
@@ -25,11 +29,17 @@ Chrome extension that replaces the new tab page with a calm dashboard showing yo
 ### Architecture
 
 - **Browser extension (MV3)**
-  - `manifest.json` – Chrome extension manifest
+  - `manifest.json` – Chrome extension manifest (generated from `manifest.template.json` by `npm run build:local`)
   - `background.js` – service worker for Google Calendar auth/planner events and the one-time cleanup of removed features
-  - `options/` – settings UI
-  - `newtab/` – new tab dashboard
+  - `options/` – vanilla Settings UI
+  - `newtab/` – new tab dashboard:
+    - `newtab.js` / `newtab.html` / `newtab.css` – page shell, clock, weather, widget visibility
+    - `planner.js` – tasks, calendar timeline wiring, Quick Add spotlight, edit-task modal
+    - `planner-model.js` / `planner-actions.js` – ranking, grouping, and payload parsing (pure)
+    - `planner-tasks.js` / `planner-calendar.js` / `planner-calendar-data.js` / `planner-timeline.js` / `planner-controls.js` / `planner-color.js` – task rows and timeline rendering
   - `lib/todoist.js` – Todoist API wrapper used by the extension UIs
+  - `lib/cleanup.js` – versioned one-time cleanup of data left behind by removed features
+  - `lib/nt-tokens.css` – shared new-tab/Settings design tokens
 - **Cloudflare Worker**
   - Lives in `worker/`
   - Exposes `POST /api/todoist/token` to exchange a Todoist OAuth authorization code for an access token
@@ -136,18 +146,16 @@ in-flight requests instead of each page fetching on its own.
 | Resource | Freshness | Stale fallback |
 | --- | --- | --- |
 | Todoist active tasks | 2 min | up to 15 min extra when stale-while-revalidate is used |
-| Todoist completed-today | 2 min | up to 15 min extra when stale-while-revalidate is used |
 | Todoist labels / projects | 30 min | none — reads past the window refetch |
-| New-tab calendar display range | 5 min | same-day display range up to 24 h extra |
+| New-tab calendar planner events | 5 min | same-day events up to 24 h extra |
 | Weather | 30 min | up to 2 h extra (2.5 h maximum total age); the legacy fallback fields follow the same bound |
 
 Freshness and cooldowns are per cache scope — two different pages or queries
 only share an entry when their scopes match exactly.
 
-- Todoist responses live in four bounded slots (tasks, completed-today,
-  labels, projects). Different filters, limits, or accounts may evict one
-  another within a slot rather than coexisting — a repeat of an evicted query
-  refetches.
+- Todoist responses live in three bounded slots (tasks, labels, projects).
+  Different filters or accounts may evict one another within a slot rather
+  than coexisting — a repeat of an evicted query refetches.
 - An **empty** calendar day is a successful cached result — it does not trigger
   a refetch per open.
 - Widgets only poll while the tab is **visible and enabled**; hidden or
@@ -158,16 +166,15 @@ only share an entry when their scopes match exactly.
   fallback; Calendar shows an unavailable/saved-schedule message when a
   request reaches the UI as an error. Authentication failures clear the
   cached view and show the reconnect prompt.
-- Cache entries are scoped to account, query, selection, and — for
-  completed-today, calendar, and weather — the local day: signing out,
-  switching accounts, changing selected calendars, a new day, or new
-  coordinates all invalidate. Task mutations (complete / reopen / create)
-  invalidate the tasks and completed-today caches immediately.
+- Cache entries are scoped to account, query, selection, and — for calendar
+  and weather — the local day: signing out, switching accounts, changing
+  selected calendars, a new day, or new coordinates all invalidate. Task
+  mutations (complete / reopen / create / update) bump a cache revision that
+  invalidates the tasks cache immediately.
 - Failed requests enter a short cooldown (at least 60 s, honoring
   `Retry-After` for 429s) so concurrent pages don't each retry a failing
   endpoint. Auth failures (401/403) are recorded as status-only entries with
   no cached value and are never served as stale data.
-- Arbitrary-range `getCompletedTasks` requests are never cached.
 
 #### Measuring
 
@@ -178,18 +185,17 @@ fixtures (no live traffic, no real account data):
 node --experimental-vm-modules scripts/measure-dashboard.mjs
 ```
 
-Recorded comparison against baseline commit `199983d`: five opens within one
-freshness window, one connected account, one selected calendar with no events,
-and saved weather coordinates. Each fixture endpoint returns one response page.
+Five opens within one freshness window, one connected account, one selected
+calendar with no events, and saved weather coordinates. Each fixture endpoint
+returns one response page. Current output:
 
-| External requests | Sequential opens: before → after | Simultaneous cold opens: before → after |
+| External requests | One cold + four warm opens | Five simultaneous cold opens |
 | --- | --- | --- |
-| Todoist tasks | 5 → 1 | 5 → 1 |
-| Todoist completed tasks | 5 → 1 | 5 → 1 |
-| Calendar list | 1 → 1 | 5 → 1 |
-| Calendar events | 5 → 1 | 5 → 1 |
-| Weather | 1 → 1 | 5 → 1 |
-| **Total** | **17 → 5** | **25 → 5** |
+| Todoist tasks | 1 | 1 |
+| Calendar list | 1 | 1 |
+| Calendar events | 1 | 1 |
+| Weather | 1 | 1 |
+| **Total** | **4** | **4** |
 
 These are deterministic
 fixture request counts, not real-account latency or Core Web Vitals measurements.
@@ -201,19 +207,27 @@ the cache until it expires or is invalidated.
 Tests live in `tests/` and are plain Node scripts; run the whole suite with:
 
 ```bash
-for test in tests/*.test.js; do printf '\n=== %s ===\n' "$test"; node "$test" || exit 1; done
+TZ=UTC node tests/*.test.js   # TZ=UTC is required: calendar-cache tests assume UTC
+```
+
+Browser checks drive the preview server with `puppeteer-core` (see `AGENTS.md`
+for setup — it is deliberately not a project dependency):
+
+```bash
+npm run preview &   # must already be running
+PUPPETEER_CORE=/tmp/focus-checks/node_modules/puppeteer-core \
+  node scripts/preview/browser-checks.mjs
 ```
 
 ### Privacy & data
 
 - **Local storage**:
-  - Extension settings (new-tab visibility, temperature unit, theme).
+  - Extension settings (new-tab visibility toggles, temperature unit) and theme preference.
   - Cached weather location (lat/lon) and weather responses.
   - Cached Todoist task/label/project responses and the new-tab calendar
-    display range (see Performance and refresh behavior). Access tokens are
+    planner events (see Performance and refresh behavior). Access tokens are
     never copied into cache keys or entries — but cached API responses can
     contain private user data and are stored locally.
-  - Theme preference and new-tab layout options.
 - **Todoist**:
   - OAuth exchange happens via the Cloudflare Worker.
   - The OAuth credential stored locally (`chrome.storage.local`) consists of
@@ -224,9 +238,11 @@ for test in tests/*.test.js; do printf '\n=== %s ===\n' "$test"; node "$test" ||
   - Access is read-only using the configured OAuth scopes.
   - Used solely to show upcoming events on the new tab page.
   - Disconnecting clears the token and all associated cached calendar data.
-- A one-time cleanup on install/update removes data left behind by removed
-  features (site lists, focus sessions, stats/history, shader and background
-  preferences, stale blocking rules); see `lib/cleanup.js`.
+- A versioned one-time cleanup runs on install/update and again at browser
+  startup until it completes, removing data left behind by removed features —
+  site lists, focus sessions, stats/history, shader and background
+  preferences, stale blocking rules (cleanup v2), and the old "current task"
+  pin (`newtabPlannerState`, removed by cleanup v3). See `lib/cleanup.js`.
 
 ### Contributing
 

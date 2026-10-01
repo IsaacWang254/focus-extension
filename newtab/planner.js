@@ -1,11 +1,9 @@
 import * as todoist from '../lib/todoist.js';
 import {
-  flattenTasks,
   normalizeEvents,
   selectHomepageTasks,
   toLocalDateKey
 } from './planner-model.js';
-import { clearCurrentTaskState, loadCurrentTaskState, PLANNER_STATE_KEY, saveCurrentTaskState } from './planner-state.js';
 import { createTaskRow, taskPriorityStyle } from './planner-tasks.js';
 import { normalizePlannerEventsPayload } from './planner-calendar.js';
 import { createPlannerCalendarData } from './planner-calendar-data.js';
@@ -17,7 +15,6 @@ import {
   describeCreatedTask,
   insertCompletion,
   matchSuggestions,
-  nextCurrentTaskIdAfterCompletion,
   tokenAtCaret
 } from './planner-actions.js';
 
@@ -26,7 +23,6 @@ let tasks = [];
 let projects = new Map();
 let labelsList = null;
 let labelsRequest = null;
-let currentTaskId = '';
 let todayEvents = [];
 let plannerStarted = false;
 let activeDrawerTrigger = null;
@@ -124,28 +120,19 @@ async function loadTaskData() {
     if (!taskRequestGuard.isLatest(requestId)) return;
     if (!authenticated) {
       tasks = [];
-      currentTaskId = '';
       setPlannerStatus('tasks', 'Connect Todoist to plan your day.');
       setAction('todos-connect-btn', true, { icon: globalThis.Icons?.link, label: 'Connect Todoist' });
       renderTasks();
       return;
     }
     setAction('todos-connect-btn', false);
-    const [loadedTasks, loadedProjects, token] = await Promise.all([
+    const [loadedTasks, loadedProjects] = await Promise.all([
       todoist.getTasksWithSubtasks({ staleWhileRevalidate: true }),
-      todoist.getProjects().catch(() => []),
-      todoist.getToken()
+      todoist.getProjects().catch(() => [])
     ]);
     if (!taskRequestGuard.isLatest(requestId)) return;
     tasks = loadedTasks;
     projects = new Map(loadedProjects.map(project => [String(project.id), project]));
-    const state = await loadCurrentTaskState(storage, token);
-    currentTaskId = state?.taskId || '';
-    const flat = flattenTasks(tasks);
-    if (currentTaskId && !flat.some(task => String(task.id) === String(currentTaskId))) {
-      currentTaskId = '';
-      await clearCurrentTaskState(storage);
-    }
     setPlannerStatus('tasks', '');
     renderTasks();
   } catch (error) {
@@ -210,7 +197,7 @@ function renderTasks() {
   const now = new Date();
   const list = element('task-list');
   if (!list) return;
-  const { tasks: rows, currentIsOverride } = selectHomepageTasks(tasks, currentTaskId, now);
+  const rows = selectHomepageTasks(tasks, now);
   // Re-rendering detaches the row a just-closed modal returned focus to;
   // re-focus the same task's copy button by id afterwards.
   const focusTaskId = document.activeElement?.closest?.('#task-list .planner-task-row')?.dataset?.taskId;
@@ -221,11 +208,8 @@ function renderTasks() {
     list.appendChild(createTaskRow(task, {
       projects, now,
       home: true,
-      current: currentIsOverride && String(task.id) === String(currentTaskId),
-      hint: index === 0 ? (currentIsOverride ? 'Current task' : 'Suggested task') : '',
       pending: pendingTaskIds.has(String(task.id)),
       onComplete: completeTask,
-      onMakeCurrent: makeTaskCurrent,
       onEdit: (t, trigger, viaKeyboard) => openEditModal(t, trigger, viaKeyboard)
     }));
   });
@@ -304,13 +288,6 @@ function updateBackToNow() {
   setActionAvailable(backToNow, show);
 }
 
-async function makeTaskCurrent(task) {
-  const token = await todoist.getToken();
-  await saveCurrentTaskState(storage, token, task.id);
-  currentTaskId = String(task.id);
-  renderTasks();
-}
-
 async function completeTask(task, button) {
   const taskId = String(task.id);
   if (button.disabled || pendingTaskIds.has(taskId)) return;
@@ -319,11 +296,6 @@ async function completeTask(task, button) {
   button.classList.add('is-pending');
   try {
     await todoist.completeTask(task.id);
-    const nextCurrentTaskId = nextCurrentTaskIdAfterCompletion(currentTaskId, task.id);
-    if (nextCurrentTaskId !== currentTaskId) {
-      currentTaskId = nextCurrentTaskId;
-      await clearCurrentTaskState(storage);
-    }
     await loadTaskData();
   } catch (error) {
     console.error('Failed to complete task:', error);
@@ -1108,11 +1080,6 @@ export function refreshPlannerTime({ recenter = false } = {}) {
 
 export function handlePlannerStorageChange(changes) {
   if (!plannerStarted) return;
-  if (changes[PLANNER_STATE_KEY]) {
-    const state = changes[PLANNER_STATE_KEY].newValue;
-    currentTaskId = state?.date === toLocalDateKey() ? state.taskId : '';
-    renderTasks();
-  }
   if (changes.calendarSettings && calendarScopeChanged(changes.calendarSettings)) {
     lastCalendarAttemptAt = 0;
     lastCalendarAttemptDate = '';
