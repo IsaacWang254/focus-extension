@@ -498,7 +498,7 @@ function startDashboardRefresh() {
       return;
     }
     refreshDashboard();
-  }, 60000);
+  }, 30000);
 }
 
 function stopDashboardRefresh() {
@@ -523,6 +523,14 @@ function setupVisibilityLifecycle() {
     } else {
       stopClock();
       stopDashboardRefresh();
+    }
+  });
+
+  // Switching back from the Todoist app keeps the tab visible, so
+  // visibilitychange never fires — refresh tasks on window focus too.
+  window.addEventListener('focus', () => {
+    if (document.visibilityState === 'visible' && dashboardRefreshStarted) {
+      refreshWidget('planner');
     }
   });
 
@@ -558,7 +566,8 @@ function setupStorageSync() {
   };
 
   const CACHE_WIDGET_KEYS = {
-    'focusCache:weather': 'weather'
+    'focusCache:weather': 'weather',
+    'focusCache:todoist:tasks': 'planner'
   };
 
   let settingsReloadNeeded = false;

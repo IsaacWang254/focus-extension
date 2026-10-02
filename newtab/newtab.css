@@ -360,6 +360,67 @@ body[data-surface="newtab"] .main {
   outline-offset: 2px;
 }
 
+/* Check glyph: ~13px mark centred over the 19px ring; hidden at rest, faint
+   on hover/focus, then drawn + paper-coloured during completion. */
+.planner-check {
+  position: relative;
+}
+
+.planner-check-mark {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 31px;
+  height: 31px;
+  color: var(--task-priority-color, var(--nt-muted));
+  opacity: 0;
+  transition: opacity 120ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.planner-check-mark path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 150ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .planner-check:hover .planner-check-mark {
+    opacity: 0.6;
+  }
+
+  .planner-check:hover .planner-check-mark path {
+    stroke-dashoffset: 0;
+  }
+}
+
+.planner-check:focus-visible .planner-check-mark {
+  opacity: 0.6;
+}
+
+.planner-check:focus-visible .planner-check-mark path {
+  stroke-dashoffset: 0;
+}
+
+.task-list .planner-task-row.is-completing .planner-check::after {
+  border-color: var(--task-priority-color);
+  background: var(--task-priority-color);
+  transition: background-color 120ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.task-list .planner-task-row.is-completing .planner-check-mark {
+  color: var(--nt-paper);
+  opacity: 1;
+}
+
+.task-list .planner-task-row.is-completing .planner-check-mark path {
+  stroke-dashoffset: 0;
+}
+
 .task-list .planner-row-copy {
   padding-top: 1px;
 }
@@ -445,9 +506,12 @@ body[data-surface="newtab"] .main {
 }
 
 .task-list .planner-row-meta {
+  overflow: hidden;
   color: var(--nt-muted);
   font-size: 14px;
   line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .planner-row-meta,

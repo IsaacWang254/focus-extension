@@ -104,7 +104,44 @@ export function escapeQuickAddName(name) {
 export function insertCompletion(text, token, name) {
   const before = String(text).slice(0, token.start);
   const after = String(text).slice(token.end).replace(/^\s+/, '');
-  return `${before}${token.kind}${escapeQuickAddName(name)} ${after}`;
+  return `${before}${token.kind}${name} ${after}`;
+}
+
+/**
+ * Escape multi-word #project/@label names for Todoist's Quick Add parser at
+ * submit time. The input shows raw spaces; only here do known multi-word
+ * names gain their `\ ` escapes. A marker only counts at index 0 or after
+ * whitespace, and the longest matching name wins; everything else — single
+ * words, `a@b.com`, pre-escaped text — passes through untouched.
+ */
+export function escapeQuickAddText(text, { projects = [], labels = [] } = {}) {
+  const source = String(text || '');
+  const namesByKind = { '#': projects, '@': labels };
+  let result = '';
+  let i = 0;
+  while (i < source.length) {
+    const marker = source[i];
+    const names = namesByKind[marker];
+    if (names && (i === 0 || /\s/.test(source[i - 1]))) {
+      const match = names
+        .filter(name => name && String(name).includes(' '))
+        .sort((a, b) => String(b).length - String(a).length)
+        .find(name => {
+          const end = i + 1 + String(name).length;
+          return source.slice(i + 1, end).toLowerCase() === String(name).toLowerCase()
+            && (end >= source.length || /\s/.test(source[end]));
+        });
+      if (match) {
+        const typed = source.slice(i + 1, i + 1 + String(match).length);
+        result += marker + escapeQuickAddName(typed);
+        i += 1 + typed.length;
+        continue;
+      }
+    }
+    result += marker;
+    i += 1;
+  }
+  return result;
 }
 
 /**

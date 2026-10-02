@@ -289,7 +289,7 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
   h.setVisibility('visible');
   await flush(10);
   assert.equal(h.calls.planner, 2, 'visible resume triggers one planner refresh');
-  assert.equal(h.activeIntervals(60000), 1, 'the dashboard refresh interval remains active');
+  assert.equal(h.activeIntervals(30000), 1, 'the dashboard refresh interval remains active');
 }
 
 {
@@ -303,6 +303,22 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
   h.fireStorage({ todoistCacheRevision: 'next' });
   await flush(10);
   assert.equal(h.calls.planner, plannerCalls + 1, 'Todoist revisions refresh the planner once');
+}
+
+{
+  const h = harness({ visibility: 'visible' });
+  await h.start();
+  await flush(10);
+  const plannerCalls = h.calls.planner;
+  h.store['focusCache:todoist:tasks'] = { value: [], updatedAt: 1, scope: 's' };
+  h.fireStorage({ 'focusCache:todoist:tasks': { value: [{ id: 'x' }], updatedAt: 2, scope: 's' } });
+  await flush(10);
+  assert.equal(h.calls.planner, plannerCalls + 1,
+    'a revalidated tasks cache re-renders the planner');
+  h.fireStorage({ 'focusCache:todoist:tasks': { value: [{ id: 'x' }], updatedAt: 2, scope: 's' } });
+  await flush(10);
+  assert.equal(h.calls.planner, plannerCalls + 1,
+    'an unchanged updatedAt does not re-render');
 }
 
 {
@@ -420,7 +436,7 @@ this.__test = { loadSettings, loadWeather, refreshWidget, refreshDashboard, star
   await h.start();
   await flush(5);
   h.pagehide();
-  assert.equal(h.activeIntervals(60000), 0, 'pagehide stops the refresh interval');
+  assert.equal(h.activeIntervals(30000), 0, 'pagehide stops the refresh interval');
 }
 
 {

@@ -701,8 +701,9 @@ async function newFrozenPage(browser, width, height, theme = 'light') {
       foot: document.getElementById('quick-add-foot').textContent,
       overlay: !document.getElementById('quick-add').classList.contains('hidden')
     }))()`);
-    check('ArrowDown+Enter inserts an escaped project name without submitting', () => {
-      assert.ok(afterPick.value.includes('#Focus\\ extension'), afterPick.value);
+    check('ArrowDown+Enter inserts the raw project name without submitting', () => {
+      assert.ok(afterPick.value.includes('#Focus extension '), afterPick.value);
+      assert.ok(!afterPick.value.includes('\\'), `no escape backslashes in the input: ${afterPick.value}`);
       assert.equal(afterPick.open, false);
       assert.equal(afterPick.overlay, true);
       assert.ok(!/Added/.test(afterPick.foot), `foot: "${afterPick.foot}"`);

@@ -13,10 +13,12 @@ import {
   buildUpdateTaskPayload,
   createLatestRequestGuard,
   describeCreatedTask,
+  escapeQuickAddText,
   insertCompletion,
   matchSuggestions,
   tokenAtCaret
 } from './planner-actions.js';
+import { todoistColor } from './planner-color.js';
 
 let api;
 let tasks = [];
@@ -30,6 +32,10 @@ let plannerScrollPosition = 0;
 const taskRequestGuard = createLatestRequestGuard();
 const calendarRequestGuard = createLatestRequestGuard();
 const pendingTaskIds = new Set();
+const completedTaskIds = new Set();
+let taskExitAnimations = 0;
+let renderAfterExit = false;
+let taskListRenderedOnce = false;
 const CALENDAR_REFRESH_INTERVAL = 5 * 60 * 1000;
 let lastCalendarAttemptAt = 0;
 let lastCalendarAttemptDate = '';
@@ -128,7 +134,8 @@ async function loadTaskData() {
     setAction('todos-connect-btn', false);
     const [loadedTasks, loadedProjects] = await Promise.all([
       todoist.getTasksWithSubtasks({ staleWhileRevalidate: true }),
-      todoist.getProjects().catch(() => [])
+      todoist.getProjects().catch(() => []),
+      ensureLabels()
     ]);
     if (!taskRequestGuard.isLatest(requestId)) return;
     tasks = loadedTasks;
@@ -193,26 +200,73 @@ async function loadCalendarData({ force = false, recenter = false } = {}) {
   }
 }
 
+const FLIP_EASE = 'cubic-bezier(0.25, 1, 0.5, 1)';
+
+function reducedMotion() {
+  return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+}
+
+// FLIP: rows present before and after the rebuild glide by translateY; rows
+// that are new fade in from 4px below. Skipped on the first render, under
+// reduced motion, and when nothing moved.
+function flipTaskRows(list, oldTops) {
+  for (const row of list.querySelectorAll('.planner-task-row')) {
+    const oldTop = oldTops.get(row.dataset.taskId);
+    const newTop = row.getBoundingClientRect?.().top;
+    if (oldTop === undefined) {
+      row.animate?.(
+        [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'translateY(0)' }],
+        { duration: 200, easing: FLIP_EASE });
+    } else {
+      const dy = oldTop - newTop;
+      if (Math.abs(dy) > 0.5) {
+        row.animate?.(
+          [{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }],
+          { duration: 200, easing: FLIP_EASE });
+      }
+    }
+  }
+}
+
 function renderTasks() {
+  // An exit animation owns the list until it ends; deferred renders run once
+  // the last exit finishes.
+  if (taskExitAnimations > 0) {
+    renderAfterExit = true;
+    return;
+  }
   const now = new Date();
   const list = element('task-list');
   if (!list) return;
-  const rows = selectHomepageTasks(tasks, now);
+  const rows = selectHomepageTasks(
+    tasks.filter(task => !completedTaskIds.has(String(task.id))), now);
+  const animate = taskListRenderedOnce && !reducedMotion()
+    && typeof list.querySelectorAll === 'function';
+  const oldTops = new Map();
+  if (animate) {
+    for (const row of list.querySelectorAll('.planner-task-row')) {
+      oldTops.set(row.dataset.taskId, row.getBoundingClientRect?.().top);
+    }
+  }
   // Re-rendering detaches the row a just-closed modal returned focus to;
   // re-focus the same task's copy button by id afterwards.
   const focusTaskId = document.activeElement?.closest?.('#task-list .planner-task-row')?.dataset?.taskId;
   const focusWasOpen = document.activeElement?.classList?.contains('task-open');
   const focusWasVisible = focusWasOpen && document.activeElement?.matches?.(':focus-visible');
   list.innerHTML = '';
+  const labelColors = new Map((labelsList || []).map(label => [label.name, label.color]));
   rows.forEach((task, index) => {
     list.appendChild(createTaskRow(task, {
       projects, now,
       home: true,
       pending: pendingTaskIds.has(String(task.id)),
+      labelColors,
       onComplete: completeTask,
       onEdit: (t, trigger, viaKeyboard) => openEditModal(t, trigger, viaKeyboard)
     }));
   });
+  taskListRenderedOnce = true;
+  if (animate) flipTaskRows(list, oldTops);
   setHidden('task-list-empty', list.children.length > 0 || Boolean(element('tasks-status')?.textContent));
   // A storage-refresh re-render right after a save would drop the flash —
   // re-apply it while the window is open.
@@ -221,10 +275,11 @@ function renderTasks() {
       ?.classList.add('is-flash');
   }
   if (focusWasOpen && focusTaskId && typeof document.querySelector === 'function' && globalThis.CSS?.escape) {
-    const fresh = list.querySelector(`.planner-task-row[data-task-id="${CSS.escape(focusTaskId)}"] .task-open`);
+    const fresh = list.querySelector(`.planner-task-row[data-task-id="${CSS.escape(focusTaskId)}"] .task-open`)
+      || element('add-task-btn');
     // Preserve the ring modality — a mouse-initiated save must not flash a
     // keyboard ring on the freshly rendered row.
-    if (fresh) {
+    if (fresh?.focus) {
       try { fresh.focus({ focusVisible: focusWasVisible }); }
       catch { fresh.focus(); }
     }
@@ -288,22 +343,72 @@ function updateBackToNow() {
   setActionAvailable(backToNow, show);
 }
 
-async function completeTask(task, button) {
+// Optimistic completion: the row fills, draws its check, slides out, and the
+// list re-renders via FLIP — all before the close request resolves. A failure
+// puts the task back (the next-ranked task had been promoted in the interim).
+function completeTask(task, button) {
   const taskId = String(task.id);
-  if (button.disabled || pendingTaskIds.has(taskId)) return;
+  if (button.disabled || pendingTaskIds.has(taskId) || completedTaskIds.has(taskId)) return;
   pendingTaskIds.add(taskId);
+  completedTaskIds.add(taskId);
   button.disabled = true;
-  button.classList.add('is-pending');
+  const row = button.closest?.('.planner-task-row');
+  const list = element('task-list');
+  const rowIndex = row && list ? [...list.children].indexOf(row) : -1;
+  // Keyboard click = :focus-visible at click time; focus moves to the row
+  // that lands at the same index after the re-render.
+  const keyboardFocus = Boolean(button.matches?.(':focus-visible'));
+  const reduced = reducedMotion();
+  row?.classList.add('is-completing');
+  // Counted from the click, not the fade start: a storage- or poll-triggered
+  // renderTasks during the wind-up must defer rather than wipe the row.
+  taskExitAnimations++;
+
+  todoist.completeTask(task.id)
+    .then(async () => {
+      await loadTaskData();
+      completedTaskIds.delete(taskId);
+    })
+    .catch(error => {
+      console.error('Failed to complete task:', error);
+      completedTaskIds.delete(taskId);
+      renderTasks();
+      setPlannerStatus('tasks', "Couldn't complete that task. Try again.");
+    })
+    .finally(() => pendingTaskIds.delete(taskId));
+
+  setTimeout(() => {
+    const finish = () => {
+      taskExitAnimations--;
+      if (taskExitAnimations === 0) {
+        renderAfterExit = false;
+        renderTasks();
+        refocusAfterComplete(rowIndex, keyboardFocus);
+      }
+    };
+    if (reduced || !row || typeof row.animate !== 'function') {
+      finish();
+      return;
+    }
+    const exit = row.animate(
+      [{ opacity: 1, transform: 'translateX(0)' }, { opacity: 0, transform: 'translateX(6px)' }],
+      { duration: 160, easing: FLIP_EASE, fill: 'forwards' });
+    Promise.resolve(exit?.finished).then(finish, finish);
+  }, reduced ? 120 : 180);
+}
+
+function refocusAfterComplete(rowIndex, keyboardFocus) {
+  if (!keyboardFocus || rowIndex < 0) return;
+  const list = element('task-list');
+  const checks = list?.querySelectorAll
+    ? [...list.querySelectorAll('.planner-check')]
+    : [];
+  const target = checks[rowIndex] || checks.at(-1) || element('add-task-btn');
+  if (!target?.focus) return;
   try {
-    await todoist.completeTask(task.id);
-    await loadTaskData();
-  } catch (error) {
-    console.error('Failed to complete task:', error);
-    button.disabled = false;
-    button.classList.remove('is-pending');
-  } finally {
-    pendingTaskIds.delete(taskId);
-    renderTasks();
+    target.focus({ focusVisible: true });
+  } catch {
+    target.focus();
   }
 }
 
@@ -603,20 +708,6 @@ function attachQuickAddAutocomplete(input, { onChange = () => {}, container = nu
   return { update, close };
 }
 
-// Todoist colour names → approximate hexes for dots/chips; hex values pass through.
-const TODOIST_COLORS = {
-  berry_red: '#b8255f', red: '#dc4c3e', orange: '#eb8909', yellow: '#f2c94c',
-  olive_green: '#949c31', lime_green: '#65a33a', green: '#369307', mint_green: '#42b883',
-  teal: '#148fad', sky_blue: '#59c2ff', light_blue: '#96c3eb', blue: '#246fe0',
-  grape: '#884dff', violet: '#af38eb', lavender: '#eb96eb', magenta: '#e05194',
-  salmon: '#ff8d85', charcoal: '#808080', grey: '#b8b8b8', taupe: '#ccac93'
-};
-function todoistColor(color) {
-  if (!color) return '#808080';
-  if (String(color).startsWith('#')) return color;
-  return TODOIST_COLORS[String(color).toLowerCase()] || '#808080';
-}
-
 async function renderTaskEditForm(task) {
   const body = element('edit-modal-body');
   if (!body) return;
@@ -879,7 +970,11 @@ function setupQuickAdd() {
     foot.dataset.mode = 'status';
     foot.textContent = 'Adding task…';
     try {
-      const task = await todoist.quickAddTask(text);
+      await ensureLabels();
+      const task = await todoist.quickAddTask(escapeQuickAddText(text, {
+        projects: [...projects.values()].map(p => p.name),
+        labels: (labelsList || []).map(l => l.name)
+      }));
       await loadTaskData();
       input.value = '';
       input.disabled = false;
@@ -1035,7 +1130,10 @@ export function initPlannerDashboard(options) {
   setupQuickAdd();
   setupActions();
   if (typeof MutationObserver !== 'undefined' && document.documentElement) {
-    const observer = new MutationObserver(() => renderCalendar());
+    const observer = new MutationObserver(() => {
+      renderCalendar();
+      renderTasks(); // tag colours re-resolve against the new theme
+    });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   }
   // The viewport is now flex-sized: its height changes with the window (and

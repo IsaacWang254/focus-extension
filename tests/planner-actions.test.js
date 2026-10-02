@@ -5,6 +5,7 @@ import {
   createLatestRequestGuard,
   describeCreatedTask,
   escapeQuickAddName,
+  escapeQuickAddText,
   insertCompletion,
   matchSuggestions,
   parseQuickAddTokens,
@@ -112,9 +113,47 @@ assert.deepEqual(parseQuickAddTokens('#a #b'), [
 // escapeQuickAddName / insertCompletion
 assert.equal(escapeQuickAddName('Focus extension'), 'Focus\\ extension');
 assert.equal(escapeQuickAddName('Søren K'), 'Søren\\ K');
-assert.equal(insertCompletion('write #Foc today', { kind: '#', start: 6, end: 10, query: 'Foc' }, 'Focus extension'), 'write #Focus\\ extension today');
-assert.equal(insertCompletion('#Foc', { kind: '#', start: 0, end: 4, query: 'Foc' }, 'Focus extension'), '#Focus\\ extension ');
+assert.equal(insertCompletion('write #Foc today', { kind: '#', start: 6, end: 10, query: 'Foc' }, 'Focus extension'), 'write #Focus extension today');
+assert.equal(insertCompletion('#Foc', { kind: '#', start: 0, end: 4, query: 'Foc' }, 'Focus extension'), '#Focus extension ');
 assert.equal(insertCompletion('x #Foc', { kind: '#', start: 2, end: 6, query: 'Foc' }, 'Done'), 'x #Done ');
+
+// escapeQuickAddText: the input shows raw spaces; escaping happens at submit.
+const qaProjects = ['Focus extension', 'Focus', 'Inbox'];
+const qaLabels = ['deep work', 'quick'];
+assert.equal(
+  escapeQuickAddText('write #Focus extension today', { projects: qaProjects }),
+  'write #Focus\\ extension today');
+assert.equal(
+  escapeQuickAddText('#focus extension', { projects: qaProjects }),
+  '#focus\\ extension',
+  'the user\'s casing is kept in the escaped name');
+assert.equal(
+  escapeQuickAddText('x #Focus extension', { projects: ['Focus', 'Focus extension'] }),
+  'x #Focus\\ extension',
+  'the longest matching name wins');
+assert.equal(
+  escapeQuickAddText('call @deep work p1', { labels: qaLabels }),
+  'call @deep\\ work p1');
+assert.equal(
+  escapeQuickAddText('#Focus extensions', { projects: qaProjects }),
+  '#Focus extensions',
+  'no match when the next char is not a boundary');
+assert.equal(
+  escapeQuickAddText('mail a@deep work', { labels: qaLabels }),
+  'mail a@deep work',
+  'a marker not after whitespace is untouched');
+assert.equal(
+  escapeQuickAddText('#Focus extension @deep work', { projects: qaProjects, labels: qaLabels }),
+  '#Focus\\ extension @deep\\ work',
+  'two tokens in one string');
+assert.equal(
+  escapeQuickAddText('task #Inbox @quick', { projects: qaProjects, labels: qaLabels }),
+  'task #Inbox @quick',
+  'single-word names are untouched');
+assert.equal(
+  escapeQuickAddText('task #Focus\\ extension', { projects: qaProjects }),
+  'task #Focus\\ extension',
+  'already-escaped text is untouched');
 
 // matchSuggestions
 const items = [{ name: 'Focus extension' }, { name: 'Focusrite' }, { name: 'Unfocused' }, { name: 'Other' }];

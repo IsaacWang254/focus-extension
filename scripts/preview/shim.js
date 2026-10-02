@@ -242,7 +242,7 @@
 
   const TASKS = [
     { id: 't1', content: 'Finish the blocked-page restyle', priority: 4, labels: ['deep-work'], project_id: 'p2', due: due(0, 'today'), order: 1 },
-    { id: 't2', content: 'Write design token tests for options page', priority: 3, labels: [], project_id: 'p2', due: due(0, 'today'), order: 2 },
+    { id: 't2', content: 'Write design token tests for options page', priority: 3, labels: ['deep work'], project_id: 'p2', due: due(0, 'today'), order: 2 },
     { id: 't3', content: 'Reply to worker deploy thread', priority: 2, labels: ['quick'], project_id: 'p1', due: due(-1, 'yesterday'), order: 3 },
     { id: 't4', content: 'Read the OKLCH color article', priority: 1, labels: [], due: null, order: 4 },
     { id: 't5', content: 'Plan next week', priority: 1, labels: [], due: due(2, 'Tuesday'), order: 5 },
@@ -451,7 +451,8 @@
   const LABELS = [
     { id: 'l1', name: 'deep-work', color: 'blue' },
     { id: 'l2', name: 'quick', color: 'yellow' },
-    { id: 'l3', name: 'home', color: 'green' }
+    { id: 'l3', name: 'home', color: 'green' },
+    { id: 'l4', name: 'deep work', color: 'grey' }
   ];
 
   // Tiny Quick Add parser good enough for preview: #Project (escaped spaces),
@@ -501,6 +502,12 @@
     if (url.includes('focus-extension-proxy')) return json({ access_token: 'preview-token' });
     if (url.includes('api.todoist.com')) {
       const method = String(init?.method || 'GET').toUpperCase();
+      // Test hooks: recorded request bodies and timings for verification.
+      if (method !== 'GET') {
+        (window.__previewPosts ||= []).push({
+          url, method, body: init?.body ? JSON.parse(init.body) : null, at: performance.now()
+        });
+      }
       if (url.includes('/tasks/completed')) return json({ items: previewState === 'empty' ? [] : structuredClone(COMPLETED) });
       if (/\/tasks\/quick$/.test(url) && method === 'POST') {
         if (previewState === 'mutation-error' || fixture?.mutationFail) return json({ error: 'Preview mutation failed' }, 503);

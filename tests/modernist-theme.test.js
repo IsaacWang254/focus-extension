@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import vm from 'node:vm';
 
 const read = (rel) => fs.readFileSync(new URL(rel, import.meta.url), 'utf8');
 
@@ -205,5 +206,108 @@ for (const [rel, w, h] of [
 }
 
 assert.match(read('../manifest.json'), /icons\/icon128\.png/, 'manifest points at the regenerated PNG set');
+
+// --- focus:theme localStorage mirror written by loadTheme -------------------
+
+function makeLocalStorage({ throwOnSet = false } = {}) {
+  const store = new Map();
+  return {
+    _store: store,
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => {
+      if (throwOnSet) throw new Error('localStorage unavailable');
+      store.set(k, String(v));
+    },
+    removeItem: (k) => store.delete(k)
+  };
+}
+
+{
+  const doc = makeDocument();
+  const chrome = makeChrome({ theme: 'dark', themeSyncWithBrowser: false });
+  const localStorage = makeLocalStorage();
+  installGlobals(doc, chrome, false);
+  globalThis.localStorage = localStorage;
+  await theme.loadTheme();
+  assert.deepEqual(JSON.parse(localStorage.getItem('focus:theme')), { theme: 'dark', sync: false },
+    'loadTheme mirrors stored dark + sync=false');
+  delete globalThis.localStorage;
+}
+
+{
+  const doc = makeDocument();
+  const chrome = makeChrome({});
+  const localStorage = makeLocalStorage();
+  installGlobals(doc, chrome, true);
+  globalThis.localStorage = localStorage;
+  await theme.loadTheme();
+  assert.deepEqual(JSON.parse(localStorage.getItem('focus:theme')), { theme: 'light', sync: true },
+    'loadTheme mirrors light + sync default on empty storage');
+  delete globalThis.localStorage;
+}
+
+{
+  const doc = makeDocument();
+  const chrome = makeChrome({ theme: 'dark', themeSyncWithBrowser: false });
+  installGlobals(doc, chrome, false);
+  globalThis.localStorage = makeLocalStorage({ throwOnSet: true });
+  const result = await theme.loadTheme();
+  assert.equal(result.resolved, 'dashboard-dark', 'loadTheme still resolves when localStorage.setItem throws');
+  assert.equal(doc.documentElement.getAttribute('data-theme'), 'dashboard-dark');
+  delete globalThis.localStorage;
+}
+
+{
+  const doc = makeDocument();
+  const chrome = makeChrome({ theme: 'dark', themeSyncWithBrowser: false });
+  installGlobals(doc, chrome, false);
+  delete globalThis.localStorage;
+  const result = await theme.loadTheme();
+  assert.equal(result.resolved, 'dashboard-dark', 'loadTheme works without localStorage (Node)');
+}
+
+// --- lib/theme-boot.js pre-paint resolution ---------------------------------
+
+const bootSource = read('../lib/theme-boot.js');
+const runBoot = ({ cache, osDark }) => {
+  const attributes = new Map();
+  const sandbox = {
+    document: {
+      documentElement: {
+        setAttribute: (name, value) => attributes.set(name, String(value)),
+        getAttribute: (name) => (attributes.has(name) ? attributes.get(name) : null)
+      }
+    },
+    localStorage: { getItem: () => cache },
+    matchMedia: (query) => ({
+      matches: query === '(prefers-color-scheme: dark)' ? osDark : false,
+      addEventListener: () => {},
+      removeEventListener: () => {}
+    })
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(bootSource, sandbox);
+  return attributes.get('data-theme');
+};
+
+for (const [cache, osDark, expected] of [
+  [null, true, 'dashboard-dark'],
+  [null, false, 'dashboard-light'],
+  [JSON.stringify({ theme: 'dark', sync: false }), false, 'dashboard-dark'],
+  [JSON.stringify({ theme: 'light', sync: false }), true, 'dashboard-light'],
+  [JSON.stringify({ theme: 'light', sync: true }), true, 'dashboard-dark'],
+  ['{not json', true, 'dashboard-dark']
+]) {
+  assert.equal(runBoot({ cache, osDark }), expected,
+    `theme-boot cache=${cache} osDark=${osDark}`);
+}
+
+for (const file of ['../newtab/newtab.html', '../options/options.html']) {
+  const html = read(file);
+  assert.match(html, /<meta name="viewport"[^>]*>\s*<script src="\.\.\/lib\/theme-boot\.js"><\/script>/,
+    `${file} loads theme-boot.js in <head> before stylesheets`);
+  assert.ok(html.indexOf('theme-boot.js') < html.indexOf('rel="stylesheet"'),
+    `${file} loads theme-boot.js before any stylesheet`);
+}
 
 console.log('modernist-theme.test.js: all assertions passed');

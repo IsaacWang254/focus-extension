@@ -34,6 +34,21 @@ function relativeLuminance(hex) {
   return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
 }
 
+// Todoist colour names → approximate hexes; hex values pass through.
+export const TODOIST_COLORS = {
+  berry_red: '#b8255f', red: '#dc4c3e', orange: '#eb8909', yellow: '#f2c94c',
+  olive_green: '#949c31', lime_green: '#65a33a', green: '#369307', mint_green: '#42b883',
+  teal: '#148fad', sky_blue: '#59c2ff', light_blue: '#96c3eb', blue: '#246fe0',
+  grape: '#884dff', violet: '#af38eb', lavender: '#eb96eb', magenta: '#e05194',
+  salmon: '#ff8d85', charcoal: '#808080', grey: '#b8b8b8', taupe: '#ccac93'
+};
+
+export function todoistColor(color) {
+  if (!color) return '#808080';
+  if (String(color).startsWith('#')) return color;
+  return TODOIST_COLORS[String(color).toLowerCase()] || '#808080';
+}
+
 export function contrastRatio(a, b) {
   const lighter = Math.max(relativeLuminance(a), relativeLuminance(b));
   const darker = Math.min(relativeLuminance(a), relativeLuminance(b));
@@ -69,4 +84,21 @@ export function eventColors(color, theme, { fade = 1 } = {}) {
     if (step === 10) text = ink;
   }
   return { bar, background, text };
+}
+
+/**
+ * A provider colour readable as meta text on the theme paper: the raw colour
+ * when it already reaches 4.5:1, otherwise blended toward the theme ink in
+ * 0.1 steps until it does.
+ */
+export function readableTagColor(color, theme) {
+  const dark = theme === 'dark';
+  const paper = dark ? PAPER.dark : PAPER.light;
+  const ink = dark ? INK.dark : INK.light;
+  const base = todoistColor(color);
+  for (let step = 0; step <= 10; step += 1) {
+    const candidate = step === 0 ? base : mixHex(base, ink, step / 10);
+    if (contrastRatio(candidate, paper) >= CONTRAST_TARGET) return candidate;
+  }
+  return ink;
 }

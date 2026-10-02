@@ -133,7 +133,7 @@ const malformed = [
 ];
 assert.deepEqual(rankSuggestedTasks(malformed, now).map(task => task.id), ['real', 'bad-date', 'bad-string'], 'malformed dues join the undated fallback');
 assert.equal(taskMeta({ content: 'Bad', priority: 4, due: dateOnly('2026-02-30') }, new Map(), now).includes('Overdue'), false, 'malformed dues are never labeled overdue');
-assert.equal(taskMeta({ content: 'Bad', priority: 4, due: dateOnly('yesterday-ish') }, new Map(), now), 'P1');
+assert.equal(taskMeta({ content: 'Bad', priority: 4, due: dateOnly('yesterday-ish') }, new Map(), now), '');
 assert.equal(taskMeta({ content: 'Ok', priority: 1, due: dateOnly('2026-09-30') }, new Map(), now), 'Sep 30');
 
 const shuffled = [...tasks].reverse();
