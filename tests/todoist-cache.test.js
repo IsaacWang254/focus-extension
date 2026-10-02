@@ -102,7 +102,7 @@ this.api = { getToken, isAuthenticated, logout, getTasks, getTasksWithSubtasks, 
 {
   const h = harness();
   await h.api.getTasksWithSubtasks();
-  h.advanceMs(2 * 60 * 1000 - 1);
+  h.advanceMs(20 * 1000 - 1);
   await h.api.getTasksWithSubtasks();
   assert.equal(h.counts.tasks, 1, 'a hit inside the TTL window is still fresh');
   h.advanceMs(2);
