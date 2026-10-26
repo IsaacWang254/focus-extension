@@ -352,6 +352,11 @@ body[data-surface="newtab"] .main {
   inset: 6.5px;
 }
 
+.task-list .planner-task-row[data-priority="P1"] .planner-check::after {
+  border-width: 2.5px;
+  inset: 6px;
+}
+
 .task-list .planner-check.is-pending {
   background: transparent;
   opacity: 1;

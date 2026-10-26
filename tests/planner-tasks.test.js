@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { taskMeta, taskMetaParts, taskPriorityStyle } from '../newtab/planner-tasks.js';
 import { TODOIST_COLORS, contrastRatio, readableTagColor, todoistColor } from '../newtab/planner-color.js';
 
-assert.deepEqual(taskPriorityStyle(4), { label: 'P1', color: '#dc4c3e' });
-assert.deepEqual(taskPriorityStyle(3), { label: 'P2', color: '#eb8909' });
-assert.deepEqual(taskPriorityStyle(2), { label: 'P3', color: '#246fe0' });
-assert.deepEqual(taskPriorityStyle(1), { label: 'P4', color: '#808080' });
-assert.deepEqual(taskPriorityStyle('unexpected'), { label: 'P4', color: '#808080' });
+assert.deepEqual(taskPriorityStyle(4), { label: 'P1', color: 'var(--nt-ink)' });
+assert.deepEqual(taskPriorityStyle(3), { label: 'P2', color: '#c96f00' });
+assert.deepEqual(taskPriorityStyle(2), { label: 'P3', color: '#1a5fcc' });
+assert.deepEqual(taskPriorityStyle(1), { label: 'P4', color: '#8a8a8a' });
+assert.deepEqual(taskPriorityStyle('unexpected'), { label: 'P4', color: '#8a8a8a' });
 
 // taskMetaParts: due → project → @labels → parentContent, no priority text.
 const now = new Date('2026-09-30T12:00:00');

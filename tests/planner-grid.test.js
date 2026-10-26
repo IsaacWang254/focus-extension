@@ -5,7 +5,7 @@ import {
   layoutDayGrid,
   parseTaskDeadline
 } from '../newtab/planner-model.js';
-import { contrastRatio, eventColors } from '../newtab/planner-color.js';
+import { contrastRatio, eventColors, reserveRed } from '../newtab/planner-color.js';
 
 const DATE = '2026-09-29';
 const SCALE = 64 / 60; // 64px per hour
@@ -136,6 +136,10 @@ function runLocalTests() {
   }
   assert.equal(eventColors('javascript:alert(1)', 'light').bar, '#73736c', 'invalid colors fall back to neutral');
   assert.equal(eventColors('#A4BDFC', 'light').bar, '#A4BDFC', 'valid provider colors pass through');
+  assert.equal(reserveRed('#246fe0'), '#246fe0', 'non-red hues pass through');
+  assert.equal(reserveRed('#73736c'), '#73736c', 'desaturated colours pass through');
+  assert.equal(reserveRed('#dc4c3e'), '#be4592', 'red-family hues turn to plum');
+  assert.equal(eventColors('#dc4c3e', 'light').bar, '#be4592', 'event bars never use the overdue red');
   assert.notEqual(eventColors('#246fe0', 'light').background, eventColors('#246fe0', 'dark').background, 'themes tint differently');
 }
 

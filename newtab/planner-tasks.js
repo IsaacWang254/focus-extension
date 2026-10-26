@@ -6,11 +6,13 @@ function iconMarkup(name) {
   return globalThis.Icons?.[name] || '';
 }
 
+// P1 is drawn in the theme ink (a heavier ring) rather than Todoist red so
+// red stays exclusive to overdue work; P2/P3 are darkened to clear 3:1.
 const PRIORITY_STYLES = {
-  4: { label: 'P1', color: '#dc4c3e' },
-  3: { label: 'P2', color: '#eb8909' },
-  2: { label: 'P3', color: '#246fe0' },
-  1: { label: 'P4', color: '#808080' }
+  4: { label: 'P1', color: 'var(--nt-ink)' },
+  3: { label: 'P2', color: '#c96f00' },
+  2: { label: 'P3', color: '#1a5fcc' },
+  1: { label: 'P4', color: '#8a8a8a' }
 };
 
 export function taskPriorityStyle(priority) {
@@ -60,6 +62,7 @@ export function createTaskRow(task, options = {}) {
   row.dataset.taskId = task.id;
   const priority = taskPriorityStyle(task.priority);
   row.style.setProperty('--task-priority-color', priority.color);
+  row.dataset.priority = priority.label;
   row.dataset.priority = priority.label;
 
   const complete = document.createElement('button');
