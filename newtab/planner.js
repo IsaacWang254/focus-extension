@@ -382,7 +382,7 @@ function completeTask(task, button) {
   button.disabled = true;
   const row = button.closest?.('.planner-task-row');
   const list = element('task-list');
-  const rowIndex = row && list ? [...list.children].indexOf(row) : -1;
+  const rowIndex = row && list ? [...list.querySelectorAll('.planner-task-row')].indexOf(row) : -1;
   // Keyboard click = :focus-visible at click time; focus moves to the row
   // that lands at the same index after the re-render.
   const keyboardFocus = Boolean(button.matches?.(':focus-visible'));

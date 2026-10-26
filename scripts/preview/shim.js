@@ -471,7 +471,7 @@
   // @label, p1-p4, today/tomorrow/every <weekday>/at 5pm, and `// description`.
   function previewQuickAdd(text) {
     let rest = ` ${String(text || '')} `;
-    const task = { id: `preview-${Date.now()}`, order: TASKS.length + 1, priority: 1, labels: [] };
+    const task = { id: `preview-${Date.now()}`, order: taskStore.length + 1, priority: 1, labels: [] };
     rest = rest.replace(/(^|\s)p([1-4])(?=\s|$)/i, (m, space, n) => { task.priority = 5 - Number(n); return space; });
     rest = rest.replace(/#((?:\\.|[^\s])+)/g, (m, raw) => {
       const name = raw.replace(/\\(.)/g, '$1');
@@ -524,13 +524,13 @@
       if (/\/tasks\/quick$/.test(url) && method === 'POST') {
         if (previewState === 'mutation-error' || fixture?.mutationFail) return json({ error: 'Preview mutation failed' }, 503);
         const created = previewQuickAdd(JSON.parse(init?.body || '{}').text);
-        TASKS.push(created);
+        taskStore.push(created);
         return json(structuredClone(created));
       }
       const moveMatch = /\/tasks\/([^/]+)\/move$/.exec(url);
       if (moveMatch && method === 'POST') {
         if (previewState === 'mutation-error' || fixture?.mutationFail) return json({ error: 'Preview mutation failed' }, 503);
-        const task = TASKS.find(item => item.id === moveMatch[1]);
+        const task = taskStore.find(item => item.id === moveMatch[1]);
         if (task) task.project_id = JSON.parse(init?.body || '{}').project_id;
         return json(task ? structuredClone(task) : {});
       }
