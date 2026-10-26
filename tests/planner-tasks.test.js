@@ -52,7 +52,7 @@ const labelColors = new Map([['deep work', 'yellow'], ['quick', 'green']]);
 {
   const parts = taskMetaParts(
     { content: 'Late', due: { date: '2026-09-29' } }, new Map(), now);
-  assert.deepEqual(parts, [{ text: 'Due yesterday', kind: 'overdue' }, { text: 'Sep 29' }]);
+  assert.deepEqual(parts, [{ text: '1 day overdue', kind: 'overdue' }, { text: 'Sep 29' }]);
   assert.deepEqual(
     taskMetaParts({ content: 'Later', due: { date: '2026-09-27' } }, new Map(), now),
     [{ text: '3 days overdue', kind: 'overdue' }, { text: 'Sep 27' }]);

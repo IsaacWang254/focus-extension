@@ -18,7 +18,7 @@ export function taskPriorityStyle(priority) {
 }
 
 function overdueText(days) {
-  return days === 1 ? 'Due yesterday' : `${days} days overdue`;
+  return `${days} ${days === 1 ? 'day' : 'days'} overdue`;
 }
 
 /**

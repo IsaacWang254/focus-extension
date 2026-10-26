@@ -533,20 +533,50 @@ body[data-surface="newtab"] .main {
   flex: 0 0 14px;
 }
 
-/* Inside an overdue row red is the only hue: project and label tags fall
-   back to muted ink so the status line wins the glance. */
-.task-list .planner-task-row.is-overdue .planner-meta-tag {
+/* Tags rest in muted ink so status is the only hue in the list; the
+   provider colour returns on hover/focus. */
+.task-list .planner-meta-tag {
   color: var(--nt-muted);
 }
 
-/* A 3px danger rail on the wash edge ties the overdue rows into one block. */
+.task-list .planner-task-row:not(.is-overdue):is(:hover, :has(:focus-visible)) .planner-meta-tag {
+  color: var(--tag-color);
+}
+
+.task-list .planner-task-row.is-overdue .planner-check::after {
+  opacity: 0.7;
+}
+
+/* Overdue rows fuse into one tinted block: the wash stays on, gaps between
+   consecutive overdue rows close, and a 3px danger rail runs down the edge. */
+.task-list .planner-task-row.is-overdue::before {
+  opacity: 1;
+  background: var(--nt-danger-tint);
+  border-radius: 0 8px 8px 0;
+}
+
+.task-list .planner-task-row.is-overdue:has(+ .planner-task-row.is-overdue) {
+  margin-bottom: 0;
+}
+
+.task-list .planner-task-row.is-overdue:has(+ .planner-task-row.is-overdue)::before {
+  border-end-end-radius: 0;
+}
+
+.task-list .planner-task-row.is-overdue + .planner-task-row.is-overdue::before {
+  border-start-end-radius: 0;
+}
+
+.task-list .planner-task-row.is-overdue:not(:has(.is-pending)):is(:hover, :has(:focus-visible))::before {
+  background: var(--nt-danger-pill);
+}
+
 .task-list .planner-task-row.is-overdue::after {
   content: '';
   position: absolute;
   inset-block: 0;
   left: -12px;
   width: 3px;
-  border-radius: 2px;
   background: var(--nt-danger);
 }
 
@@ -558,7 +588,7 @@ body[data-surface="newtab"] .main {
   margin: 20px 0 4px;
   color: var(--nt-muted);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.4;
   letter-spacing: -0.01em;
 }
@@ -574,7 +604,7 @@ body[data-surface="newtab"] .main {
 .task-group-count {
   padding: 2px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--nt-danger) 14%, transparent);
+  background: var(--nt-danger-pill);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.2;
