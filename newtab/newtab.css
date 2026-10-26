@@ -212,7 +212,7 @@ body[data-surface="newtab"] {
 }
 
 /* Full-viewport column: the Calendar section flexes to fill whatever the
-   header and tasks leave; the page itself never scrolls unless the 160px
+   header and tasks leave; the page itself never scrolls unless the 232px (~4h)
    timeline minimum can't fit (accessibility fallback). */
 body[data-surface="newtab"] .main {
   display: flex;
@@ -1289,7 +1289,7 @@ html[data-theme$="dark"] .timeline-ad {
   position: relative;
   flex: 1 1 auto;
   height: auto;
-  min-height: 160px;
+  min-height: 232px;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
