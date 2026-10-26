@@ -377,15 +377,16 @@ function updateBackToNow() {
 function completeTask(task, button) {
   const taskId = String(task.id);
   if (button.disabled || pendingTaskIds.has(taskId) || completedTaskIds.has(taskId)) return;
+  // Keyboard click = :focus-visible at click time; focus moves to the row
+  // that lands at the same index after the re-render. Read it before
+  // disabling the button, which drops focus.
+  const keyboardFocus = Boolean(button.matches?.(':focus-visible'));
   pendingTaskIds.add(taskId);
   completedTaskIds.add(taskId);
   button.disabled = true;
   const row = button.closest?.('.planner-task-row');
   const list = element('task-list');
   const rowIndex = row && list ? [...list.querySelectorAll('.planner-task-row')].indexOf(row) : -1;
-  // Keyboard click = :focus-visible at click time; focus moves to the row
-  // that lands at the same index after the re-render.
-  const keyboardFocus = Boolean(button.matches?.(':focus-visible'));
   const reduced = reducedMotion();
   row?.classList.add('is-completing');
   // Counted from the click, not the fade start: a storage- or poll-triggered
