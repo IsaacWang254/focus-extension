@@ -26,10 +26,10 @@ const labelColors = new Map([['deep work', 'yellow'], ['quick', 'green']]);
     { text: 'Focus extension', color: 'blue' },
     { text: '@deep work', color: 'yellow' },
     { text: '@quick', color: 'green' },
-    { text: 'Parent task' }
+    { text: '↳ Parent task' }
   ], 'order: due, project, labels, parent — no priority part');
   assert.equal(taskMeta(task, projects, now, labelColors),
-    'Today · Focus extension · @deep work · @quick · Parent task');
+    'Today · Focus extension · @deep work · @quick · ↳ Parent task');
 }
 
 {

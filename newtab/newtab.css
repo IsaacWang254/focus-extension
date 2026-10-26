@@ -65,8 +65,9 @@ body {
   display: flex;
   align-items: baseline;
   margin: 0;
-  color: var(--nt-ink);
-  font-size: 40px;
+  /* A step under full ink so a 19px/600 task title wins the first glance. */
+  color: color-mix(in srgb, var(--nt-ink) 84%, var(--nt-paper));
+  font-size: 28px;
   font-weight: 500;
   line-height: 1;
   letter-spacing: -0.02em;
@@ -149,7 +150,7 @@ body {
 .weather-icon svg {
   width: 18px;
   height: 18px;
-  stroke-width: 1.5;
+  stroke-width: 1.75;
 }
 
 .weather-temp {
@@ -229,7 +230,7 @@ body[data-surface="newtab"] .main {
    focus-ring edge (button box + 4px ring offset). */
 #tasks-section {
   position: relative;
-  margin-top: 16px;
+  margin-top: 0;
 }
 
 #today-timeline-section {
@@ -629,19 +630,28 @@ html[data-theme$="dark"] .task-list .planner-task-row[data-priority="P3"] {
   color: var(--nt-paper);
 }
 
-/* Up next (later-dated) rows sit one step down the scale from Today: the
-   title keeps its size and weight but drops to ~62% ink, the meta to ~50%,
-   so the list reads red block -> ink titles -> grey titles. */
+/* Up next (later-dated) rows sit one step down the scale from Today: 17px/500
+   at ~72% ink (meta ~56%), so the tier reads "later" by scale and tone rather
+   than as a disabled copy of a Today row. Rings never fade: a control stays
+   a control. */
 .task-list .task-group[data-group="later"] ~ .planner-task-row .planner-row-title {
-  color: color-mix(in srgb, var(--nt-ink) 62%, var(--nt-paper));
+  font-size: 17px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--nt-ink) 72%, var(--nt-paper));
 }
 
 .task-list .task-group[data-group="later"] ~ .planner-task-row .planner-row-meta {
-  color: color-mix(in srgb, var(--nt-ink) 54%, var(--nt-paper));
+  color: color-mix(in srgb, var(--nt-ink) 56%, var(--nt-paper));
 }
 
-.task-list .task-group[data-group="later"] ~ .planner-task-row .planner-check::after {
-  opacity: 0.7;
+/* Dark paper swallows mid greys: the muted tier sits a step higher so the
+   meta clears 3:1 and the titles stay crisp at weight 500. */
+html[data-theme$="dark"] .task-list .task-group[data-group="later"] ~ .planner-task-row .planner-row-title {
+  color: color-mix(in srgb, var(--nt-ink) 76%, var(--nt-paper));
+}
+
+html[data-theme$="dark"] .task-list .task-group[data-group="later"] ~ .planner-task-row .planner-row-meta {
+  color: color-mix(in srgb, var(--nt-ink) 60%, var(--nt-paper));
 }
 
 .task-list .task-group[data-group="later"] ~ .planner-task-row:is(:hover, :has(:focus-visible)) .planner-row-title {
@@ -1046,10 +1056,6 @@ html.planner-open {
   body[data-surface="newtab"] .main {
     width: calc(100% - 36px);
     padding-top: 56px;
-  }
-
-  body[data-surface="newtab"] .clock {
-    font-size: 36px;
   }
 
   .edit-modal-panel {
@@ -2006,10 +2012,13 @@ html[data-theme$="dark"] .edit-modal select.field-input {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
-    /* Clock baseline on the first task title's baseline, date/weather on
-       that row's meta line: the now-column starts a half-step below the
-       list instead of fighting the eyebrow for the top edge. */
-    padding-top: 30px;
+    /* Clock cap-top on the Today eyebrow's cap line, so the two column
+       heads share one top edge. */
+    padding-top: 4px;
+  }
+
+  .home-head .clock {
+    font-size: 36px;
   }
 
   .home-side,

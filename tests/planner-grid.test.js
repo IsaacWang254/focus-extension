@@ -92,6 +92,25 @@ function runLocalTests() {
   assert.equal(pile.groups[0].key, pile.events.map(e => e.key).sort().join('|'), 'groups are keyed by their members, not their index');
   assert.equal(expanded.groups[0].overflow, 0, 'an expanded group shows every lane');
   assert.equal(expanded.groups[0].laneCount, 5);
+  assert.ok(pile.events.filter(e => !e.hidden).every(e => e.pillReserve), 'members beside the pill leave it a strip');
+
+  // The pill strip is only given up by members that share the pill's band;
+  // a member an hour below it in the same group keeps the full width.
+  const tail = gridFor([
+    timed('l1', '09:00', '10:00'),
+    timed('l2', '09:00', '10:00'),
+    timed('l3', '09:00', '11:00'),
+    timed('l4', '09:15', '10:00'),
+    timed('l5', '09:30', '10:00'),
+    timed('l6', '10:00', '10:45')
+  ]);
+  assert.equal(tail.groups.length, 1, 'l6 chains into the pile through l3');
+  assert.equal(tail.groups[0].overflowTopMinutes, 9 * 60 + 15);
+  assert.deepEqual(
+    tail.events.filter(e => !e.hidden).map(e => `${e.id}:${e.pillReserve}`),
+    ['l1:true', 'l2:true', 'l3:true', 'l6:false'],
+    'only members in the pill band reserve the strip'
+  );
 
   const nested = gridFor([
     timed('outer', '09:00', '12:00'),

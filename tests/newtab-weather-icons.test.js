@@ -80,8 +80,8 @@ assert.match(
 );
 assert.match(
   newtabCss,
-  /\.weather-icon\s+svg\s*\{[^}]*width:\s*18px[^}]*stroke-width:\s*1\.5/s,
-  'weather svg sized 18px at stroke 1.5'
+  /\.weather-icon\s+svg\s*\{[^}]*width:\s*18px[^}]*stroke-width:\s*1\.75/s,
+  'weather svg sized 18px at stroke 1.75'
 );
 
 const newtabHtml = read('../newtab/newtab.html');

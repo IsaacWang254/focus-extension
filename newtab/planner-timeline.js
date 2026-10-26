@@ -2,7 +2,15 @@ import { buildDayTimeline, layoutDayGrid, safeExternalUrl } from './planner-mode
 import { eventColors } from './planner-color.js';
 import { createIconButton, createIconLink } from './planner-controls.js';
 
-const PX_PER_MINUTE = 64 / 60;
+// Hour pitch: 64px by default, fitted within MIN_HOUR_PX..MAX_HOUR_PX by
+// snapTimelineViewport so the day's window fills the column it is given.
+const BASE_HOUR_PX = 64;
+const MIN_HOUR_PX = 56;
+const MAX_HOUR_PX = 96;
+let PX_PER_MINUTE = BASE_HOUR_PX / 60;
+// Blocks shorter than this render at this height so a 15-minute event still
+// carries its title instead of a bare sliver of fill.
+const MIN_BLOCK_PX = 22;
 // Width kept clear on the right of an overlap group for its lane-cap pill.
 const PILL_RESERVE = 92;
 // Room above a block parked at the viewport's top so its title clears the
@@ -156,12 +164,13 @@ function updateBlock(item, descriptor, viewport, now, onOpen) {
   item.style.setProperty('--blk-fade', descriptor.state === 'past' ? String(descriptor.pastFade) : '1');
 
   item.style.top = `${descriptor.canvasTop}px`;
-  item.style.height = `${descriptor.height}px`;
+  const height = Math.max(descriptor.height, MIN_BLOCK_PX);
+  item.style.height = `${height}px`;
   const { left, width } = laneGeometry(viewport, descriptor);
   item.style.left = `${left}px`;
   item.style.width = `${width}px`;
 
-  const showContent = applyBlockContent(item, descriptor, width);
+  const showContent = applyBlockContent(item, { ...descriptor, height }, width);
   item.classList.toggle('is-past', descriptor.state === 'past');
   item.classList.toggle('is-current', descriptor.state === 'current');
   item.classList.toggle('cont-before', descriptor.continuesBefore === true);
@@ -502,7 +511,7 @@ export function renderDayTimeline(elements, events, options = {}) {
 // ---------------------------------------------------------------------------
 
 
-const HOUR_PX = 60 * PX_PER_MINUTE;
+let HOUR_PX = 60 * PX_PER_MINUTE;
 // Whole-hour viewport: the hour label on the first and last visible line
 // sits SNAP_PAD above/below the line, so neither is cut by the viewport edge.
 const SNAP_PAD = 20;
@@ -516,7 +525,19 @@ export function snapTimelineViewport(viewport, { maxHours = Infinity } = {}) {
   viewport.style.flex = '';
   const avail = Number(viewport.clientHeight) || 0;
   if (!avail) return null;
-  const fit = Math.floor((avail - 2 * SNAP_PAD) / HOUR_PX);
+  // Fit the day's window to the column: pitch grows on a short day so the
+  // column is not left blank, shrinks a little on a long one so the last
+  // event is not cut, and otherwise stays at the base 64px.
+  const room = avail - 2 * SNAP_PAD;
+  if (Number.isFinite(maxHours) && maxHours >= MIN_SNAP_HOURS) {
+    const pitch = Math.max(MIN_HOUR_PX, Math.min(MAX_HOUR_PX, Math.floor(room / maxHours)));
+    HOUR_PX = pitch;
+    PX_PER_MINUTE = pitch / 60;
+  } else {
+    HOUR_PX = BASE_HOUR_PX;
+    PX_PER_MINUTE = BASE_HOUR_PX / 60;
+  }
+  const fit = Math.floor(room / HOUR_PX);
   // Spend the column on the day, not on empty evening hours: never taller
   // than the window the day needs (see timelineWindow).
   const hours = Math.max(MIN_SNAP_HOURS, Math.min(fit, maxHours));

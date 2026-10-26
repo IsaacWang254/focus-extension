@@ -44,7 +44,9 @@ export function taskMetaParts(task, projects = new Map(), now = new Date(), labe
   for (const label of task.labels || []) {
     parts.push({ text: `@${label}`, color: labelColors.get(label) });
   }
-  if (task.parentContent) parts.push({ text: task.parentContent });
+  // Subtasks name their parent as the last part; the arrow keeps it from
+  // reading as a duplicate of the parent's own row.
+  if (task.parentContent) parts.push({ text: `\u21b3 ${task.parentContent}` });
   return parts;
 }
 

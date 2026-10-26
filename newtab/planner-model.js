@@ -275,6 +275,8 @@ export function timelineWindow(events = [], now = new Date()) {
  * minutes are real elapsed minutes and day length can be 1380/1410/1440/1500.
  */
 export const MAX_EVENT_LANES = 3;
+// Vertical room a "+N more" / "Show fewer" pill occupies (pill box + gap).
+const PILL_BAND_PX = 30;
 
 /**
  * `maxLanes` caps concurrent lanes: in a group with more, events assigned to
@@ -380,11 +382,21 @@ export function layoutDayGrid(timeline, { pxPerMinute, maxLanes = MAX_EVENT_LANE
         : null
     });
     const showsToggle = hiddenMembers.length > 0 || (fullLaneCount > maxLanes && expandedGroups.has(groupKey));
+    // The pill sits at the first hidden start (or the group's start once
+    // expanded); only members that share its band give up the strip, so an
+    // event an hour below it keeps the full width.
+    const pillTopMinutes = !showsToggle ? null
+      : hiddenMembers.length ? result.groups[result.groups.length - 1].overflowTopMinutes
+      : (current.members[0].clippedStartMs - result.dayStartMs) / 60000;
+    const pillBandMinutes = PILL_BAND_PX / scale;
     for (const event of current.members) {
       event.hidden = event.lane >= laneCount;
       event.laneCount = laneCount;
-      // Groups with a "+N more" / "Show fewer" pill keep a strip free for it.
-      event.pillReserve = showsToggle;
+      const startMin = (event.clippedStartMs - result.dayStartMs) / 60000;
+      const endMin = (event.clippedEndMs - result.dayStartMs) / 60000;
+      event.pillReserve = showsToggle
+        && startMin < pillTopMinutes + pillBandMinutes
+        && endMin > pillTopMinutes;
       let laneSpan = 1;
       for (let lane = event.lane + 1; lane < laneCount; lane += 1) {
         const conflict = visibleMembers.some(other => other.lane === lane
