@@ -5,8 +5,8 @@ import { TODOIST_COLORS, contrastRatio, readableTagColor, todoistColor } from '.
 assert.deepEqual(taskPriorityStyle(4), { label: 'P1', color: 'var(--nt-ink)' });
 assert.deepEqual(taskPriorityStyle(3), { label: 'P2', color: '#c96f00' });
 assert.deepEqual(taskPriorityStyle(2), { label: 'P3', color: '#1a5fcc' });
-assert.deepEqual(taskPriorityStyle(1), { label: 'P4', color: '#8a8a8a' });
-assert.deepEqual(taskPriorityStyle('unexpected'), { label: 'P4', color: '#8a8a8a' });
+assert.deepEqual(taskPriorityStyle(1), { label: 'P4', color: '#767676' });
+assert.deepEqual(taskPriorityStyle('unexpected'), { label: 'P4', color: '#767676' });
 
 // taskMetaParts: due → project → @labels → parentContent, no priority text.
 const now = new Date('2026-09-30T12:00:00');

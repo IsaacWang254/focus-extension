@@ -369,6 +369,12 @@ html[data-theme$="dark"] .task-list .planner-task-row[data-priority="P3"] {
   --task-priority-color: #6fa3f7;
 }
 
+/* P4 grey: #767676 clears 3:1 on light paper and on the overdue tint even
+   after the Up next step; dark paper keeps the lighter grey. */
+html[data-theme$="dark"] .task-list .planner-task-row[data-priority="P4"] {
+  --task-priority-color: #8a8a8a;
+}
+
 .task-list .planner-task-row[data-priority="P1"] .planner-check::after {
   border-width: 2.5px;
   inset: 6px;

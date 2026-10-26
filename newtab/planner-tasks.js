@@ -12,7 +12,7 @@ const PRIORITY_STYLES = {
   4: { label: 'P1', color: 'var(--nt-ink)' },
   3: { label: 'P2', color: '#c96f00' },
   2: { label: 'P3', color: '#1a5fcc' },
-  1: { label: 'P4', color: '#8a8a8a' }
+  1: { label: 'P4', color: '#767676' }
 };
 
 export function taskPriorityStyle(priority) {
