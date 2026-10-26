@@ -311,7 +311,7 @@ body[data-surface="newtab"] .main {
      content; the remaining 8px of the old 24px bottom padding lives in the
      inter-row margin so the row pitch is unchanged and adjacent washes keep
      a real gap. */
-  padding: 8px 0;
+  padding: 9px 0;
   margin-bottom: 4px;
 }
 
@@ -325,7 +325,8 @@ body[data-surface="newtab"] .main {
   margin-top: 12px;
 }
 
-/* Round priority ring: 19px glyph inside a 36px hit target. */
+/* Round priority ring: 22px glyph inside a 36px hit target, centred on the
+   first title line. */
 .task-list .planner-check {
   position: relative;
   width: 36px;
@@ -339,14 +340,14 @@ body[data-surface="newtab"] .main {
 .task-list .planner-check::after {
   content: '';
   position: absolute;
-  inset: 8.5px;
-  border: 1px solid var(--task-priority-color, color-mix(in srgb, var(--nt-ink) 58%, transparent));
+  inset: 7px;
+  border: 1.5px solid var(--task-priority-color, color-mix(in srgb, var(--nt-ink) 58%, transparent));
   border-radius: 50%;
 }
 
 .task-list .planner-check:hover::after {
-  border-width: 1.5px;
-  inset: 7.5px;
+  border-width: 2px;
+  inset: 6.5px;
 }
 
 .task-list .planner-check.is-pending {
@@ -455,10 +456,10 @@ body[data-surface="newtab"] .main {
 }
 
 .task-list .planner-row-title {
-  font-size: 17px;
-  font-weight: 400;
-  line-height: 1.35;
-  letter-spacing: -0.015em;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
   color: var(--nt-ink);
   white-space: normal;
 }
@@ -513,7 +514,7 @@ body[data-surface="newtab"] .main {
 .task-list .planner-row-meta {
   overflow: hidden;
   color: var(--nt-muted);
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -580,7 +581,7 @@ body[data-surface="newtab"] .main {
   background: var(--nt-danger);
 }
 
-/* Group eyebrows: shown only when something is overdue. */
+/* Group eyebrows: Overdue / Today / Up next, each with a count pill. */
 .task-list .task-group {
   display: flex;
   align-items: center;
@@ -601,11 +602,16 @@ body[data-surface="newtab"] .main {
   color: var(--nt-danger);
 }
 
+.task-list .task-group[data-group="overdue"] .task-group-count {
+  background: var(--nt-danger);
+  color: var(--nt-paper);
+}
+
 .task-group-count {
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--nt-danger);
-  color: var(--nt-paper);
+  background: color-mix(in srgb, var(--nt-ink) 10%, transparent);
+  color: var(--nt-ink);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.2;

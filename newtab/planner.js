@@ -259,7 +259,7 @@ function renderTasks() {
   // Group eyebrows only when something is overdue — the usual calm list
   // stays label-free, but late work gets a named, counted section.
   const buckets = rows.map(task => taskDueBucket(task, now));
-  const labelled = buckets.includes('overdue');
+  const labelled = rows.length > 0;
   rows.forEach((task, index) => {
     if (labelled && buckets[index] !== buckets[index - 1]) {
       const label = createTaskGroupLabel(buckets[index], buckets.filter(b => b === buckets[index]).length);
@@ -305,12 +305,10 @@ function createTaskGroupLabel(bucket, count) {
   label.dataset.group = bucket;
   label.setAttribute('role', 'presentation');
   label.textContent = GROUP_LABELS[bucket];
-  if (bucket === 'overdue') {
-    const badge = document.createElement('span');
-    badge.className = 'task-group-count';
-    badge.textContent = String(count);
-    label.appendChild(badge);
-  }
+  const badge = document.createElement('span');
+  badge.className = 'task-group-count';
+  badge.textContent = String(count);
+  label.appendChild(badge);
   return label;
 }
 

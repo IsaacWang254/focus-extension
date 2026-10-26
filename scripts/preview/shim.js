@@ -224,6 +224,13 @@
       { id: 'od-5', content: 'Reply to worker deploy thread', priority: 2, labels: ['quick'], project_id: 'p1', due: { date: D, string: 'today' }, order: 5 },
       { id: 'od-6', content: 'Plan next week', priority: 1, labels: [], due: { date: DD(2), string: 'Wednesday' }, order: 6 }
     ] },
+    normal: { tasks: [
+      { id: 'nm-1', content: 'Finish the blocked-page restyle', priority: 4, labels: ['deep-work'], project_id: 'p1', due: { date: D, string: 'today' }, order: 1 },
+      { id: 'nm-2', content: 'Submit CS 240 problem set 7', priority: 3, labels: ['school'], project_id: 'p2', due: { date: D, string: 'today' }, order: 2 },
+      { id: 'nm-3', content: 'Reply to worker deploy thread', priority: 2, labels: ['quick'], project_id: 'p1', due: { date: D, string: 'today' }, order: 3 },
+      { id: 'nm-4', content: 'Read chapters 6–7 for seminar', priority: 1, labels: ['reading'], project_id: 'p2', due: { date: DD(2), string: 'Friday' }, order: 4 },
+      { id: 'nm-5', content: 'Plan next week', priority: 1, labels: [], due: { date: DD(5), string: 'Monday' }, order: 5 }
+    ] },
     'future-only': { tasks: [
       { id: 'ft-1', content: 'Tomorrow morning review', priority: 2, labels: [], due: { date: DD(1), string: 'tomorrow' }, order: 1 },
       { id: 'ft-2', content: 'Next week planning', priority: 1, labels: [], due: { date: DD(5), string: 'Monday' }, order: 2 },
