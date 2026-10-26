@@ -514,6 +514,47 @@ body[data-surface="newtab"] .main {
   white-space: nowrap;
 }
 
+.task-list .planner-meta-overdue {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--nt-danger);
+  font-weight: 500;
+}
+
+.task-list .planner-meta-overdue svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+}
+
+/* Group eyebrows: shown only when something is overdue. */
+.task-list .task-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 24px 0 6px;
+  color: var(--nt-muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+.task-list > .task-group:first-child {
+  margin-top: 16px;
+}
+
+.task-list .task-group[data-group="overdue"] {
+  color: var(--nt-danger);
+}
+
+.task-group-count {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
 .planner-row-meta,
 .integration-status,
 .preview-empty,
@@ -910,7 +951,9 @@ html.planner-open {
     width: calc(100vw - 24px);
   }
 
-  .task-list > .planner-task-row:nth-child(n+4) {
+  /* Narrow screens keep the first three rows; later rows and any group
+     eyebrow that only introduces hidden rows go. */
+  .task-list > .is-overflow {
     display: none;
   }
 }

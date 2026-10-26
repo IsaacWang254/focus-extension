@@ -214,6 +214,16 @@
         { id: 'sg-none', content: 'Undated task', priority: 3, labels: [], order: 6 }
       ]
     },
+    // Overdue stress: items 1/2/3 days late mixed with today and later, so
+    // the home list's overdue treatment can be judged against real backlog.
+    overdue: { tasks: [
+      { id: 'od-1', content: 'Submit CS 240 problem set 6', priority: 3, labels: ['school'], project_id: 'p2', due: { date: DD(-3), string: 'Oct 23' }, order: 1 },
+      { id: 'od-2', content: 'Email Prof. Lin about extension', priority: 2, labels: [], project_id: 'p2', due: { date: DD(-3), string: 'Oct 23' }, order: 2 },
+      { id: 'od-3', content: 'Read chapters 4–5 for seminar', priority: 1, labels: ['reading'], project_id: 'p2', due: { date: DD(-1), string: 'yesterday' }, order: 3 },
+      { id: 'od-4', content: 'Finish the blocked-page restyle', priority: 4, labels: ['deep-work'], project_id: 'p1', due: { date: D, string: 'today' }, order: 4 },
+      { id: 'od-5', content: 'Reply to worker deploy thread', priority: 2, labels: ['quick'], project_id: 'p1', due: { date: D, string: 'today' }, order: 5 },
+      { id: 'od-6', content: 'Plan next week', priority: 1, labels: [], due: { date: DD(2), string: 'Wednesday' }, order: 6 }
+    ] },
     'future-only': { tasks: [
       { id: 'ft-1', content: 'Tomorrow morning review', priority: 2, labels: [], due: { date: DD(1), string: 'tomorrow' }, order: 1 },
       { id: 'ft-2', content: 'Next week planning', priority: 1, labels: [], due: { date: DD(5), string: 'Monday' }, order: 2 },

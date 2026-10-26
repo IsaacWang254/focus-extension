@@ -200,8 +200,35 @@ export function rankSuggestedTasks(tasks = [], now = new Date()) {
     .map(entry => entry.task);
 }
 
+/** 'overdue' | 'today' | 'later' (undated and malformed dues count as later). */
+export function taskDueBucket(task, now = new Date()) {
+  const deadline = parseTaskDeadline(task);
+  if (deadline.kind === 'none') return 'later';
+  const today = toLocalDateKey(now);
+  if (deadline.localDate < today) return 'overdue';
+  return deadline.localDate === today ? 'today' : 'later';
+}
+
+/** Whole days between a task's due date and today; 0 when not overdue. */
+export function taskOverdueDays(task, now = new Date()) {
+  const deadline = parseTaskDeadline(task);
+  if (deadline.kind === 'none') return 0;
+  const [y, m, d] = deadline.localDate.split('-').map(Number);
+  const days = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(y, m - 1, d)) / 86400000);
+  return Math.max(0, days);
+}
+
+export const HOMEPAGE_DUE_CAP = 6;
+
+/**
+ * The homepage shows at least `limit` rows, growing to HOMEPAGE_DUE_CAP so
+ * everything overdue or due today stays visible instead of being cut off at
+ * the usual three.
+ */
 export function selectHomepageTasks(tasks = [], now = new Date(), limit = 3) {
-  return rankSuggestedTasks(tasks, now).slice(0, limit);
+  const ranked = rankSuggestedTasks(tasks, now);
+  const due = ranked.filter(task => taskDueBucket(task, now) !== 'later').length;
+  return ranked.slice(0, Math.min(HOMEPAGE_DUE_CAP, Math.max(limit, due)));
 }
 
 /**

@@ -52,7 +52,10 @@ const labelColors = new Map([['deep work', 'yellow'], ['quick', 'green']]);
 {
   const parts = taskMetaParts(
     { content: 'Late', due: { date: '2026-09-29' } }, new Map(), now);
-  assert.deepEqual(parts, [{ text: 'Overdue' }]);
+  assert.deepEqual(parts, [{ text: 'Due yesterday', kind: 'overdue' }]);
+  assert.deepEqual(
+    taskMetaParts({ content: 'Later', due: { date: '2026-09-27' } }, new Map(), now),
+    [{ text: '3 days overdue', kind: 'overdue' }]);
 }
 
 // readableTagColor: every Todoist colour resolves to ≥4.5:1 on theme paper.

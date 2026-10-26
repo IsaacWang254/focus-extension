@@ -2,6 +2,7 @@ import * as todoist from '../lib/todoist.js';
 import {
   normalizeEvents,
   selectHomepageTasks,
+  taskDueBucket,
   toLocalDateKey
 } from './planner-model.js';
 import { createTaskRow, taskPriorityStyle } from './planner-tasks.js';
@@ -255,7 +256,16 @@ function renderTasks() {
   const focusWasVisible = focusWasOpen && document.activeElement?.matches?.(':focus-visible');
   list.innerHTML = '';
   const labelColors = new Map((labelsList || []).map(label => [label.name, label.color]));
+  // Group eyebrows only when something is overdue — the usual calm list
+  // stays label-free, but late work gets a named, counted section.
+  const buckets = rows.map(task => taskDueBucket(task, now));
+  const labelled = buckets.includes('overdue');
   rows.forEach((task, index) => {
+    if (labelled && buckets[index] !== buckets[index - 1]) {
+      const label = createTaskGroupLabel(buckets[index], buckets.filter(b => b === buckets[index]).length);
+      if (index >= 3) label.classList.add('is-overflow');
+      list.appendChild(label);
+    }
     list.appendChild(createTaskRow(task, {
       projects, now,
       home: true,
@@ -264,6 +274,7 @@ function renderTasks() {
       onComplete: completeTask,
       onEdit: (t, trigger, viaKeyboard) => openEditModal(t, trigger, viaKeyboard)
     }));
+    if (index >= 3) list.lastElementChild.classList.add('is-overflow');
   });
   taskListRenderedOnce = true;
   if (animate) flipTaskRows(list, oldTops);
@@ -284,6 +295,23 @@ function renderTasks() {
       catch { fresh.focus(); }
     }
   }
+}
+
+const GROUP_LABELS = { overdue: 'Overdue', today: 'Today', later: 'Up next' };
+
+function createTaskGroupLabel(bucket, count) {
+  const label = document.createElement('li');
+  label.className = 'task-group';
+  label.dataset.group = bucket;
+  label.setAttribute('role', 'presentation');
+  label.textContent = GROUP_LABELS[bucket];
+  if (bucket === 'overdue') {
+    const badge = document.createElement('span');
+    badge.className = 'task-group-count';
+    badge.textContent = String(count);
+    label.appendChild(badge);
+  }
+  return label;
 }
 
 function renderCalendar({ recenter = false } = {}) {

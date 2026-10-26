@@ -1,4 +1,4 @@
-import { parseTaskDeadline, toLocalDateKey } from './planner-model.js';
+import { parseTaskDeadline, taskOverdueDays, toLocalDateKey } from './planner-model.js';
 import { readableTagColor } from './planner-color.js';
 import { createIconButton } from './planner-controls.js';
 
@@ -17,6 +17,10 @@ export function taskPriorityStyle(priority) {
   return PRIORITY_STYLES[Number(priority)] || PRIORITY_STYLES[1];
 }
 
+function overdueText(days) {
+  return days === 1 ? 'Due yesterday' : `${days} days overdue`;
+}
+
 /**
  * The meta line as ordered parts. Due text first, then the project name,
  * one @name per label, then the parent task's content. Coloured parts carry
@@ -28,7 +32,7 @@ export function taskMetaParts(task, projects = new Map(), now = new Date(), labe
   const today = toLocalDateKey(now);
   if (deadline.kind !== 'none') {
     const due = deadline.localDate;
-    if (due < today) parts.push({ text: 'Overdue' });
+    if (due < today) parts.push({ text: overdueText(taskOverdueDays(task, now)), kind: 'overdue' });
     else if (due === today) parts.push({ text: 'Today' });
     else parts.push({ text: new Date(`${due}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) });
   }
@@ -84,7 +88,14 @@ export function createTaskRow(task, options = {}) {
     const theme = currentTheme();
     metaParts.forEach((part, index) => {
       if (index > 0) meta.appendChild(document.createTextNode(' · '));
-      if (part.color) {
+      if (part.kind === 'overdue') {
+        row.classList.add('is-overdue');
+        const late = document.createElement('span');
+        late.className = 'planner-meta-overdue';
+        late.innerHTML = iconMarkup('overdue');
+        late.appendChild(document.createTextNode(part.text));
+        meta.appendChild(late);
+      } else if (part.color) {
         const tag = document.createElement('span');
         tag.className = 'planner-meta-tag';
         tag.style.color = readableTagColor(part.color, theme);
