@@ -437,13 +437,19 @@ export function renderDayTimeline(elements, events, options = {}) {
       if (expandedLaneGroups.has(group.id)) expandedLaneGroups.delete(group.id);
       else expandedLaneGroups.add(group.id);
       renderDayTimeline(elements, events, options);
-      // The re-render replaces the pill; keep focus on its successor.
-      canvas.querySelector(`.timeline-more[data-group="${group.id}"]`)?.focus?.();
     });
     moreNodes.push(more);
   }
+  // Any render (clock tick, task completion) replaces the pills; a focused
+  // pill hands focus to its successor for the same group.
+  const focusedGroup = document.activeElement?.classList?.contains('timeline-more')
+    ? document.activeElement.dataset.group
+    : null;
   for (const node of [...canvas.querySelectorAll('.timeline-more')]) node.remove();
   for (const node of moreNodes) canvas.appendChild(node);
+  if (focusedGroup !== null) {
+    canvas.querySelector(`.timeline-more[data-group="${focusedGroup}"]`)?.focus?.({ preventScroll: true });
+  }
 
   // A focused block whose Open button no longer fits drops back to the
   // schedule action, per the reserved-focus rule.
