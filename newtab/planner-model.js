@@ -225,10 +225,48 @@ export const HOMEPAGE_DUE_CAP = 6;
  * everything overdue or due today stays visible instead of being cut off at
  * the usual three.
  */
-export function selectHomepageTasks(tasks = [], now = new Date(), limit = 3) {
+export function selectHomepageTasks(tasks = [], now = new Date(), limit = 3, cap = HOMEPAGE_DUE_CAP) {
   const ranked = rankSuggestedTasks(tasks, now);
   const due = ranked.filter(task => taskDueBucket(task, now) !== 'later').length;
-  return ranked.slice(0, Math.min(HOMEPAGE_DUE_CAP, Math.max(limit, due)));
+  return ranked.slice(0, Math.min(Math.max(cap, limit), Math.max(limit, due)));
+}
+
+/**
+ * Wide (two-column) screens give the task list a column of its own, so it
+ * shows a longer slice of the ranked list instead of the three-row teaser.
+ */
+export const WIDE_HOMEPAGE_LIMIT = 6;
+export const WIDE_HOMEPAGE_CAP = 8;
+
+const HOUR_MS = 60 * 60 * 1000;
+export const TIMELINE_LOOKBACK_MS = 2 * HOUR_MS;
+export const TIMELINE_LOOKAHEAD_MS = 3 * HOUR_MS;
+export const TIMELINE_MIN_HOURS = 3;
+
+/**
+ * The slice of the day the timeline opens on: whole hours from two hours
+ * before now (leading hours with no event are dropped while now stays at
+ * least an hour below the top) to the later of now + 3h and the last timed
+ * event's end, rounded up to the hour. `hours` is the window's length.
+ */
+export function timelineWindow(events = [], now = new Date()) {
+  const nowMs = now instanceof Date ? now.getTime() : Number(now);
+  const spans = [];
+  for (const event of events) {
+    if (!event || event.isAllDay) continue;
+    const start = new Date(event.start).getTime();
+    const end = new Date(event.end).getTime();
+    if (Number.isFinite(start) && Number.isFinite(end) && end > start) spans.push([start, end]);
+  }
+  const floorHour = ms => { const d = new Date(ms); d.setMinutes(0, 0, 0); return d.getTime(); };
+  let startMs = floorHour(nowMs - TIMELINE_LOOKBACK_MS);
+  const hasContent = from => spans.some(([a, b]) => b > from && a < from + HOUR_MS);
+  while (startMs + HOUR_MS <= nowMs - HOUR_MS && !hasContent(startMs)) startMs += HOUR_MS;
+  const lastEnd = spans.reduce((max, [, b]) => Math.max(max, b), 0);
+  let endMs = floorHour(Math.max(nowMs + TIMELINE_LOOKAHEAD_MS, lastEnd));
+  if (endMs < Math.max(nowMs + TIMELINE_LOOKAHEAD_MS, lastEnd)) endMs += HOUR_MS;
+  endMs = Math.max(endMs, startMs + TIMELINE_MIN_HOURS * HOUR_MS);
+  return { startMs, endMs, hours: Math.round((endMs - startMs) / HOUR_MS) };
 }
 
 /**

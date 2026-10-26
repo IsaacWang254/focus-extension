@@ -383,6 +383,7 @@ function plannerHarness() {
     renderDayTimeline: () => { calls.renders++; return { marker: { id: 'now' }, hasEvents: true }; },
     centerTimelineOnNow: () => { calls.centers++; },
     snapTimelineViewport: () => null,
+    timelineWindow: () => ({ startMs: 0, endMs: 0, hours: 6 }),
     rankTasks: () => [], selectHomepageTasks: () => [], safeExternalUrl: () => '', addLocalDays: value => value,
     createTaskRow: () => ({}), renderTaskGroups() {}, taskMeta: () => '',
     createEventRow: () => ({}), formatEventTime: () => '', getMeetingUrl: () => '', renderEventList: () => 0,

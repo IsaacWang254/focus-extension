@@ -619,6 +619,25 @@ body[data-surface="newtab"] .main {
   color: var(--nt-paper);
 }
 
+/* Up next (later-dated) rows sit one step down the scale from Today: the
+   title keeps its size and weight but drops to ~62% ink, the meta to ~50%,
+   so the list reads red block -> ink titles -> grey titles. */
+.task-list .task-group[data-group="later"] ~ .planner-task-row .planner-row-title {
+  color: color-mix(in srgb, var(--nt-ink) 62%, var(--nt-paper));
+}
+
+.task-list .task-group[data-group="later"] ~ .planner-task-row .planner-row-meta {
+  color: color-mix(in srgb, var(--nt-ink) 54%, var(--nt-paper));
+}
+
+.task-list .task-group[data-group="later"] ~ .planner-task-row .planner-check::after {
+  opacity: 0.7;
+}
+
+.task-list .task-group[data-group="later"] ~ .planner-task-row:is(:hover, :has(:focus-visible)) .planner-row-title {
+  color: var(--nt-ink);
+}
+
 .task-group-count {
   padding: 2px 8px;
   border-radius: 999px;
@@ -1300,8 +1319,8 @@ html[data-theme$="dark"] .timeline-now .line {
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 24px), transparent);
-  mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16px, #000);
+  mask-image: linear-gradient(to bottom, transparent, #000 16px, #000);
 }
 
 .timeline-viewport:focus-visible {
@@ -1947,4 +1966,77 @@ html[data-theme$="dark"] .edit-modal select.field-input {
 .quick-add-link {
   color: var(--nt-ink);
   text-decoration: underline;
+}
+
+/* ============================================
+   Wide screens: tasks and calendar side by side
+   ============================================
+   The single column stops at 720px, which left the calendar hostage to the
+   task list's height (an overdue day showed three hours) and the right half
+   of the task zone empty. From 1180px the page is a two-column grid under a
+   one-line header: tasks left, calendar right filling the viewport height. */
+@media (min-width: 1180px) {
+  body[data-surface="newtab"] .main {
+    display: grid;
+    grid-template-columns: minmax(0, 48fr) minmax(0, 52fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      "head head"
+      "tasks cal";
+    column-gap: 64px;
+    width: min(1200px, 100% - 96px);
+    padding: 80px 0 48px;
+  }
+
+  .home-head {
+    grid-area: head;
+    justify-content: flex-start;
+    gap: 28px;
+  }
+
+  .home-side,
+  .weather-section {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  #tasks-section {
+    grid-area: tasks;
+    align-self: start;
+    margin-top: 16px;
+  }
+
+  /* 29px puts the Calendar eyebrow on the Today/Overdue eyebrow's line. */
+  #today-timeline-section {
+    grid-area: cal;
+    margin-top: 29px;
+  }
+
+  .timeline-viewport {
+    min-height: 0;
+  }
+
+  /* The calendar column is ~590px: all-day chips keep their own row under
+     the eyebrow instead of sharing the heading line. */
+  body[data-surface="newtab"] .cal-head .timeline-all-day {
+    flex: 0 0 100%;
+    order: 2;
+    padding: 6px 0 10px;
+  }
+
+  body[data-surface="newtab"] .cal-head .cal-label {
+    order: 0;
+  }
+
+  body[data-surface="newtab"] .cal-head .icon-actions {
+    order: 1;
+  }
+
+  body[data-surface="newtab"] .cal-head .timeline-all-day-label {
+    display: block;
+  }
+
+  body[data-surface="newtab"] .cal-head .timeline-all-day-list {
+    justify-content: flex-start;
+  }
 }

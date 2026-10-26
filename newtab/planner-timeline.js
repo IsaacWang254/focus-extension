@@ -510,13 +510,16 @@ export const MIN_SNAP_HOURS = 3;
 
 // Pin the viewport to SNAP_PAD + n hours + SNAP_PAD, using whatever height the
 // column offers. Returns the height applied (null when nothing to measure).
-export function snapTimelineViewport(viewport) {
+export function snapTimelineViewport(viewport, { maxHours = Infinity } = {}) {
   if (!viewport?.style) return null;
   viewport.style.height = '';
   viewport.style.flex = '';
   const avail = Number(viewport.clientHeight) || 0;
   if (!avail) return null;
-  const hours = Math.max(MIN_SNAP_HOURS, Math.floor((avail - 2 * SNAP_PAD) / HOUR_PX));
+  const fit = Math.floor((avail - 2 * SNAP_PAD) / HOUR_PX);
+  // Spend the column on the day, not on empty evening hours: never taller
+  // than the window the day needs (see timelineWindow).
+  const hours = Math.max(MIN_SNAP_HOURS, Math.min(fit, maxHours));
   const height = 2 * SNAP_PAD + hours * HOUR_PX;
   viewport.style.height = `${height}px`;
   viewport.style.flex = '0 0 auto';

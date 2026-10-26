@@ -1,7 +1,7 @@
 import * as todoist from '../lib/todoist.js';
 import {
   normalizeEvents,
-  selectHomepageTasks,
+  selectHomepageTasks, WIDE_HOMEPAGE_LIMIT, WIDE_HOMEPAGE_CAP, timelineWindow,
   taskDueBucket,
   toLocalDateKey
 } from './planner-model.js';
@@ -239,8 +239,10 @@ function renderTasks() {
   const now = new Date();
   const list = element('task-list');
   if (!list) return;
+  const wide = typeof matchMedia === 'function' && matchMedia(WIDE_LAYOUT_QUERY).matches;
   const rows = selectHomepageTasks(
-    tasks.filter(task => !completedTaskIds.has(String(task.id))), now);
+    tasks.filter(task => !completedTaskIds.has(String(task.id))), now,
+    wide ? WIDE_HOMEPAGE_LIMIT : 3, wide ? WIDE_HOMEPAGE_CAP : undefined);
   const animate = taskListRenderedOnce && !reducedMotion()
     && typeof list.querySelectorAll === 'function';
   const oldTops = new Map();
@@ -323,10 +325,11 @@ function renderCalendar({ recenter = false } = {}) {
     count.textContent = String(todayEvents.length);
     count.classList.toggle('hidden', !todayEvents.length);
   }
-  snapTimelineViewport(viewport);
+  const now = new Date();
+  snapTimelineViewport(viewport, { maxHours: timelineWindow(todayEvents, now).hours });
   const result = renderDayTimeline({ viewport, allDay, empty, unavailable }, todayEvents, {
     date: loadedCalendarDate || toLocalDateKey(),
-    now: new Date(),
+    now,
     hasStatus: Boolean(element('calendar-status')?.textContent)
   });
   // A focused block that lost its Open link (now too small, or the event has
@@ -1155,6 +1158,9 @@ function setupActions() {
   });
 }
 
+// Keep in sync with the @media (min-width) block in newtab.css.
+const WIDE_LAYOUT_QUERY = '(min-width: 1180px)';
+
 export function initPlannerDashboard(options) {
   if (plannerStarted) return;
   plannerStarted = true;
@@ -1186,6 +1192,9 @@ export function initPlannerDashboard(options) {
   }
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', () => renderCalendar({ recenter: true }));
+  }
+  if (typeof matchMedia === 'function') {
+    matchMedia(WIDE_LAYOUT_QUERY).addEventListener?.('change', () => renderTasks());
   }
 }
 
