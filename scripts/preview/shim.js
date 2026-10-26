@@ -238,6 +238,8 @@
     ] }
   };
   const fixture = FIXTURES[fixtureName] || null;
+  // Mutations (close, edit, add) act on whichever list the fixture serves.
+  const taskStore = fixture?.tasks ?? TASKS;
 
   const tomorrowIso = localDateKey(new Date(now + 864e5));
 
@@ -536,15 +538,15 @@
       if (closeMatch) {
         if (previewState === 'mutation-error' || fixture?.mutationFail) return json({ error: 'Preview mutation failed' }, 503);
         if (closeMatch[2] === 'close') {
-          const index = TASKS.findIndex(task => task.id === closeMatch[1]);
-          if (index >= 0) TASKS.splice(index, 1);
+          const index = taskStore.findIndex(task => task.id === closeMatch[1]);
+          if (index >= 0) taskStore.splice(index, 1);
         }
         return Promise.resolve(new Response(null, { status: 204 }));
       }
       const taskMatch = /\/tasks\/([^/?]+)$/.exec(url);
       if (taskMatch && method === 'POST') {
         if (previewState === 'mutation-error' || fixture?.mutationFail) return json({ error: 'Preview mutation failed' }, 503);
-        const task = TASKS.find(item => item.id === taskMatch[1]);
+        const task = taskStore.find(item => item.id === taskMatch[1]);
         if (task) {
           const body = JSON.parse(init?.body || '{}');
           Object.assign(task, body);
@@ -565,13 +567,13 @@
       if (url.includes('/tasks') && method === 'POST') {
         if (previewState === 'mutation-error' || fixture?.mutationFail) return json({ error: 'Preview mutation failed' }, 503);
         const body = JSON.parse(init?.body || '{}');
-        const created = { id: `preview-${Date.now()}`, order: TASKS.length + 1, ...body, due: body.due_date ? { date: body.due_date, is_recurring: false } : null };
-        TASKS.push(created);
+        const created = { id: `preview-${Date.now()}`, order: taskStore.length + 1, ...body, due: body.due_date ? { date: body.due_date, is_recurring: false } : null };
+        taskStore.push(created);
         return json(created);
       }
       if (url.includes('/tasks')) {
         if (fixture?.todoistError) return json({ error: 'Preview todoist failure' }, 503);
-        const list = fixture?.tasks ?? (previewState === 'empty' ? [] : TASKS);
+        const list = previewState === 'empty' ? [] : taskStore;
         return json({ results: structuredClone(list), next_cursor: null });
       }
       if (url.includes('/labels')) return json({ results: structuredClone(LABELS) });
