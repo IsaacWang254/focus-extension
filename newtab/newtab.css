@@ -107,7 +107,7 @@ body {
 
 .weather-section {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: flex-end;
   gap: 8px;
   min-height: 22px;
@@ -124,9 +124,14 @@ body {
 
 .weather-content {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: flex-end;
   gap: 6px;
+}
+
+/* The icon centres on the text line without feeding the row's baseline. */
+.weather-content .weather-icon {
+  align-self: center;
 }
 
 /* The H/L segment reads as a continuation of the description — one normal
@@ -334,7 +339,7 @@ body[data-surface="newtab"] .main {
   width: 36px;
   height: 36px;
   flex: 0 0 36px;
-  margin: -7px 0 -6px -4px;
+  margin: -5px 0 -8px -4px;
   border: 0;
   background: transparent;
 }
@@ -1053,7 +1058,7 @@ body[data-surface="newtab"] textarea {
 /* The task actions share the first eyebrow's row instead of a row of their own. */
 .sec-head-tools {
   position: absolute;
-  top: 10px;
+  top: 12px;
   right: 0;
   min-height: 0;
   margin: 0;
