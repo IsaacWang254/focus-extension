@@ -489,7 +489,7 @@ html[data-theme$="dark"] .task-list .planner-task-row[data-priority="P3"] {
 }
 
 .planner-task-row {
-  --task-priority-color: #808080;
+  --task-priority-color: var(--task-priority-base, #808080);
 }
 
 /* Soft row highlight: a ::before wash bleeding 12px past the content box on

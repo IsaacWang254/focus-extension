@@ -63,8 +63,9 @@ export function createTaskRow(task, options = {}) {
   row.className = `planner-task-row${options.current ? ' is-current' : ''}`;
   row.dataset.taskId = task.id;
   const priority = taskPriorityStyle(task.priority);
-  row.style.setProperty('--task-priority-color', priority.color);
-  row.dataset.priority = priority.label;
+  // The base hue only; newtab.css derives --task-priority-color from it so the
+  // dark theme can lift P2/P3 (an inline --task-priority-color would win).
+  row.style.setProperty('--task-priority-base', priority.color);
   row.dataset.priority = priority.label;
 
   const complete = document.createElement('button');
