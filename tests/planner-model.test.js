@@ -10,6 +10,8 @@ import {
   safeExternalUrl,
   selectCurrentEvents,
   selectHomepageTasks,
+  taskDueBucket,
+  taskOverdueDays,
   selectNextEvent,
   parseTaskDeadline,
   rankSuggestedTasks,
@@ -139,6 +141,32 @@ assert.equal(taskMeta({ content: 'Ok', priority: 1, due: dateOnly('2026-09-30') 
 const shuffled = [...tasks].reverse();
 assert.deepEqual(rankSuggestedTasks(shuffled, now).map(task => task.id), rankSuggestedTasks(tasks, now).map(task => task.id), 'input order never affects ranking');
 assert.deepEqual(selectHomepageTasks(), [], 'no tasks yields an empty list');
+
+const lateDay = new Date('2026-09-30T10:42:00');
+assert.equal(taskDueBucket({ content: 'a', due: { date: '2026-09-27' } }, lateDay), 'overdue');
+assert.equal(taskDueBucket({ content: 'a', due: { date: '2026-09-30' } }, lateDay), 'today');
+assert.equal(taskDueBucket({ content: 'a', due: { date: '2026-10-01' } }, lateDay), 'later');
+assert.equal(taskDueBucket({ content: 'a' }, lateDay), 'later', 'undated work is never overdue');
+assert.equal(taskOverdueDays({ content: 'a', due: { date: '2026-09-27' } }, lateDay), 3);
+assert.equal(taskOverdueDays({ content: 'a', due: { date: '2026-09-29T23:30:00' } }, lateDay), 1);
+assert.equal(taskOverdueDays({ content: 'a', due: { date: '2026-09-30' } }, lateDay), 0, 'due today is not overdue');
+
+const manyDue = [
+  { id: 'o1', content: 'o1', due: { date: '2026-09-27' } },
+  { id: 'o2', content: 'o2', due: { date: '2026-09-27' } },
+  { id: 'o3', content: 'o3', due: { date: '2026-09-29' } },
+  { id: 't1', content: 't1', due: { date: '2026-09-30' } },
+  { id: 't2', content: 't2', due: { date: '2026-09-30' } },
+  { id: 't3', content: 't3', due: { date: '2026-09-30' } },
+  { id: 't4', content: 't4', due: { date: '2026-09-30' } },
+  { id: 'later', content: 'later', due: { date: '2026-10-02' } }
+];
+assert.deepEqual(
+  selectHomepageTasks(manyDue, lateDay).map(t => t.id),
+  ['o1', 'o2', 'o3', 't1', 't2', 't3'],
+  'the homepage grows past three rows for overdue/today work, capped at six'
+);
+assert.equal(selectHomepageTasks(manyDue.slice(0, 2).concat(manyDue.slice(-1)), lateDay).length, 3, 'never fewer than three rows');
 
 const day = groupTasks(tasks, 'day', '2026-09-29');
 assert.deepEqual(day.map(group => group.key), ['overdue', '2026-09-29']);
