@@ -88,7 +88,8 @@ function runLocalTests() {
   assert.equal(pile.groups[0].overflowTopMinutes, 9 * 60 + 15, 'the affordance sits at the first hidden start');
   assert.deepEqual(pile.events.filter(e => e.hidden).map(e => e.id), ['l4', 'l5']);
   assert.ok(pile.events.filter(e => !e.hidden).every(e => e.laneCount === 3));
-  const expanded = layoutDayGrid(buildDayTimeline(pileEvents, DATE, new Date(at('10:30'))), { pxPerMinute: SCALE, expandedGroups: new Set([0]) });
+  const expanded = layoutDayGrid(buildDayTimeline(pileEvents, DATE, new Date(at('10:30'))), { pxPerMinute: SCALE, expandedGroups: new Set([pile.groups[0].key]) });
+  assert.equal(pile.groups[0].key, pile.events.map(e => e.key).sort().join('|'), 'groups are keyed by their members, not their index');
   assert.equal(expanded.groups[0].overflow, 0, 'an expanded group shows every lane');
   assert.equal(expanded.groups[0].laneCount, 5);
 

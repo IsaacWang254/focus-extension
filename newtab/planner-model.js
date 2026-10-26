@@ -242,7 +242,7 @@ export const MAX_EVENT_LANES = 3;
  * `maxLanes` caps concurrent lanes: in a group with more, events assigned to
  * later lanes are marked `hidden` and the group reports `overflow` (count)
  * and `overflowTopMinutes` so the view can show a "+N more" affordance.
- * Group ids listed in `expandedGroups` are laid out in full.
+ * Groups whose `key` is in `expandedGroups` are laid out in full.
  */
 export function layoutDayGrid(timeline, { pxPerMinute, maxLanes = MAX_EVENT_LANES, expandedGroups = new Set() } = {}) {
   const scale = Number(pxPerMinute);
@@ -324,12 +324,15 @@ export function layoutDayGrid(timeline, { pxPerMinute, maxLanes = MAX_EVENT_LANE
 
   for (const current of groups) {
     const fullLaneCount = current.laneEnds.length;
-    const capped = fullLaneCount > maxLanes && !expandedGroups.has(current.id);
+    // Stable identity across refreshes: the member keys, not the positional id.
+    const groupKey = current.members.map(member => member.key).sort().join('|');
+    const capped = fullLaneCount > maxLanes && !expandedGroups.has(groupKey);
     const laneCount = capped ? maxLanes : fullLaneCount;
     const hiddenMembers = capped ? current.members.filter(member => member.lane >= maxLanes) : [];
     const visibleMembers = current.members.filter(member => member.lane < laneCount);
     result.groups.push({
       id: current.id,
+      key: groupKey,
       laneCount,
       fullLaneCount,
       keys: current.members.map(member => member.key),
@@ -338,9 +341,12 @@ export function layoutDayGrid(timeline, { pxPerMinute, maxLanes = MAX_EVENT_LANE
         ? (Math.min(...hiddenMembers.map(member => member.clippedStartMs)) - result.dayStartMs) / 60000
         : null
     });
+    const showsToggle = hiddenMembers.length > 0 || (fullLaneCount > maxLanes && expandedGroups.has(groupKey));
     for (const event of current.members) {
       event.hidden = event.lane >= laneCount;
       event.laneCount = laneCount;
+      // Groups with a "+N more" / "Show fewer" pill keep a strip free for it.
+      event.pillReserve = showsToggle;
       let laneSpan = 1;
       for (let lane = event.lane + 1; lane < laneCount; lane += 1) {
         const conflict = visibleMembers.some(other => other.lane === lane

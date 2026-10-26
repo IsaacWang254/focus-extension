@@ -3,6 +3,8 @@ import { eventColors } from './planner-color.js';
 import { createIconButton, createIconLink } from './planner-controls.js';
 
 const PX_PER_MINUTE = 64 / 60;
+// Width kept clear on the right of an overlap group for its lane-cap pill.
+const PILL_RESERVE = 92;
 const RAIL_MIN_WIDTH = 812; // assumed width when the viewport cannot be measured (tests, hidden tabs)
 
 function iconMarkup(name) {
@@ -133,7 +135,7 @@ function laneGeometry(viewport, descriptor) {
   const width = Number.isFinite(viewport?.clientWidth) && viewport.clientWidth > 0
     ? viewport.clientWidth
     : RAIL_MIN_WIDTH;
-  const area = Math.max(0, width - rail - 2 - edge);
+  const area = Math.max(0, width - rail - 2 - edge - (descriptor.pillReserve ? PILL_RESERVE : 0));
   const lanes = Math.max(1, descriptor.laneCount || 1);
   const laneWidth = (area - (lanes - 1) * gap) / lanes;
   const span = Math.min(lanes - (descriptor.lane || 0), descriptor.laneSpan || 1);
@@ -199,7 +201,9 @@ function allDayChipMeta(descriptor, date) {
 }
 
 let allDayListSeq = 0;
-// Overlap groups the user has expanded past the lane cap (ids are per-day indexes).
+// Overlap groups the user has expanded past the lane cap, by group key
+// (sorted member event keys), so refreshes that add or remove other events
+// keep the same group open.
 const expandedLaneGroups = new Set();
 
 function renderAllDay(container, descriptors, onOpen, date) {
@@ -419,13 +423,16 @@ export function renderDayTimeline(elements, events, options = {}) {
 
   // "+N more" for overlap groups past the lane cap; "Show fewer" once expanded.
   const moreNodes = [];
+  const liveKeys = new Set(grid.groups.map(group => group.key));
+  for (const key of [...expandedLaneGroups]) if (!liveKeys.has(key)) expandedLaneGroups.delete(key);
   for (const group of grid.groups) {
-    const expanded = expandedLaneGroups.has(group.id);
+    const expanded = expandedLaneGroups.has(group.key);
     if (!group.overflow && !expanded) continue;
     const more = document.createElement('button');
     more.type = 'button';
     more.className = 'timeline-more';
     more.dataset.group = String(group.id);
+    more.groupKey = group.key;
     more.textContent = expanded ? 'Show fewer' : `+${group.overflow} more`;
     more.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     more.setAttribute('aria-label', expanded ? 'Show fewer overlapping events' : `Show ${group.overflow} more overlapping events`);
@@ -434,8 +441,8 @@ export function renderDayTimeline(elements, events, options = {}) {
     const topMinutes = expanded ? (anchor?.topMinutes ?? 0) : group.overflowTopMinutes;
     more.style.top = `${padTop + topMinutes * PX_PER_MINUTE}px`;
     more.addEventListener('click', () => {
-      if (expandedLaneGroups.has(group.id)) expandedLaneGroups.delete(group.id);
-      else expandedLaneGroups.add(group.id);
+      if (expandedLaneGroups.has(group.key)) expandedLaneGroups.delete(group.key);
+      else expandedLaneGroups.add(group.key);
       renderDayTimeline(elements, events, options);
     });
     moreNodes.push(more);
@@ -443,12 +450,12 @@ export function renderDayTimeline(elements, events, options = {}) {
   // Any render (clock tick, task completion) replaces the pills; a focused
   // pill hands focus to its successor for the same group.
   const focusedGroup = document.activeElement?.classList?.contains('timeline-more')
-    ? document.activeElement.dataset.group
+    ? document.activeElement.groupKey
     : null;
   for (const node of [...canvas.querySelectorAll('.timeline-more')]) node.remove();
   for (const node of moreNodes) canvas.appendChild(node);
-  if (focusedGroup !== null) {
-    canvas.querySelector(`.timeline-more[data-group="${focusedGroup}"]`)?.focus?.({ preventScroll: true });
+  if (focusedGroup) {
+    moreNodes.find(node => node.groupKey === focusedGroup)?.focus?.({ preventScroll: true });
   }
 
   // A focused block whose Open button no longer fits drops back to the
@@ -495,7 +502,14 @@ export function renderDayTimeline(elements, events, options = {}) {
 export function centerTimelineOnNow(viewport, markerEl) {
   if (!viewport || !markerEl) return;
   const markerTop = markerEl.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop;
-  const target = markerTop - viewport.clientHeight * 0.4;
+  let target = markerTop - viewport.clientHeight * 0.4;
+  // Don't open with a block's top edge lost in the viewport's top fade: if a
+  // block starts just above or inside that band, scroll up to show its edge.
+  const viewportTop = viewport.getBoundingClientRect().top;
+  const tops = [...viewport.querySelectorAll('.timeline-blk')]
+    .map(block => block.getBoundingClientRect().top - viewportTop + viewport.scrollTop)
+    .filter(top => top >= target - 96 && top <= target + 48);
+  if (tops.length) target = Math.min(...tops) - 8;
   const max = Number.isFinite(viewport.scrollHeight)
     ? Math.max(0, viewport.scrollHeight - viewport.clientHeight)
     : Infinity;
