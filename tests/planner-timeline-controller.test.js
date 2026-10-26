@@ -294,14 +294,14 @@ pinned.clientHeight = 100;
 assert.equal(snapTimelineViewport(pinned), 40 + 3 * 64, 'never fewer than three hours');
 assert.equal(snapTimelineViewport(null), null);
 
-// Given the day's window, the hour pitch flexes (56..96px) so the window
+// Given the day's window, the hour pitch flexes (56..80px) so the window
 // fills the column: a long day squeezes, a short day stretches, and the
 // viewport still snaps to whole hours.
 pinned.clientHeight = 300;
 assert.equal(snapTimelineViewport(pinned, { maxHours: 4 }), 40 + 4 * 65, 'a 4-hour window spends the whole 260px on 65px hours');
 assert.equal(snapTimelineViewport(pinned, { maxHours: 9 }), 40 + 4 * 56, 'a 9-hour window bottoms out at 56px and shows what fits');
 pinned.clientHeight = 600;
-assert.equal(snapTimelineViewport(pinned, { maxHours: 3 }), 40 + 3 * 96, 'a 3-hour window tops out at 96px rather than filling with empty hours');
+assert.equal(snapTimelineViewport(pinned, { maxHours: 3 }), 40 + 3 * 80, 'a 3-hour window tops out at 80px rather than filling with empty hours');
 pinned.clientHeight = 300;
 assert.equal(snapTimelineViewport(pinned), 40 + 4 * 64, 'without a window the pitch returns to 64px');
 

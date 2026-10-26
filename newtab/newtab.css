@@ -95,7 +95,8 @@ body {
 
 .full-date {
   margin: 0;
-  color: var(--nt-ink);
+  /* Same ink step as the clock so the date row reads as one quiet line. */
+  color: color-mix(in srgb, var(--nt-ink) 84%, var(--nt-paper));
   font-size: 15px;
   font-weight: 600;
   line-height: 1.3;
@@ -652,6 +653,12 @@ html[data-theme$="dark"] .task-list .task-group[data-group="later"] ~ .planner-t
 
 html[data-theme$="dark"] .task-list .task-group[data-group="later"] ~ .planner-task-row .planner-row-meta {
   color: color-mix(in srgb, var(--nt-ink) 60%, var(--nt-paper));
+}
+
+/* Rings in the muted tier soften by colour (never opacity) so they sit with
+   the grey titles instead of outshining them, and still clear 3:1. */
+.task-list .task-group[data-group="later"] ~ .planner-task-row .planner-check::after {
+  border-color: color-mix(in srgb, var(--task-priority-color) 90%, var(--nt-paper));
 }
 
 .task-list .task-group[data-group="later"] ~ .planner-task-row:is(:hover, :has(:focus-visible)) .planner-row-title {
@@ -1449,6 +1456,13 @@ html[data-theme$="dark"] .timeline-now .line {
 
 .timeline-viewport .timeline-blk .blk-inner {
   --blk-stick: 18px;
+}
+
+/* Dark paper swallows the 55% mix; fills lift a step off the page so the
+   surface, not just the rail, says "event". */
+html[data-theme$="dark"] .timeline-blk,
+html[data-theme$="dark"] .timeline-ad {
+  --bg-soft: color-mix(in srgb, var(--bg, var(--nt-wash)) 55%, #1c1c1c);
 }
 
 .timeline-blk:hover,

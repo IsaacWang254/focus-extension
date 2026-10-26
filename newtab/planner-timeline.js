@@ -6,7 +6,7 @@ import { createIconButton, createIconLink } from './planner-controls.js';
 // snapTimelineViewport so the day's window fills the column it is given.
 const BASE_HOUR_PX = 64;
 const MIN_HOUR_PX = 56;
-const MAX_HOUR_PX = 96;
+const MAX_HOUR_PX = 80;
 let PX_PER_MINUTE = BASE_HOUR_PX / 60;
 // Blocks shorter than this render at this height so a 15-minute event still
 // carries its title instead of a bare sliver of fill.
