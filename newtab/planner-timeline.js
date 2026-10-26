@@ -397,8 +397,8 @@ export function renderDayTimeline(elements, events, options = {}) {
     line.setAttribute('aria-hidden', 'true');
     tickNodes.push(line);
     // The bold Now label owns this stretch of the rail; an hour label within
-    // ~16px would collide with it, so it drops out entirely.
-    if (grid.marker && Math.abs(tick.top - grid.marker.top) < 16) continue;
+    // two label heights (~22px) would crowd it, so it drops out entirely.
+    if (grid.marker && Math.abs(tick.top - grid.marker.top) < 22) continue;
     const lbl = document.createElement('span');
     lbl.className = 'timeline-hour-label';
     lbl.style.top = `${padTop + tick.top}px`;

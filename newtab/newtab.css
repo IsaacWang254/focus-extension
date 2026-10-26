@@ -1499,7 +1499,7 @@ html[data-theme$="dark"] .timeline-ad {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  opacity: calc(var(--blk-fade, 1) * 0.85);
+  opacity: var(--blk-fade, 1);
 }
 
 .timeline-blk.is-past:hover .t,
@@ -1571,11 +1571,11 @@ html[data-theme$="dark"] .timeline-ad {
 }
 
 /* Event blocks (z-index 1) paint over the now-line so a title is never
-   struck through; the line stays visible in the gaps, and the dot and time
-   label in the gutter always mark now. */
+   struck through; the line stays visible in the gaps, and the dots at both
+   ends (z-index 2, above the blocks) and the time label in the gutter always
+   bracket now, even inside a booked hour. */
 .timeline-now {
   position: absolute;
-  z-index: 0;
   left: 0;
   right: 0;
   pointer-events: none;
@@ -1590,15 +1590,24 @@ html[data-theme$="dark"] .timeline-ad {
   background: color-mix(in srgb, var(--nt-ink) 80%, transparent);
 }
 
-.timeline-now .line::before {
+.timeline-now .line::before,
+.timeline-now .line::after {
   content: '';
   position: absolute;
+  z-index: 2;
   top: -2px;
-  left: -3px;
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--nt-ink);
+}
+
+.timeline-now .line::before {
+  left: -3px;
+}
+
+.timeline-now .line::after {
+  right: 0;
 }
 
 .timeline-now .lbl {
@@ -1678,7 +1687,6 @@ html[data-theme$="dark"] .timeline-ad {
   margin-left: 6px;
   font-size: 11.5px;
   font-weight: 400;
-  opacity: 0.8;
 }
 
 .timeline-ad .icon-action--compact {
