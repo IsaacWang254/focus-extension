@@ -604,7 +604,8 @@ body[data-surface="newtab"] .main {
 .task-group-count {
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--nt-danger-pill);
+  background: var(--nt-danger);
+  color: var(--nt-paper);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.2;
