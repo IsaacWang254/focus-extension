@@ -437,6 +437,8 @@ export function renderDayTimeline(elements, events, options = {}) {
       if (expandedLaneGroups.has(group.id)) expandedLaneGroups.delete(group.id);
       else expandedLaneGroups.add(group.id);
       renderDayTimeline(elements, events, options);
+      // The re-render replaces the pill; keep focus on its successor.
+      canvas.querySelector(`.timeline-more[data-group="${group.id}"]`)?.focus?.();
     });
     moreNodes.push(more);
   }
