@@ -199,6 +199,8 @@ function allDayChipMeta(descriptor, date) {
 }
 
 let allDayListSeq = 0;
+// Overlap groups the user has expanded past the lane cap (ids are per-day indexes).
+const expandedLaneGroups = new Set();
 
 function renderAllDay(container, descriptors, onOpen, date) {
   container.classList.toggle('hidden', descriptors.length === 0);
@@ -355,7 +357,7 @@ function ensureCanvas(viewport) {
 export function renderDayTimeline(elements, events, options = {}) {
   const now = options.now || new Date();
   const model = buildDayTimeline(events, options.date, now);
-  const grid = layoutDayGrid(model, { pxPerMinute: PX_PER_MINUTE });
+  const grid = layoutDayGrid(model, { pxPerMinute: PX_PER_MINUTE, expandedGroups: expandedLaneGroups });
   const viewport = elements.viewport;
 
   const canvas = ensureCanvas(viewport);
@@ -406,6 +408,7 @@ export function renderDayTimeline(elements, events, options = {}) {
   );
   const desired = [];
   for (const descriptor of grid.events) {
+    if (descriptor.hidden) continue;
     descriptor.canvasTop = padTop + descriptor.top;
     const item = existing.get(descriptor.key) || createBlock(descriptor, options.onOpen);
     updateBlock(item, descriptor, viewport, now, options.onOpen);
@@ -413,6 +416,32 @@ export function renderDayTimeline(elements, events, options = {}) {
     existing.delete(descriptor.key);
   }
   reconcileChildren(list, desired, '.timeline-blk[data-event-key]');
+
+  // "+N more" for overlap groups past the lane cap; "Show fewer" once expanded.
+  const moreNodes = [];
+  for (const group of grid.groups) {
+    const expanded = expandedLaneGroups.has(group.id);
+    if (!group.overflow && !expanded) continue;
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'timeline-more';
+    more.dataset.group = String(group.id);
+    more.textContent = expanded ? 'Show fewer' : `+${group.overflow} more`;
+    more.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    more.setAttribute('aria-label', expanded ? 'Show fewer overlapping events' : `Show ${group.overflow} more overlapping events`);
+    const firstKey = group.keys[0];
+    const anchor = grid.events.find(event => event.key === firstKey);
+    const topMinutes = expanded ? (anchor?.topMinutes ?? 0) : group.overflowTopMinutes;
+    more.style.top = `${padTop + topMinutes * PX_PER_MINUTE}px`;
+    more.addEventListener('click', () => {
+      if (expandedLaneGroups.has(group.id)) expandedLaneGroups.delete(group.id);
+      else expandedLaneGroups.add(group.id);
+      renderDayTimeline(elements, events, options);
+    });
+    moreNodes.push(more);
+  }
+  for (const node of [...canvas.querySelectorAll('.timeline-more')]) node.remove();
+  for (const node of moreNodes) canvas.appendChild(node);
 
   // A focused block whose Open button no longer fits drops back to the
   // schedule action, per the reserved-focus rule.

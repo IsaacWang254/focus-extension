@@ -236,7 +236,15 @@ export function selectHomepageTasks(tasks = [], now = new Date(), limit = 3) {
  * pxPerMinute. Day bounds come from local calendar dates (`setDate`), so
  * minutes are real elapsed minutes and day length can be 1380/1410/1440/1500.
  */
-export function layoutDayGrid(timeline, { pxPerMinute } = {}) {
+export const MAX_EVENT_LANES = 3;
+
+/**
+ * `maxLanes` caps concurrent lanes: in a group with more, events assigned to
+ * later lanes are marked `hidden` and the group reports `overflow` (count)
+ * and `overflowTopMinutes` so the view can show a "+N more" affordance.
+ * Group ids listed in `expandedGroups` are laid out in full.
+ */
+export function layoutDayGrid(timeline, { pxPerMinute, maxLanes = MAX_EVENT_LANES, expandedGroups = new Set() } = {}) {
   const scale = Number(pxPerMinute);
   const result = {
     date: timeline?.date || '',
@@ -315,13 +323,27 @@ export function layoutDayGrid(timeline, { pxPerMinute } = {}) {
   }
 
   for (const current of groups) {
-    const laneCount = current.laneEnds.length;
-    result.groups.push({ id: current.id, laneCount, keys: current.members.map(member => member.key) });
+    const fullLaneCount = current.laneEnds.length;
+    const capped = fullLaneCount > maxLanes && !expandedGroups.has(current.id);
+    const laneCount = capped ? maxLanes : fullLaneCount;
+    const hiddenMembers = capped ? current.members.filter(member => member.lane >= maxLanes) : [];
+    const visibleMembers = current.members.filter(member => member.lane < laneCount);
+    result.groups.push({
+      id: current.id,
+      laneCount,
+      fullLaneCount,
+      keys: current.members.map(member => member.key),
+      overflow: hiddenMembers.length,
+      overflowTopMinutes: hiddenMembers.length
+        ? (Math.min(...hiddenMembers.map(member => member.clippedStartMs)) - result.dayStartMs) / 60000
+        : null
+    });
     for (const event of current.members) {
+      event.hidden = event.lane >= laneCount;
       event.laneCount = laneCount;
       let laneSpan = 1;
       for (let lane = event.lane + 1; lane < laneCount; lane += 1) {
-        const conflict = current.members.some(other => other.lane === lane
+        const conflict = visibleMembers.some(other => other.lane === lane
           && other.clippedStartMs < event.clippedEndMs
           && other.clippedEndMs > event.clippedStartMs);
         if (conflict) break;
