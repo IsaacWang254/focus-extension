@@ -502,17 +502,55 @@ export function renderDayTimeline(elements, events, options = {}) {
 // ---------------------------------------------------------------------------
 
 
+const HOUR_PX = 60 * PX_PER_MINUTE;
+// Whole-hour viewport: the hour label on the first and last visible line
+// sits SNAP_PAD above/below the line, so neither is cut by the viewport edge.
+const SNAP_PAD = 20;
+export const MIN_SNAP_HOURS = 3;
+
+// Pin the viewport to SNAP_PAD + n hours + SNAP_PAD, using whatever height the
+// column offers. Returns the height applied (null when nothing to measure).
+export function snapTimelineViewport(viewport) {
+  if (!viewport?.style) return null;
+  viewport.style.height = '';
+  viewport.style.flex = '';
+  const avail = Number(viewport.clientHeight) || 0;
+  if (!avail) return null;
+  const hours = Math.max(MIN_SNAP_HOURS, Math.floor((avail - 2 * SNAP_PAD) / HOUR_PX));
+  const height = 2 * SNAP_PAD + hours * HOUR_PX;
+  viewport.style.height = `${height}px`;
+  viewport.style.flex = '0 0 auto';
+  return height;
+}
+
 export function centerTimelineOnNow(viewport, markerEl) {
   if (!viewport || !markerEl) return;
-  const markerTop = markerEl.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop;
-  let target = markerTop - viewport.clientHeight * 0.4;
-  // Don't open with a block's top edge lost in the viewport's top fade: if a
-  // block starts just above or inside that band, scroll up to show its edge.
   const viewportTop = viewport.getBoundingClientRect().top;
-  const tops = [...viewport.querySelectorAll('.timeline-blk')]
-    .map(block => block.getBoundingClientRect().top - viewportTop + viewport.scrollTop)
-    .filter(top => top >= target - 96 && top <= target + 56);
-  if (tops.length) target = Math.min(...tops) - TOP_CLEARANCE;
+  const rel = node => node.getBoundingClientRect().top - viewportTop + viewport.scrollTop;
+  const markerTop = rel(markerEl);
+  const hourLines = [...(viewport.querySelectorAll?.('.timeline-hour') || [])].map(rel).sort((a, b) => a - b);
+  let target;
+  if (hourLines.length) {
+    // Open on an hour line: now - 2h, then drop leading empty hours so the
+    // viewport spends its height on the day rather than a blank morning.
+    const blocks = [...viewport.querySelectorAll('.timeline-blk')].map(block => {
+      const top = rel(block);
+      return { top, bottom: top + block.getBoundingClientRect().height };
+    });
+    const atOrBefore = hourLines.filter(line => line <= markerTop - 2 * HOUR_PX + 0.5);
+    let start = atOrBefore.length ? atOrBefore[atOrBefore.length - 1] : hourLines[0];
+    const bandHasContent = from => blocks.some(block => block.bottom > from + 1 && block.top < from + HOUR_PX - 1);
+    while (start + HOUR_PX <= markerTop - HOUR_PX && !bandHasContent(start)) start += HOUR_PX;
+    target = start - SNAP_PAD;
+  } else {
+    target = markerTop - viewport.clientHeight * 0.4;
+    // Don't open with a block's top edge lost in the viewport's top fade: if a
+    // block starts just above or inside that band, scroll up to show its edge.
+    const tops = [...viewport.querySelectorAll('.timeline-blk')]
+      .map(rel)
+      .filter(top => top >= target - 96 && top <= target + 56);
+    if (tops.length) target = Math.min(...tops) - TOP_CLEARANCE;
+  }
   const max = Number.isFinite(viewport.scrollHeight)
     ? Math.max(0, viewport.scrollHeight - viewport.clientHeight)
     : Infinity;

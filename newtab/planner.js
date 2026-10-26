@@ -8,7 +8,7 @@ import {
 import { createTaskRow, taskPriorityStyle } from './planner-tasks.js';
 import { normalizePlannerEventsPayload } from './planner-calendar.js';
 import { createPlannerCalendarData } from './planner-calendar-data.js';
-import { centerTimelineOnNow, renderDayTimeline } from './planner-timeline.js';
+import { centerTimelineOnNow, renderDayTimeline, snapTimelineViewport } from './planner-timeline.js';
 import { setActionAvailable, setButtonPending, setIconButton } from './planner-controls.js';
 import {
   buildUpdateTaskPayload,
@@ -323,6 +323,7 @@ function renderCalendar({ recenter = false } = {}) {
     count.textContent = String(todayEvents.length);
     count.classList.toggle('hidden', !todayEvents.length);
   }
+  snapTimelineViewport(viewport);
   const result = renderDayTimeline({ viewport, allDay, empty, unavailable }, todayEvents, {
     date: loadedCalendarDate || toLocalDateKey(),
     now: new Date(),
@@ -1171,15 +1172,20 @@ export function initPlannerDashboard(options) {
   // The viewport is now flex-sized: its height changes with the window (and
   // once while webfonts settle). The canvas padding is a fraction of that
   // height, so re-render on real height changes.
-  const viewportEl = element('timeline-viewport');
-  if (typeof ResizeObserver !== 'undefined' && viewportEl) {
-    let lastViewportHeight = viewportEl.clientHeight;
+  // renderCalendar pins the viewport to whole hours, so watch the column it
+  // sits in (and the window) rather than the viewport itself.
+  const shellEl = element('timeline-viewport')?.parentElement;
+  if (typeof ResizeObserver !== 'undefined' && shellEl) {
+    let lastShellHeight = shellEl.clientHeight;
     new ResizeObserver(() => {
-      const h = viewportEl.clientHeight;
-      if (Math.abs(h - lastViewportHeight) < 1) return;
-      lastViewportHeight = h;
+      const h = shellEl.clientHeight;
+      if (Math.abs(h - lastShellHeight) < 1) return;
+      lastShellHeight = h;
       renderCalendar({ recenter: true });
-    }).observe(viewportEl);
+    }).observe(shellEl);
+  }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', () => renderCalendar({ recenter: true }));
   }
 }
 

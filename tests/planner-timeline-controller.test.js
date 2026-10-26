@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { centerTimelineOnNow, renderDayTimeline } from '../newtab/planner-timeline.js';
+import { centerTimelineOnNow, renderDayTimeline, snapTimelineViewport } from '../newtab/planner-timeline.js';
 import { createPlannerCalendarData } from '../newtab/planner-calendar-data.js';
 
 class ClassList {
@@ -267,6 +267,33 @@ assert.equal(viewport.scrollTop, 220, 'the marker is positioned 40% down the tim
 centerTimelineOnNow(viewport, null);
 assert.equal(viewport.scrollTop, 220, 'centering safely ignores a missing marker');
 
+// With hour lines rendered, the viewport opens on an hour line (now - 2h),
+// skipping leading empty hours, with the line's label 20px below the edge.
+const snapped = new MiniNode('section');
+snapped.clientHeight = 400;
+snapped.rect.top = 0;
+const hourAt = top => { const line = new MiniNode('div'); line.className = 'timeline-hour'; line.rect = { top, height: 0 }; return line; };
+const blockAt = (top, height) => { const blk = new MiniNode('li'); blk.className = 'timeline-blk'; blk.rect = { top, height }; return blk; };
+for (const top of [0, 64, 128, 192, 256, 320]) snapped.appendChild(hourAt(top));
+snapped.appendChild(blockAt(160, 64)); // 2:30-3:30 on a grid that starts at hour 0
+const snappedMarker = new MiniNode('li');
+snappedMarker.rect = { top: 300, height: 0 }; // now = 4:41
+centerTimelineOnNow(snapped, snappedMarker);
+assert.equal(snapped.scrollTop, 128 - 20, 'opens on the hour line two hours before now when that hour has content');
+snapped.children.splice(snapped.children.indexOf(snapped.querySelector('.timeline-blk')), 1);
+snapped.appendChild(blockAt(230, 64));
+snapped.scrollTop = 0; // static rects: reset so the second measurement matches a fresh layout
+centerTimelineOnNow(snapped, snappedMarker);
+assert.equal(snapped.scrollTop, 192 - 20, 'leading empty hours are skipped while now stays at least an hour below the top');
+
+const pinned = new MiniNode('div');
+pinned.clientHeight = 300;
+assert.equal(snapTimelineViewport(pinned), 40 + 4 * 64, 'the viewport height snaps down to whole hours plus 20px label clearance');
+assert.equal(pinned.style.height, '296px');
+pinned.clientHeight = 100;
+assert.equal(snapTimelineViewport(pinned), 40 + 3 * 64, 'never fewer than three hours');
+assert.equal(snapTimelineViewport(null), null);
+
 delete globalThis.document;
 
 const plannerSource = fs.readFileSync(new URL('../newtab/planner.js', import.meta.url), 'utf8')
@@ -355,6 +382,7 @@ function plannerHarness() {
     normalizePlannerEventsPayload: (payload, requestedDate) => Array.isArray(payload) ? { date: requestedDate, events: payload } : { date: requestedDate, ...payload },
     renderDayTimeline: () => { calls.renders++; return { marker: { id: 'now' }, hasEvents: true }; },
     centerTimelineOnNow: () => { calls.centers++; },
+    snapTimelineViewport: () => null,
     rankTasks: () => [], selectHomepageTasks: () => [], safeExternalUrl: () => '', addLocalDays: value => value,
     createTaskRow: () => ({}), renderTaskGroups() {}, taskMeta: () => '',
     createEventRow: () => ({}), formatEventTime: () => '', getMeetingUrl: () => '', renderEventList: () => 0,
