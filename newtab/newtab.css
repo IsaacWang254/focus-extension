@@ -29,7 +29,7 @@ body {
   position: relative;
   z-index: 2;
   flex: 1;
-  width: min(812px, 100% - 48px);
+  width: min(720px, 100% - 48px);
   min-height: 100vh;
   margin: 0 auto;
   padding: 96px 0 96px;
@@ -56,9 +56,9 @@ body {
 
 .home-head {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 48px;
+  gap: 24px;
 }
 
 .clock {
@@ -66,7 +66,7 @@ body {
   align-items: baseline;
   margin: 0;
   color: var(--nt-ink);
-  font-size: 56px;
+  font-size: 40px;
   font-weight: 500;
   line-height: 1;
   letter-spacing: -0.02em;
@@ -84,19 +84,21 @@ body {
 
 .home-side {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px 14px;
   min-width: 0;
-  padding-top: 10px;
   text-align: right;
 }
 
 .full-date {
   margin: 0;
   color: var(--nt-ink);
-  font-size: 17px;
+  font-size: 15px;
+  font-weight: 600;
   line-height: 1.3;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.005em;
 }
 
 /* ============================================
@@ -109,9 +111,8 @@ body {
   justify-content: flex-end;
   gap: 8px;
   min-height: 22px;
-  margin-top: 6px;
   color: var(--nt-muted);
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.4;
   text-align: right;
 }
@@ -212,7 +213,7 @@ body[data-surface="newtab"] .main {
   display: flex;
   flex-direction: column;
   flex: none; /* the generic .main rule sets flex:1, which would re-stretch past 100dvh */
-  width: min(812px, 100% - 48px);
+  width: min(720px, 100% - 48px);
   height: 100dvh;
   margin: 0 auto;
   padding: 96px 0 48px;
@@ -222,6 +223,7 @@ body[data-surface="newtab"] .main {
 /* ≥12px between the weather/date block's bottom edge and the toolbar's
    focus-ring edge (button box + 4px ring offset). */
 #tasks-section {
+  position: relative;
   margin-top: 16px;
 }
 
@@ -230,7 +232,7 @@ body[data-surface="newtab"] .main {
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
-  margin-top: 48px;
+  margin-top: 40px;
 }
 
 
@@ -595,7 +597,7 @@ body[data-surface="newtab"] .main {
 }
 
 .task-list > .task-group:first-child {
-  margin-top: 16px;
+  margin-top: 18px;
 }
 
 .task-list .task-group[data-group="overdue"] {
@@ -1008,7 +1010,7 @@ html.planner-open {
   }
 
   body[data-surface="newtab"] .clock {
-    font-size: 44px;
+    font-size: 36px;
   }
 
   .edit-modal-panel {
@@ -1043,9 +1045,20 @@ body[data-surface="newtab"] textarea {
   margin-bottom: 4px;
 }
 
+/* The task actions share the first eyebrow's row instead of a row of their own. */
 .sec-head-tools {
-  justify-content: flex-end;
-  margin-bottom: 0;
+  position: absolute;
+  top: 10px;
+  right: 0;
+  min-height: 0;
+  margin: 0;
+}
+
+.sec-head-tools .icon-action,
+.cal-head > .icon-actions .icon-action {
+  flex-basis: 32px;
+  width: 32px;
+  height: 32px;
 }
 
 /* ≥8px between the Calendar action ring edge (button box + 4px) and the
@@ -1056,12 +1069,21 @@ body[data-surface="newtab"] textarea {
   margin-bottom: 16px;
 }
 
+/* Same eyebrow component as the task groups. */
 .cal-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   margin: 0;
   color: var(--nt-muted);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.cal-head {
+  align-items: center;
 }
 
 .icon-actions {
@@ -1138,6 +1160,16 @@ body[data-surface="newtab"] textarea {
 .icon-action--reveal {
   opacity: 0;
   pointer-events: none;
+}
+
+.timeline-blk .icon-action--reveal,
+.timeline-ad .icon-action--reveal {
+  background: var(--bg-soft);
+}
+
+html[data-theme$="dark"] .timeline-blk,
+html[data-theme$="dark"] .timeline-ad {
+  --bg-soft: color-mix(in srgb, var(--bg, var(--nt-wash)) 32%, var(--nt-paper));
 }
 
 .icon-action--reveal:focus-visible,
@@ -1253,8 +1285,8 @@ body[data-surface="newtab"] textarea {
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 24px), transparent);
-  mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 24px), transparent);
 }
 
 .timeline-viewport:focus-visible {
@@ -1345,9 +1377,10 @@ body[data-surface="newtab"] textarea {
   /* clip (not hidden) so the sticky .blk-inner still tracks the outer scroll
      container — overflow:hidden would make the block itself the scrollport. */
   overflow: clip;
-  border-left: 3px solid var(--bar, var(--nt-muted));
+  --bg-soft: color-mix(in srgb, var(--bg, var(--nt-wash)) 55%, var(--nt-paper));
+  border-left: 2px solid var(--bar, var(--nt-muted));
   border-radius: 4px;
-  background: var(--bg, var(--nt-wash));
+  background: var(--bg-soft);
   color: var(--fg, var(--nt-ink));
 }
 
@@ -1357,6 +1390,7 @@ body[data-surface="newtab"] textarea {
    viewport. */
 .timeline-blk .blk-inner {
   position: sticky;
+  z-index: 2;
   top: var(--blk-stick, 4px);
   box-sizing: border-box;
   padding: 3px 6px 3px 7px;
@@ -1409,7 +1443,7 @@ body[data-surface="newtab"] textarea {
 
 .timeline-blk.inline .blk-inner,
 .timeline-blk.tiny .blk-inner {
-  position: static;
+  position: relative;
 }
 
 .timeline-blk.inline .blk-inner {
@@ -1453,7 +1487,7 @@ body[data-surface="newtab"] textarea {
   top: 2px;
   right: 2px;
   border-color: transparent;
-  background: var(--bg);
+  background: var(--bg-soft);
   color: var(--fg);
 }
 
@@ -1464,8 +1498,11 @@ body[data-surface="newtab"] textarea {
   color: var(--fg);
 }
 
+/* The now-line sits above event fills but under event text (.blk-inner
+   z-index 2), so a title is never struck through. */
 .timeline-now {
   position: absolute;
+  z-index: 1;
   left: 0;
   right: 0;
   pointer-events: none;
@@ -1477,16 +1514,16 @@ body[data-surface="newtab"] textarea {
   left: var(--nt-rail);
   right: 0;
   height: 2px;
-  background: var(--nt-ink);
+  background: color-mix(in srgb, var(--nt-ink) 80%, transparent);
 }
 
 .timeline-now .line::before {
   content: '';
   position: absolute;
-  top: -3px;
-  left: -3.5px;
-  width: 7px;
-  height: 7px;
+  top: -2px;
+  left: -3px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--nt-ink);
 }
@@ -1549,9 +1586,10 @@ body[data-surface="newtab"] textarea {
   height: 24px;
   max-width: 100%;
   padding: 0 8px;
-  border-left: 3px solid var(--bar, var(--nt-muted));
+  --bg-soft: color-mix(in srgb, var(--bg, var(--nt-wash)) 55%, var(--nt-paper));
+  border-left: 2px solid var(--bar, var(--nt-muted));
   border-radius: 4px;
-  background: var(--bg, var(--nt-wash));
+  background: var(--bg-soft);
   color: var(--fg, var(--nt-ink));
   font-size: 12.5px;
   font-weight: 500;
@@ -1576,7 +1614,7 @@ body[data-surface="newtab"] textarea {
   flex-basis: 22px;
   margin: 0 -4px 0 4px;
   border-color: transparent;
-  background: var(--bg);
+  background: var(--bg-soft);
   color: var(--fg);
 }
 
@@ -1641,12 +1679,8 @@ body[data-surface="newtab"] textarea {
     padding-bottom: 32px;
   }
 
-  body[data-surface="newtab"] .clock {
-    font-size: 48px;
-  }
-
   #tasks-section {
-    margin-top: 16px;
+    margin-top: 8px;
   }
 
   .task-list .planner-task-row {

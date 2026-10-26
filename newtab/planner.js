@@ -318,6 +318,11 @@ function renderCalendar({ recenter = false } = {}) {
   const empty = element('timeline-empty');
   const unavailable = element('timeline-unavailable');
   if (!viewport || !allDay || !empty) return;
+  const count = element('calendar-count');
+  if (count) {
+    count.textContent = String(todayEvents.length);
+    count.classList.toggle('hidden', !todayEvents.length);
+  }
   const result = renderDayTimeline({ viewport, allDay, empty, unavailable }, todayEvents, {
     date: loadedCalendarDate || toLocalDateKey(),
     now: new Date(),
