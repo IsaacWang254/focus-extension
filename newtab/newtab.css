@@ -237,7 +237,7 @@ body[data-surface="newtab"] .main {
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
-  margin-top: 40px;
+  margin-top: 28px;
 }
 
 
@@ -598,7 +598,7 @@ body[data-surface="newtab"] .main {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 20px 0 4px;
+  margin: 32px 0 4px;
   color: var(--nt-muted);
   font-size: 15px;
   font-weight: 700;
@@ -1180,6 +1180,11 @@ body[data-surface="newtab"] textarea {
 html[data-theme$="dark"] .timeline-blk,
 html[data-theme$="dark"] .timeline-ad {
   --bg-soft: color-mix(in srgb, var(--bg, var(--nt-wash)) 32%, var(--nt-paper));
+  border-left-color: color-mix(in srgb, var(--bar, var(--nt-muted)) 72%, var(--nt-paper));
+}
+
+html[data-theme$="dark"] .timeline-now .line {
+  background: color-mix(in srgb, var(--nt-ink) 55%, transparent);
 }
 
 .icon-action--reveal:focus-visible,
@@ -1295,8 +1300,8 @@ html[data-theme$="dark"] .timeline-ad {
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 24px), transparent);
-  mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 24px), transparent);
 }
 
 .timeline-viewport:focus-visible {
@@ -1407,7 +1412,7 @@ html[data-theme$="dark"] .timeline-ad {
 }
 
 .timeline-viewport .timeline-blk .blk-inner {
-  --blk-stick: 26px;
+  --blk-stick: 18px;
 }
 
 .timeline-blk:hover,
@@ -1647,16 +1652,17 @@ html[data-theme$="dark"] .timeline-ad {
   right: 4px;
   transform: translateY(2px);
   padding: 2px 8px;
-  border: 0;
+  border: 1px solid color-mix(in srgb, var(--nt-ink) 14%, transparent);
   border-radius: 999px;
-  background: var(--nt-ink);
-  color: var(--nt-paper);
+  background: color-mix(in srgb, var(--nt-ink) 8%, var(--nt-paper));
+  color: color-mix(in srgb, var(--nt-ink) 78%, var(--nt-paper));
   font: 600 11.5px/1.4 "Inter", system-ui, sans-serif;
   cursor: pointer;
 }
 
 .timeline-more:hover {
-  background: color-mix(in srgb, var(--nt-ink) 85%, var(--nt-paper));
+  background: color-mix(in srgb, var(--nt-ink) 14%, var(--nt-paper));
+  color: var(--nt-ink);
 }
 
 .timeline-more:focus-visible {

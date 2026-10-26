@@ -5,6 +5,9 @@ import { createIconButton, createIconLink } from './planner-controls.js';
 const PX_PER_MINUTE = 64 / 60;
 // Width kept clear on the right of an overlap group for its lane-cap pill.
 const PILL_RESERVE = 92;
+// Room above a block parked at the viewport's top so its title clears the
+// 24px fade (see .timeline-viewport mask).
+const TOP_CLEARANCE = 28;
 const RAIL_MIN_WIDTH = 812; // assumed width when the viewport cannot be measured (tests, hidden tabs)
 
 function iconMarkup(name) {
@@ -508,8 +511,8 @@ export function centerTimelineOnNow(viewport, markerEl) {
   const viewportTop = viewport.getBoundingClientRect().top;
   const tops = [...viewport.querySelectorAll('.timeline-blk')]
     .map(block => block.getBoundingClientRect().top - viewportTop + viewport.scrollTop)
-    .filter(top => top >= target - 96 && top <= target + 48);
-  if (tops.length) target = Math.min(...tops) - 8;
+    .filter(top => top >= target - 96 && top <= target + 56);
+  if (tops.length) target = Math.min(...tops) - TOP_CLEARANCE;
   const max = Number.isFinite(viewport.scrollHeight)
     ? Math.max(0, viewport.scrollHeight - viewport.clientHeight)
     : Infinity;
