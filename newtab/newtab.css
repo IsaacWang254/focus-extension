@@ -357,6 +357,16 @@ body[data-surface="newtab"] .main {
   inset: 6.5px;
 }
 
+/* Dark theme lifts the P2/P3 ring hues so they clear 3:1 on the paper and on
+   the overdue tint (Todoist's #1a5fcc sits near 2:1 there). */
+html[data-theme$="dark"] .task-list .planner-task-row[data-priority="P2"] {
+  --task-priority-color: #e39a3b;
+}
+
+html[data-theme$="dark"] .task-list .planner-task-row[data-priority="P3"] {
+  --task-priority-color: #6fa3f7;
+}
+
 .task-list .planner-task-row[data-priority="P1"] .planner-check::after {
   border-width: 2.5px;
   inset: 6px;
