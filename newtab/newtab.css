@@ -155,7 +155,7 @@ body {
 }
 
 .weather-temp {
-  color: var(--nt-ink);
+  color: color-mix(in srgb, var(--nt-ink) 84%, var(--nt-paper));
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -572,10 +572,6 @@ html[data-theme$="dark"] .task-list .planner-task-row[data-priority="P4"] {
 
 .task-list .planner-task-row:not(.is-overdue):is(:hover, :has(:focus-visible)) .planner-meta-tag {
   color: var(--tag-color);
-}
-
-.task-list .planner-task-row.is-overdue .planner-check::after {
-  opacity: 0.7;
 }
 
 /* Overdue rows fuse into one tinted block: the wash stays on, gaps between
