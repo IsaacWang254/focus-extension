@@ -661,6 +661,11 @@ html[data-theme$="dark"] .task-list .task-group[data-group="later"] ~ .planner-t
   border-color: color-mix(in srgb, var(--task-priority-color) 90%, var(--nt-paper));
 }
 
+/* Dark paper already mutes a 1.5px ring; stepping it further drops P3 under 3:1. */
+html[data-theme$="dark"] .task-list .task-group[data-group="later"] ~ .planner-task-row .planner-check::after {
+  border-color: var(--task-priority-color);
+}
+
 .task-list .task-group[data-group="later"] ~ .planner-task-row:is(:hover, :has(:focus-visible)) .planner-row-title {
   color: var(--nt-ink);
 }
