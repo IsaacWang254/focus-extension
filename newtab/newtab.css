@@ -1376,6 +1376,7 @@ html[data-theme$="dark"] .timeline-ad {
   box-sizing: border-box;
   /* clip (not hidden) so the sticky .blk-inner still tracks the outer scroll
      container — overflow:hidden would make the block itself the scrollport. */
+  z-index: 1;
   overflow: clip;
   --bg-soft: color-mix(in srgb, var(--bg, var(--nt-wash)) 55%, var(--nt-paper));
   border-left: 2px solid var(--bar, var(--nt-muted));
@@ -1390,7 +1391,6 @@ html[data-theme$="dark"] .timeline-ad {
    viewport. */
 .timeline-blk .blk-inner {
   position: sticky;
-  z-index: 2;
   top: var(--blk-stick, 4px);
   box-sizing: border-box;
   padding: 3px 6px 3px 7px;
@@ -1443,8 +1443,7 @@ html[data-theme$="dark"] .timeline-ad {
 
 .timeline-blk.inline .blk-inner,
 .timeline-blk.tiny .blk-inner {
-  position: relative;
-  top: auto;
+  position: static;
 }
 
 .timeline-blk.inline .blk-inner {
@@ -1499,11 +1498,12 @@ html[data-theme$="dark"] .timeline-ad {
   color: var(--fg);
 }
 
-/* The now-line sits above event fills but under event text (.blk-inner
-   z-index 2), so a title is never struck through. */
+/* Event blocks (z-index 1) paint over the now-line so a title is never
+   struck through; the line stays visible in the gaps, and the dot and time
+   label in the gutter always mark now. */
 .timeline-now {
   position: absolute;
-  z-index: 1;
+  z-index: 0;
   left: 0;
   right: 0;
   pointer-events: none;
