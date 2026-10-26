@@ -245,8 +245,6 @@
     ] }
   };
   const fixture = FIXTURES[fixtureName] || null;
-  // Mutations (close, edit, add) act on whichever list the fixture serves.
-  const taskStore = fixture?.tasks ?? TASKS;
 
   const tomorrowIso = localDateKey(new Date(now + 864e5));
 
@@ -268,6 +266,8 @@
     { id: 't1a', content: 'Unify unblock rail spacing', parent_id: 't1', priority: 2, labels: [], due: null, order: 1 },
     { id: 't1b', content: 'Check dark theme contrast', parent_id: 't1', priority: 2, labels: [], due: null, order: 2 }
   ];
+  // Mutations (close, edit, add) act on whichever list the fixture serves.
+  const taskStore = fixture?.tasks ?? TASKS;
 
   const COMPLETED = [
     { id: 'c1', content: 'Morning review', completed_at: new Date(now - 2 * 36e5).toISOString() },
