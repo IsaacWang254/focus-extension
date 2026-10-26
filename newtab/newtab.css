@@ -1444,6 +1444,7 @@ html[data-theme$="dark"] .timeline-ad {
 .timeline-blk.inline .blk-inner,
 .timeline-blk.tiny .blk-inner {
   position: relative;
+  top: auto;
 }
 
 .timeline-blk.inline .blk-inner {
