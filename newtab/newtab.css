@@ -1153,13 +1153,6 @@ body[data-surface="newtab"] textarea {
   height: 17px;
 }
 
-/* The bare arrow carries less ink than the plus beside it: draw it a step
-   larger and nudge it onto the same optical centre. */
-#view-tasks-btn svg {
-  width: 18px;
-  height: 18px;
-  transform: translate(0.5px, -0.5px);
-}
 
 .icon-action-glyph {
   display: inline-flex;
