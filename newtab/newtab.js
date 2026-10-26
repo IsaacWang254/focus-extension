@@ -106,7 +106,7 @@ function setupIcons() {
   const modKey = /mac/i.test(navigator.platform || navigator.userAgent || '') ? '⌘K' : 'Ctrl+K';
   setIconButton('add-task-btn', { icon: Icons.plus, label: `Add task (${modKey})` });
   setIconButton('view-tasks-btn', { icon: Icons.externalLink });
-  setCalendarTile(new Date());
+  setIconButton('view-schedule-btn', { icon: Icons.calendarDays });
   setIconButton('back-to-now-btn', { icon: Icons.chevronUp, label: 'Back to now' });
   setIconButton('edit-modal-close', { icon: Icons.x, label: 'Close' });
 }
@@ -118,18 +118,9 @@ function setupIcons() {
 let clockIntervalId = null;
 let lastRenderedClockTime = '';
 
-let calendarTileDay = null;
-function setCalendarTile(now) {
-  const day = now.getDate();
-  if (day === calendarTileDay) return;
-  calendarTileDay = day;
-  const glyph = typeof Icons.calendarDay === 'function' ? Icons.calendarDay(day) : Icons.calendarDay;
-  setIconButton('view-schedule-btn', { icon: glyph });
-}
 
 function updateClock() {
   const now = new Date();
-  setCalendarTile(now);
   const hours = now.getHours().toString().padStart(2, '0');
   const minutes = now.getMinutes().toString().padStart(2, '0');
   const rendered = `${hours}:${minutes}`;
