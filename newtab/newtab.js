@@ -105,7 +105,7 @@ function setupBrowserThemeSyncListener() {
 function setupIcons() {
   const modKey = /mac/i.test(navigator.platform || navigator.userAgent || '') ? '⌘K' : 'Ctrl+K';
   setIconButton('add-task-btn', { icon: Icons.plus, label: `Add task (${modKey})` });
-  setIconButton('view-tasks-btn', { icon: Icons.externalLink });
+  setIconButton('view-tasks-btn', { icon: Icons.arrowUpRight });
   setIconButton('view-schedule-btn', { icon: Icons.calendarDot });
   setIconButton('back-to-now-btn', { icon: Icons.chevronUp, label: 'Back to now' });
   setIconButton('edit-modal-close', { icon: Icons.x, label: 'Close' });

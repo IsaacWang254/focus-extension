@@ -1149,8 +1149,16 @@ body[data-surface="newtab"] textarea {
 
 .icon-action svg {
   display: block;
+  width: 17px;
+  height: 17px;
+}
+
+/* The bare arrow carries less ink than the plus beside it: draw it a step
+   larger and nudge it onto the same optical centre. */
+#view-tasks-btn svg {
   width: 18px;
   height: 18px;
+  transform: translate(0.5px, -0.5px);
 }
 
 .icon-action-glyph {
@@ -1991,17 +1999,24 @@ html[data-theme$="dark"] .edit-modal select.field-input {
     grid-template-columns: minmax(0, 48fr) minmax(0, 52fr);
     grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas:
-      "head head"
+      "tasks head"
       "tasks cal";
     column-gap: 64px;
     width: min(1200px, 100% - 96px);
     padding: 80px 0 48px;
   }
 
+  /* Tasks own the top-left; the clock, date and weather stack over the
+     calendar they belong with, so the first fixation lands on a task. */
   .home-head {
     grid-area: head;
-    justify-content: flex-start;
-    gap: 28px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    /* Clock baseline on the first task title's baseline, date/weather on
+       that row's meta line: the now-column starts a half-step below the
+       list instead of fighting the eyebrow for the top edge. */
+    padding-top: 30px;
   }
 
   .home-side,
@@ -2013,13 +2028,20 @@ html[data-theme$="dark"] .edit-modal select.field-input {
   #tasks-section {
     grid-area: tasks;
     align-self: start;
-    margin-top: 16px;
+    margin-top: 0;
   }
 
-  /* 29px puts the Calendar eyebrow on the Today/Overdue eyebrow's line. */
+  .sec-head-tools {
+    top: 0;
+  }
+
+  .task-list > .task-group:first-child {
+    margin-top: 8px;
+  }
+
   #today-timeline-section {
     grid-area: cal;
-    margin-top: 29px;
+    margin-top: 22px;
   }
 
   .timeline-viewport {
