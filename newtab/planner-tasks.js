@@ -32,9 +32,10 @@ export function taskMetaParts(task, projects = new Map(), now = new Date(), labe
   const today = toLocalDateKey(now);
   if (deadline.kind !== 'none') {
     const due = deadline.localDate;
-    if (due < today) parts.push({ text: overdueText(taskOverdueDays(task, now)), kind: 'overdue' });
+    const shortDate = new Date(`${due}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    if (due < today) parts.push({ text: overdueText(taskOverdueDays(task, now)), kind: 'overdue' }, { text: shortDate });
     else if (due === today) parts.push({ text: 'Today' });
-    else parts.push({ text: new Date(`${due}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) });
+    else parts.push({ text: shortDate });
   }
   const project = projects.get(String(task.project_id));
   if (project?.name) parts.push({ text: project.name, color: project.color });
@@ -98,7 +99,7 @@ export function createTaskRow(task, options = {}) {
       } else if (part.color) {
         const tag = document.createElement('span');
         tag.className = 'planner-meta-tag';
-        tag.style.color = readableTagColor(part.color, theme);
+        tag.style.setProperty('--tag-color', readableTagColor(part.color, theme));
         tag.textContent = part.text;
         meta.appendChild(tag);
       } else {

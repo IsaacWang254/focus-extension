@@ -306,12 +306,17 @@ body[data-surface="newtab"] .main {
 .task-list .planner-task-row {
   align-items: flex-start;
   gap: 12px;
+  --tag-color: var(--nt-muted);
   /* Symmetric 8px block padding keeps the hover wash balanced above/below the
      content; the remaining 8px of the old 24px bottom padding lives in the
      inter-row margin so the row pitch is unchanged and adjacent washes keep
      a real gap. */
   padding: 8px 0;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+.planner-meta-tag {
+  color: var(--tag-color);
 }
 
 /* ≥8px between the toolbar's outermost paint (focus ring: box + 4px) and the
@@ -509,7 +514,7 @@ body[data-surface="newtab"] .main {
   overflow: hidden;
   color: var(--nt-muted);
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -519,7 +524,7 @@ body[data-surface="newtab"] .main {
   align-items: center;
   gap: 5px;
   color: var(--nt-danger);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .task-list .planner-meta-overdue svg {
@@ -528,17 +533,34 @@ body[data-surface="newtab"] .main {
   flex: 0 0 14px;
 }
 
+/* Inside an overdue row red is the only hue: project and label tags fall
+   back to muted ink so the status line wins the glance. */
+.task-list .planner-task-row.is-overdue .planner-meta-tag {
+  color: var(--nt-muted);
+}
+
+/* A 3px danger rail on the wash edge ties the overdue rows into one block. */
+.task-list .planner-task-row.is-overdue::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: -12px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--nt-danger);
+}
+
 /* Group eyebrows: shown only when something is overdue. */
 .task-list .task-group {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 24px 0 6px;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0 4px;
   color: var(--nt-muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.4;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
 }
 
 .task-list > .task-group:first-child {
@@ -550,7 +572,12 @@ body[data-surface="newtab"] .main {
 }
 
 .task-group-count {
-  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--nt-danger) 14%, transparent);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
 }
