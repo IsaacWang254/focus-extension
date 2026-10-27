@@ -1,12 +1,17 @@
 /* Settings — vanilla page sharing the new-tab tokens (lib/nt-tokens.css).
-   Sections are separated by whitespace only; no horizontal divider rules. */
+   Sections are separated by whitespace only; no horizontal divider rules.
+   Rhythm: 36px rows, 56px between sections, 12px eyebrow -> first row. */
 
 html {
   background: var(--nt-paper, #fafafa);
+  /* Control boundaries (switch track, checkbox, button and segment frames):
+     >= 3:1 against the paper in both themes. */
+  --st-edge: #8a8a8a;
 }
 
 html[data-theme$="dark"] {
   background: #141414;
+  --st-edge: #666666;
 }
 
 body[data-surface="settings"] {
@@ -27,8 +32,8 @@ body[data-surface="settings"] {
 }
 
 .settings-title {
-  margin: 0 0 64px;
-  font-size: 28px;
+  margin: 0 0 48px;
+  font-size: 24px;
   font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--nt-ink);
@@ -42,50 +47,106 @@ body[data-surface="settings"] {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
-/* Same styling as the homepage "Calendar" section label. */
 .st-label {
   margin: 0;
   color: var(--nt-muted);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
 .st-saved {
   margin: 0;
-  color: var(--nt-faint);
-  font-size: 12px;
-  min-height: 16px;
+  color: var(--nt-muted);
+  font-size: 13px;
+  min-height: 18px;
 }
 
-.st-row {
+/* Rows: one 36px surface per setting; label rows tint on hover so the
+   label and its control read as a single target across the column. */
+.st-row,
+.st-switch-row,
+.st-cal {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   min-height: 36px;
+  margin: 0 -12px;
+  padding: 0 12px;
+  border-radius: 8px;
 }
 
-.st-row-gap {
-  margin-top: 20px;
+.st-switch-row,
+.st-cal {
+  cursor: pointer;
+}
+
+.st-switch-row:hover,
+.st-cal:hover {
+  background: color-mix(in srgb, var(--nt-ink) 4%, transparent);
 }
 
 .st-status {
   margin: 0;
-  color: var(--nt-muted);
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
 }
 
-.st-status.is-connected {
+.st-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
   color: var(--nt-ink);
 }
 
-/* Quiet text button — same shape as the homepage "Add task" submit. */
+/* Connection disc: filled when connected, 1.5px edge ring when not. */
+.st-state::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1.5px solid var(--st-edge);
+}
+
+.st-status.is-connected .st-state::before {
+  border-color: var(--nt-ink);
+  background: var(--nt-ink);
+}
+
+.st-account {
+  overflow: hidden;
+  color: var(--nt-muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.st-hint {
+  margin: 2px 0 0;
+  color: var(--nt-muted);
+  font-size: 13px;
+}
+
+.st-hint[hidden] {
+  display: none;
+}
+
+/* Buttons — outline for Disconnect, filled ink for Connect (the page's
+   primary action when nothing is connected). */
 .st-btn {
+  flex-shrink: 0;
+  min-width: 112px;
   height: 36px;
   padding: 0 14px;
-  border: 1px solid var(--nt-rule);
+  border: 1px solid var(--st-edge);
   border-radius: 8px;
   background: transparent;
   color: var(--nt-ink);
@@ -99,55 +160,72 @@ body[data-surface="settings"] {
   background: var(--nt-wash);
 }
 
+.st-btn.is-primary {
+  border-color: var(--nt-ink);
+  background: var(--nt-ink);
+  color: var(--nt-paper);
+}
+
+.st-btn.is-primary:hover {
+  background: color-mix(in srgb, var(--nt-ink) 88%, var(--nt-paper));
+}
+
 .st-btn:focus-visible {
   outline: 2px solid var(--nt-ink);
   outline-offset: 2px;
 }
 
 .st-btn[disabled] {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
 }
 
 /* Calendar list */
 
 .st-cals {
-  margin-top: 16px;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
 }
 
 .st-sub {
-  margin: 0 0 8px;
-  color: var(--nt-faint);
+  margin: 0 0 4px;
+  padding: 0;
+  color: var(--nt-muted);
   font-size: 13px;
 }
 
 .st-cal {
-  display: flex;
-  align-items: center;
+  justify-content: flex-start;
   gap: 10px;
-  min-height: 32px;
-  cursor: pointer;
 }
 
+/* Colour key is a rounded square so it never reads as the status disc. */
 .st-cal-dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 2px;
   flex-shrink: 0;
+  background: var(--swatch-light, var(--st-edge));
+}
+
+html[data-theme$="dark"] .st-cal-dot {
+  background: var(--swatch-dark, var(--st-edge));
 }
 
 .st-cal-name {
   color: var(--nt-ink);
 }
 
-/* 18px box, 1px rule border, ink fill + paper check when checked. */
+/* 20px box, 1px edge border; ink fill with a 1.75px round-cap tick when checked. */
 .st-cal input[type="checkbox"] {
   appearance: none;
   margin: 0 0 0 auto;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
-  border: 1px solid var(--nt-rule);
+  border: 1px solid var(--st-edge);
   border-radius: 4px;
   background: transparent;
   cursor: pointer;
@@ -157,10 +235,11 @@ body[data-surface="settings"] {
 
 .st-cal input[type="checkbox"]::before {
   content: "";
-  width: 10px;
-  height: 8px;
+  width: 14px;
+  height: 14px;
   background: var(--nt-paper);
-  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
   transform: scale(0);
 }
 
@@ -180,19 +259,31 @@ body[data-surface="settings"] {
 
 /* Switch rows */
 
-.st-switch-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 36px;
-  cursor: pointer;
-}
-
 .st-switch-label {
   color: var(--nt-ink);
 }
 
-/* 36×20 track; rule off, ink on, paper knob, 2px ink focus ring. */
+/* Rows whose purpose isn't obvious from the label carry one 13px line
+   under it; while the source is disconnected that line becomes the
+   instruction (never two muted strings on one row). Those rows are 48px. */
+.st-switch-label {
+  line-height: 1.3;
+}
+
+.st-desc {
+  display: block;
+  margin-top: 1px;
+  color: var(--nt-muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.st-switch-row:has(.st-desc) {
+  min-height: 48px;
+}
+
+/* 36×20 track: edge-grey off, ink on, paper knob with a 2px inset. */
 .st-switch {
   appearance: none;
   -webkit-appearance: none;
@@ -203,7 +294,7 @@ body[data-surface="settings"] {
   flex-shrink: 0;
   border: none;
   border-radius: 9999px;
-  background: var(--nt-rule);
+  background: var(--st-edge);
   cursor: pointer;
 }
 
@@ -226,6 +317,16 @@ body[data-surface="settings"] {
   transform: translateX(16px);
 }
 
+/* Disabled dims the whole row (label with control) so it never looks like "off". */
+.st-switch-row:has(.st-switch:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.st-switch:disabled {
+  cursor: not-allowed;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .st-switch {
     transition: background 120ms ease;
@@ -240,17 +341,20 @@ body[data-surface="settings"] {
   outline-offset: 2px;
 }
 
-/* Segmented control (temperature unit, theme). */
+/* Segmented control (temperature unit, theme): 36px like every other control. */
 
 .seg {
   display: inline-flex;
-  border: 1px solid var(--nt-rule);
+  flex-shrink: 0;
+  height: 36px;
+  box-sizing: border-box;
+  border: 1px solid var(--st-edge);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .seg-btn {
-  height: 32px;
+  height: 100%;
   padding: 0 14px;
   border: none;
   background: transparent;
@@ -262,16 +366,21 @@ body[data-surface="settings"] {
 }
 
 .seg-btn + .seg-btn {
-  border-left: 1px solid var(--nt-hair);
+  border-left: 1px solid var(--st-edge);
 }
 
 .seg-btn:hover {
   color: var(--nt-ink);
 }
 
+/* Pressed = one step below title ink so a state never out-weighs the title. */
 .seg-btn[aria-pressed="true"] {
-  background: var(--nt-ink);
+  background: color-mix(in srgb, var(--nt-ink) 88%, var(--nt-paper));
   color: var(--nt-paper);
+}
+
+.seg-btn[aria-pressed="true"] + .seg-btn {
+  border-left-color: color-mix(in srgb, var(--nt-ink) 88%, var(--nt-paper));
 }
 
 .seg-btn:focus-visible {

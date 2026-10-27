@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="../lib/theme-boot.js"></script>
-  <title>Settings — Focus</title>
+  <title>Settings — Morrow</title>
   <link rel="icon" type="image/png" href="../icons/icon16.png">
   <link rel="stylesheet" href="../lib/nt-tokens.css">
   <link rel="stylesheet" href="options.css">
@@ -19,9 +19,10 @@
         <p class="st-saved" id="todoist-saved" aria-live="polite"></p>
       </div>
       <div class="st-row">
-        <p class="st-status" id="todoist-status">Not connected</p>
+        <p class="st-status" id="todoist-status"><span class="st-state">Not connected</span></p>
         <button type="button" class="st-btn" id="todoist-btn">Connect</button>
       </div>
+      <p class="st-hint" id="todoist-hint">Connect to show today's and overdue tasks on the new tab.</p>
     </section>
 
     <section class="st-section" aria-labelledby="st-calendar-label">
@@ -30,13 +31,14 @@
         <p class="st-saved" id="calendar-saved" aria-live="polite"></p>
       </div>
       <div class="st-row">
-        <p class="st-status" id="calendar-status">Not connected</p>
+        <p class="st-status" id="calendar-status"><span class="st-state">Not connected</span></p>
         <button type="button" class="st-btn" id="calendar-btn">Connect</button>
       </div>
-      <div class="st-cals" id="calendar-list" hidden>
-        <p class="st-sub">Calendars shown</p>
+      <p class="st-hint" id="calendar-hint">Connect to show today's events on the new tab. Opens Google sign-in.</p>
+      <fieldset class="st-cals" id="calendar-list" hidden>
+        <legend class="st-sub">Calendars shown</legend>
         <div id="calendar-list-items"></div>
-      </div>
+      </fieldset>
     </section>
 
     <section class="st-section" aria-labelledby="st-newtab-label">
@@ -45,18 +47,18 @@
         <p class="st-saved" id="newtab-saved" aria-live="polite"></p>
       </div>
       <label class="st-switch-row">
-        <span class="st-switch-label">Show tasks</span>
+        <span class="st-switch-label">Show tasks <span class="st-desc" id="show-tasks-desc">Today's and overdue tasks from Todoist</span></span>
         <input type="checkbox" role="switch" class="st-switch" id="show-tasks">
       </label>
       <label class="st-switch-row">
-        <span class="st-switch-label">Show calendar</span>
+        <span class="st-switch-label">Show calendar <span class="st-desc" id="show-calendar-desc">Today's events from your selected calendars</span></span>
         <input type="checkbox" role="switch" class="st-switch" id="show-calendar">
       </label>
       <label class="st-switch-row">
-        <span class="st-switch-label">Show weather</span>
+        <span class="st-switch-label">Show weather <span class="st-desc">Local conditions beside the clock</span></span>
         <input type="checkbox" role="switch" class="st-switch" id="show-weather">
       </label>
-      <div class="st-row st-row-gap">
+      <div class="st-row">
         <span class="st-switch-label" id="temp-label">Temperature</span>
         <div class="seg" role="group" aria-labelledby="temp-label">
           <button type="button" class="seg-btn" data-unit="C">°C</button>

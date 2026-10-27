@@ -7,6 +7,7 @@
 
 import { loadTheme, isThemeSyncEnabled, setupBrowserThemeSyncListener } from '../lib/theme.js';
 import * as todoist from '../lib/todoist.js';
+import { reserveRed, contrastRatio } from '../newtab/planner-color.js';
 
 const sendMessage = (message) => chrome.runtime.sendMessage(message);
 const el = (id) => document.getElementById(id);
@@ -106,15 +107,64 @@ async function initAppearance() {
 // Todoist
 // ---------------------------------------------------------------------------
 
-function renderTodoist(connected) {
-  const status = el('todoist-status');
-  status.textContent = connected ? 'Connected' : 'Not connected';
+// The Show tasks / Show calendar description doubles as the instruction
+// while its source is disconnected.
+const SWITCH_DESCRIPTIONS = {
+  'todoist-status': {
+    id: 'show-tasks-desc',
+    connected: "Today's and overdue tasks from Todoist",
+    disconnected: "Connect Todoist to show today's and overdue tasks"
+  },
+  'calendar-status': {
+    id: 'show-calendar-desc',
+    connected: "Today's events from your selected calendars",
+    disconnected: "Connect Google Calendar to show today's events"
+  }
+};
+
+// Status line: state word in ink, account (when known) one step down.
+function renderStatus(statusId, hintId, buttonId, connected, account) {
+  const status = el(statusId);
+  const state = document.createElement('span');
+  state.className = 'st-state';
+  state.textContent = connected ? 'Connected' : 'Not connected';
+  status.replaceChildren(state);
+  if (connected && account) {
+    const who = document.createElement('span');
+    who.className = 'st-account';
+    who.textContent = account;
+    status.append(who);
+  }
   status.classList.toggle('is-connected', connected);
-  el('todoist-btn').textContent = connected ? 'Disconnect' : 'Connect';
+  el(hintId).hidden = connected;
+  const desc = SWITCH_DESCRIPTIONS[statusId];
+  if (desc) el(desc.id).textContent = connected ? desc.connected : desc.disconnected;
+  const button = el(buttonId);
+  button.textContent = connected ? 'Disconnect' : 'Connect';
+  button.classList.toggle('is-primary', !connected);
+}
+
+function renderTodoist(connected, account) {
+  renderStatus('todoist-status', 'todoist-hint', 'todoist-btn', connected, account);
+}
+
+async function todoistAccount() {
+  try {
+    const user = await todoist.getUser();
+    return user.email || user.name || null;
+  } catch (error) {
+    console.warn('Could not load Todoist account:', error);
+    return null;
+  }
+}
+
+async function refreshTodoist() {
+  const connected = await todoist.isAuthenticated();
+  renderTodoist(connected, connected ? await todoistAccount() : null);
 }
 
 async function initTodoist() {
-  renderTodoist(await todoist.isAuthenticated());
+  await refreshTodoist();
   el('todoist-btn').addEventListener('click', async (event) => {
     const button = event.currentTarget;
     button.disabled = true;
@@ -124,12 +174,12 @@ async function initTodoist() {
         renderTodoist(false);
       } else {
         await todoist.authenticate();
-        renderTodoist(true);
+        await refreshTodoist();
       }
       markSaved('todoist-saved');
     } catch (error) {
       console.error('Todoist connection change failed:', error);
-      renderTodoist(await todoist.isAuthenticated());
+      await refreshTodoist();
     } finally {
       button.disabled = false;
     }
@@ -141,11 +191,26 @@ async function initTodoist() {
 // ---------------------------------------------------------------------------
 
 function renderCalendar(connected, email) {
-  const status = el('calendar-status');
-  status.textContent = connected ? `Connected${email ? ` — ${email}` : ''}` : 'Not connected';
-  status.classList.toggle('is-connected', connected);
-  el('calendar-btn').textContent = connected ? 'Disconnect' : 'Connect';
+  renderStatus('calendar-status', 'calendar-hint', 'calendar-btn', connected, email);
   el('calendar-list').hidden = !connected;
+}
+
+// Calendar swatch: the provider colour as the new tab remaps it (red family
+// turned toward plum), blended toward the theme ink until it holds 3:1 on paper.
+const SWATCH_PAPER = { light: '#fafafa', dark: '#141414' };
+const SWATCH_INK = { light: '#1f1f1f', dark: '#ededed' };
+function mixHex(a, b, t) {
+  const ch = (hex, i) => parseInt(hex.slice(i, i + 2), 16);
+  const out = [1, 3, 5].map(i => Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * t).toString(16).padStart(2, '0'));
+  return `#${out.join('')}`;
+}
+function swatchColor(color, theme) {
+  const base = reserveRed(color);
+  for (let step = 0; step <= 10; step += 1) {
+    const candidate = step === 0 ? base : mixHex(base, SWATCH_INK[theme], step / 10);
+    if (contrastRatio(candidate, SWATCH_PAPER[theme]) >= 3) return candidate;
+  }
+  return SWATCH_INK[theme];
 }
 
 async function renderCalendarList(selectedCalendars) {
@@ -160,7 +225,10 @@ async function renderCalendarList(selectedCalendars) {
     label.className = 'st-cal';
     const dot = document.createElement('span');
     dot.className = 'st-cal-dot';
-    dot.style.background = cal.color || 'var(--nt-rule)';
+    if (/^#[0-9a-f]{6}$/i.test(cal.color || '')) {
+      dot.style.setProperty('--swatch-light', swatchColor(cal.color, 'light'));
+      dot.style.setProperty('--swatch-dark', swatchColor(cal.color, 'dark'));
+    }
     const name = document.createElement('span');
     name.className = 'st-cal-name';
     name.textContent = cal.name || cal.id;

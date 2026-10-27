@@ -1,7 +1,10 @@
-## Focus Extension
+## Morrow
 
 <p align="center">
-  <img src="./icons/icon128.png" alt="Focus Extension icon" width="128" height="128">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./icons/icon128-dark.png">
+    <img src="./icons/icon128.png" alt="Morrow icon" width="128" height="128">
+  </picture>
 </p>
 
 Chrome extension that replaces the new tab page with a calm daily command centre showing your Todoist tasks and today's Google Calendar. Sections and rows are separated by whitespace rather than dividers, with a paper-toned light/dark design.

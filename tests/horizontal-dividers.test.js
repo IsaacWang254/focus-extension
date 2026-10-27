@@ -41,8 +41,8 @@ assert.match(common, /outline:\s*2px solid var\(--ring\)/, 'focus outline preser
 
 // Settings controls keep functional outlines: quiet connect button, switch
 // focus ring, segmented control border.
-assert.match(ruleBody(options, '.st-btn'), /border:\s*1px solid var\(--nt-rule\)/, 'connect button keeps its rule outline');
-assert.match(ruleBody(options, '.seg'), /border:\s*1px solid var\(--nt-rule\)/, 'segmented control keeps its outline');
+assert.match(ruleBody(options, '.st-btn'), /border:\s*1px solid var\(--st-edge\)/, 'connect button keeps its outline (3:1 edge token)');
+assert.match(ruleBody(options, '.seg'), /border:\s*1px solid var\(--st-edge\)/, 'segmented control keeps its outline (3:1 edge token)');
 assert.match(options, /\.st-switch:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--nt-ink\)/s, 'switch keeps a 2px ink focus ring');
 
 const dividerBody = ruleBody(common, '.divider,');
