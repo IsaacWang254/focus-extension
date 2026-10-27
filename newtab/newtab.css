@@ -1570,10 +1570,9 @@ html[data-theme$="dark"] .timeline-ad {
   color: var(--fg);
 }
 
-/* Event blocks (z-index 1) paint over the now-line so a title is never
-   struck through; the line stays visible in the gaps, and the dots at both
-   ends (z-index 2, above the blocks) and the time label in the gutter always
-   bracket now, even inside a booked hour. */
+/* The now-line (z-index 2) crosses above event blocks (z-index 1) at a
+   softened opacity, like every other calendar's current-time marker; the
+   dots at both ends and the time label in the gutter bracket now. */
 .timeline-now {
   position: absolute;
   left: 0;
@@ -1583,11 +1582,12 @@ html[data-theme$="dark"] .timeline-ad {
 
 .timeline-now .line {
   position: absolute;
+  z-index: 2;
   top: -1px;
   left: var(--nt-rail);
   right: 0;
   height: 2px;
-  background: color-mix(in srgb, var(--nt-ink) 80%, transparent);
+  background: color-mix(in srgb, var(--nt-ink) 60%, transparent);
 }
 
 .timeline-now .line::before,
