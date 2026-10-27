@@ -106,15 +106,47 @@ async function initAppearance() {
 // Todoist
 // ---------------------------------------------------------------------------
 
-function renderTodoist(connected) {
-  const status = el('todoist-status');
-  status.textContent = connected ? 'Connected' : 'Not connected';
+// Status line: state word in ink, account (when known) one step down.
+function renderStatus(statusId, hintId, buttonId, connected, account) {
+  const status = el(statusId);
+  const state = document.createElement('span');
+  state.className = 'st-state';
+  state.textContent = connected ? 'Connected' : 'Not connected';
+  status.replaceChildren(state);
+  if (connected && account) {
+    const who = document.createElement('span');
+    who.className = 'st-account';
+    who.textContent = account;
+    status.append(who);
+  }
   status.classList.toggle('is-connected', connected);
-  el('todoist-btn').textContent = connected ? 'Disconnect' : 'Connect';
+  el(hintId).hidden = connected;
+  const button = el(buttonId);
+  button.textContent = connected ? 'Disconnect' : 'Connect';
+  button.classList.toggle('is-primary', !connected);
+}
+
+function renderTodoist(connected, account) {
+  renderStatus('todoist-status', 'todoist-hint', 'todoist-btn', connected, account);
+}
+
+async function todoistAccount() {
+  try {
+    const user = await todoist.getUser();
+    return user.email || user.name || null;
+  } catch (error) {
+    console.warn('Could not load Todoist account:', error);
+    return null;
+  }
+}
+
+async function refreshTodoist() {
+  const connected = await todoist.isAuthenticated();
+  renderTodoist(connected, connected ? await todoistAccount() : null);
 }
 
 async function initTodoist() {
-  renderTodoist(await todoist.isAuthenticated());
+  await refreshTodoist();
   el('todoist-btn').addEventListener('click', async (event) => {
     const button = event.currentTarget;
     button.disabled = true;
@@ -124,12 +156,12 @@ async function initTodoist() {
         renderTodoist(false);
       } else {
         await todoist.authenticate();
-        renderTodoist(true);
+        await refreshTodoist();
       }
       markSaved('todoist-saved');
     } catch (error) {
       console.error('Todoist connection change failed:', error);
-      renderTodoist(await todoist.isAuthenticated());
+      await refreshTodoist();
     } finally {
       button.disabled = false;
     }
@@ -141,10 +173,7 @@ async function initTodoist() {
 // ---------------------------------------------------------------------------
 
 function renderCalendar(connected, email) {
-  const status = el('calendar-status');
-  status.textContent = connected ? `Connected${email ? ` — ${email}` : ''}` : 'Not connected';
-  status.classList.toggle('is-connected', connected);
-  el('calendar-btn').textContent = connected ? 'Disconnect' : 'Connect';
+  renderStatus('calendar-status', 'calendar-hint', 'calendar-btn', connected, email);
   el('calendar-list').hidden = !connected;
 }
 

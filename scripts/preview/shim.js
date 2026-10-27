@@ -527,6 +527,7 @@
           url, method, body: init?.body ? JSON.parse(init.body) : null, at: performance.now()
         });
       }
+      if (/\/user(?:\?|$)/.test(url)) return json({ email: 'preview@example.com', full_name: 'Preview User' });
       if (url.includes('/tasks/completed')) return json({ items: previewState === 'empty' ? [] : structuredClone(COMPLETED) });
       if (/\/tasks\/quick$/.test(url) && method === 'POST') {
         if (previewState === 'mutation-error' || fixture?.mutationFail) return json({ error: 'Preview mutation failed' }, 503);
