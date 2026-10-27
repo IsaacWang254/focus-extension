@@ -3,6 +3,7 @@
   "name": "Morrow",
   "version": "2.1.0",
   "description": "A calm new tab with your Todoist tasks and today's Google Calendar.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxJghYIXv20V80CYBd1YIzyoYjkfoh7d8apaE/jZRuh5AVYaBkhNlax0YijiK0pfHT7cZwFWkehYTJauIoadOOwrF2scd6DfpLfsHWmurOah+6UzYMw/6/WGC9GDtuJxb8Vv05UUD9xJrIBMCX6ml3Tx88QXsDg32UjJynJFxUoNs4BKyTV2wcixxB8uKG1Xb7+cU8wnOsjEg6f1T96LZMBiKg1j0PDdXVgZPiWaZh9zoGhtEVcKsJWmikyf8YXxxH43h1fJNo88I55HADr2mlD2UOKXFc42CeaH6FPpa8boXLlBc82Og2FGG+PxW/rgyRw9/OQ6zEz1f29RMYGHLuwIDAQAB",
   "incognito": "split",
   "permissions": [
     "declarativeNetRequest",
