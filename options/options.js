@@ -107,6 +107,21 @@ async function initAppearance() {
 // Todoist
 // ---------------------------------------------------------------------------
 
+// The Show tasks / Show calendar description doubles as the instruction
+// while its source is disconnected.
+const SWITCH_DESCRIPTIONS = {
+  'todoist-status': {
+    id: 'show-tasks-desc',
+    connected: "Today's and overdue tasks from Todoist",
+    disconnected: "Connect Todoist to show today's and overdue tasks"
+  },
+  'calendar-status': {
+    id: 'show-calendar-desc',
+    connected: "Today's events from your selected calendars",
+    disconnected: "Connect Google Calendar to show today's events"
+  }
+};
+
 // Status line: state word in ink, account (when known) one step down.
 function renderStatus(statusId, hintId, buttonId, connected, account) {
   const status = el(statusId);
@@ -122,8 +137,8 @@ function renderStatus(statusId, hintId, buttonId, connected, account) {
   }
   status.classList.toggle('is-connected', connected);
   el(hintId).hidden = connected;
-  const needs = el(`${statusId === 'todoist-status' ? 'show-tasks' : 'show-calendar'}-needs`);
-  if (needs) needs.hidden = connected;
+  const desc = SWITCH_DESCRIPTIONS[statusId];
+  if (desc) el(desc.id).textContent = connected ? desc.connected : desc.disconnected;
   const button = el(buttonId);
   button.textContent = connected ? 'Disconnect' : 'Connect';
   button.classList.toggle('is-primary', !connected);
