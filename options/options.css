@@ -99,8 +99,26 @@ body[data-surface="settings"] {
 }
 
 .st-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-weight: 500;
   color: var(--nt-ink);
+}
+
+/* Connection disc: filled when connected, 1.5px edge ring when not. */
+.st-state::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1.5px solid var(--st-edge);
+}
+
+.st-status.is-connected .st-state::before {
+  border-color: var(--nt-ink);
+  background: var(--nt-ink);
 }
 
 .st-account {
@@ -188,6 +206,11 @@ body[data-surface="settings"] {
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+  background: var(--swatch-light, var(--st-edge));
+}
+
+html[data-theme$="dark"] .st-cal-dot {
+  background: var(--swatch-dark, var(--st-edge));
 }
 
 .st-cal-name {
@@ -237,6 +260,17 @@ body[data-surface="settings"] {
 
 .st-switch-label {
   color: var(--nt-ink);
+}
+
+/* Suffix shown while the switch's source service is disconnected. */
+.st-needs {
+  margin-left: 10px;
+  color: var(--nt-muted);
+  font-size: 13px;
+}
+
+.st-needs[hidden] {
+  display: none;
 }
 
 /* 36×20 track: edge-grey off, ink on, paper knob with a 2px inset. */
@@ -324,13 +358,14 @@ body[data-surface="settings"] {
   color: var(--nt-ink);
 }
 
+/* Pressed = one step below title ink so a state never out-weighs the title. */
 .seg-btn[aria-pressed="true"] {
-  background: var(--nt-ink);
+  background: color-mix(in srgb, var(--nt-ink) 88%, var(--nt-paper));
   color: var(--nt-paper);
 }
 
 .seg-btn[aria-pressed="true"] + .seg-btn {
-  border-left-color: var(--nt-ink);
+  border-left-color: color-mix(in srgb, var(--nt-ink) 88%, var(--nt-paper));
 }
 
 .seg-btn:focus-visible {

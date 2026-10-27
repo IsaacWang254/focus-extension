@@ -7,6 +7,7 @@
 
 import { loadTheme, isThemeSyncEnabled, setupBrowserThemeSyncListener } from '../lib/theme.js';
 import * as todoist from '../lib/todoist.js';
+import { reserveRed, contrastRatio } from '../newtab/planner-color.js';
 
 const sendMessage = (message) => chrome.runtime.sendMessage(message);
 const el = (id) => document.getElementById(id);
@@ -121,6 +122,8 @@ function renderStatus(statusId, hintId, buttonId, connected, account) {
   }
   status.classList.toggle('is-connected', connected);
   el(hintId).hidden = connected;
+  const needs = el(`${statusId === 'todoist-status' ? 'show-tasks' : 'show-calendar'}-needs`);
+  if (needs) needs.hidden = connected;
   const button = el(buttonId);
   button.textContent = connected ? 'Disconnect' : 'Connect';
   button.classList.toggle('is-primary', !connected);
@@ -177,6 +180,24 @@ function renderCalendar(connected, email) {
   el('calendar-list').hidden = !connected;
 }
 
+// Calendar swatch: the provider colour as the new tab remaps it (red family
+// turned toward plum), blended toward the theme ink until it holds 3:1 on paper.
+const SWATCH_PAPER = { light: '#fafafa', dark: '#141414' };
+const SWATCH_INK = { light: '#1f1f1f', dark: '#ededed' };
+function mixHex(a, b, t) {
+  const ch = (hex, i) => parseInt(hex.slice(i, i + 2), 16);
+  const out = [1, 3, 5].map(i => Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * t).toString(16).padStart(2, '0'));
+  return `#${out.join('')}`;
+}
+function swatchColor(color, theme) {
+  const base = reserveRed(color);
+  for (let step = 0; step <= 10; step += 1) {
+    const candidate = step === 0 ? base : mixHex(base, SWATCH_INK[theme], step / 10);
+    if (contrastRatio(candidate, SWATCH_PAPER[theme]) >= 3) return candidate;
+  }
+  return SWATCH_INK[theme];
+}
+
 async function renderCalendarList(selectedCalendars) {
   const list = await sendMessage({ type: 'GET_CALENDAR_LIST' });
   const container = el('calendar-list-items');
@@ -189,7 +210,10 @@ async function renderCalendarList(selectedCalendars) {
     label.className = 'st-cal';
     const dot = document.createElement('span');
     dot.className = 'st-cal-dot';
-    dot.style.background = cal.color || 'var(--nt-rule)';
+    if (/^#[0-9a-f]{6}$/i.test(cal.color || '')) {
+      dot.style.setProperty('--swatch-light', swatchColor(cal.color, 'light'));
+      dot.style.setProperty('--swatch-dark', swatchColor(cal.color, 'dark'));
+    }
     const name = document.createElement('span');
     name.className = 'st-cal-name';
     name.textContent = cal.name || cal.id;
