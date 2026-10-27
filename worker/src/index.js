@@ -15,6 +15,11 @@ const ALLOWED_ORIGINS = [
   'chrome-extension://'  // allows any extension origin during dev
 ];
 
+// The extension ID that the manifest `key` pins. OAuth providers that
+// reject `*.chromiumapp.org` redirect URIs point at /api/todoist/callback
+// here; we bounce them back to the extension's real redirect host.
+const EXTENSION_REDIRECT_HOST = 'kihkalldjgepcbbdecoaigkpdaikoija.chromiumapp.org';
+
 /**
  * Check if the request origin is allowed
  */
@@ -126,6 +131,15 @@ export default {
       return new Response(JSON.stringify({ status: 'ok' }), {
         headers: { 'Content-Type': 'application/json' },
       });
+    }
+
+    // OAuth callback bounce: Todoist redirects here with code+state, we
+    // forward to the extension's chromiumapp URL so launchWebAuthFlow
+    // completes. Registered as the app's redirect URI because the Todoist
+    // console rejects *.chromiumapp.org entries.
+    if (url.pathname === '/api/todoist/callback' && request.method === 'GET') {
+      const target = `https://${EXTENSION_REDIRECT_HOST}/api/todoist/callback${url.search}`;
+      return Response.redirect(target, 302);
     }
 
     // Token exchange endpoint
