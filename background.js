@@ -393,8 +393,12 @@ async function connectGoogleCalendar() {
     });
     await chrome.storage.local.remove(PLANNER_EVENTS_CACHE_KEY);
 
-    // Fetch available calendars
+    // Fetch available calendars and select them all — Settings renders an
+    // empty selection as every box checked, so persist that same set.
     const calendars = await fetchCalendarList(token);
+    if (calendars?.length) {
+      await saveCalendarSettings({ selectedCalendars: calendars.map(cal => cal.id) });
+    }
 
     return {
       success: true,
@@ -743,12 +747,13 @@ async function fetchCalendarEventPages(token, calendarId, baseParams) {
  */
 async function fetchEventsForRangeWithToken(token, startOfRange, endOfRange, { logLabel, emptyTitleFallback }) {
   const settings = await getCalendarSettings();
-  const calendarsToFetch = settings.selectedCalendars.length > 0
-    ? settings.selectedCalendars
-    : ['primary'];
-
   // Build calendar-id → color map from stored calendar list
   const calList = await fetchCalendarList(token);
+  // An empty selection means "all calendars" — the same default the
+  // Settings checkboxes render — not just the primary calendar.
+  const calendarsToFetch = settings.selectedCalendars.length > 0
+    ? settings.selectedCalendars
+    : calList.map(cal => cal.id);
   const calColorMap = {};
   const calNameMap = {};
   for (const cal of calList) {
