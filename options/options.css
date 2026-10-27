@@ -307,8 +307,13 @@ html[data-theme$="dark"] .st-cal-dot {
   transform: translateX(16px);
 }
 
+/* Disabled dims the whole row (label with control) so it never looks like "off". */
+.st-switch-row:has(.st-switch:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .st-switch:disabled {
-  opacity: 0.45;
   cursor: not-allowed;
 }
 
