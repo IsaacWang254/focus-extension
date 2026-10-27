@@ -1,5 +1,5 @@
 /**
- * Focus Extension - Background Service Worker
+ * Morrow - Background Service Worker
  *
  * New tab + Settings only: Google Calendar auth and the planner events feed.
  * All blocking, stats, focus sessions, notifications, and history features
@@ -16,6 +16,19 @@ import { withSharedLock } from './lib/request-cache.js';
 
 // No popup: clicking the toolbar icon opens Settings.
 chrome.action?.onClicked.addListener(() => chrome.runtime.openOptionsPage());
+
+// The mark is bare (no tile), so it is ink on a light toolbar and paper on a
+// dark one. Pages report the browser's colour scheme; see lib/theme.js.
+const TOOLBAR_ICON_SIZES = [16, 32, 48, 128];
+function toolbarIconPaths(dark) {
+  const suffix = dark ? '-dark' : '';
+  return Object.fromEntries(TOOLBAR_ICON_SIZES.map(size => [size, `icons/icon${size}${suffix}.png`]));
+}
+async function setToolbarIcon(dark) {
+  if (!chrome.action?.setIcon) return { success: false };
+  await chrome.action.setIcon({ path: toolbarIconPaths(Boolean(dark)) });
+  return { success: true };
+}
 
 const runCleanupOnce = () =>
   runExtensionCleanup({
@@ -70,6 +83,8 @@ async function handleMessage(message) {
       return getPlannerEvents(message.date);
     case 'UPDATE_CALENDAR_SETTINGS':
       return updateCalendarSettings(message.settings);
+    case 'SET_TOOLBAR_ICON':
+      return setToolbarIcon(message.dark);
     default:
       return { error: `Unknown message type: ${message.type}` };
   }

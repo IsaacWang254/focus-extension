@@ -160,7 +160,7 @@ for (const [file, surface] of [
 ]) {
   const html = read(file);
   assert.match(html, /<html lang="en" data-design="modernist">/, `${file} ships the design on the root element`);
-  assert.match(html, /<link rel="icon" type="image\/png" href="\.\.\/icons\/icon16\.png">/, `${file} uses the brand PNG favicon`);
+  assert.match(html, /<link rel="icon" type="image\/png" href="\.\.\/icons\/icon16\.png">/, `${file} uses the brand PNG favicon (swapped to -dark by syncBrandAssets)`);
   assert.match(html, new RegExp(`<body data-surface="${surface}"`), `${file} marks its body as ${surface}`);
 }
 assert.match(read('../options/options.html'), /lib\/nt-tokens\.css/, 'options loads the shared token sheet');
@@ -178,16 +178,19 @@ const newtabSource = read('../newtab/newtab.js');
 assert.doesNotMatch(newtabSource, /setupThemeToggle|theme-toggle|setIconButtonLabel/, 'newtab must not retain the removed theme control');
 assert.doesNotMatch(newtabSource, /bedtime|shader|ocean|dither|bgImage/i, 'newtab must not retain removed features');
 
-for (const [file, w, h] of [
-  ['../icons/icon16.svg', 16, 16],
-  ['../icons/icon48.svg', 48, 48],
-  ['../icons/icon128.svg', 128, 128]
-]) {
-  const svg = read(file);
-  assert.match(svg, /#1F1F1F/i, `${file} carries the ink tile`);
-  assert.match(svg, /#F7F6F2/i, `${file} carries the paper glyph`);
-  assert.doesNotMatch(svg, /#E5342A|#18181B|#F59E0B|#FFFFFF/i, `${file} must not keep the old red bullseye palette or black/amber/white`);
-  assert.match(svg, new RegExp(`width="${w}" height="${h}"`), `${file} dimensions intact`);
+// The Morrow mark: one quarter-disc rising from the bottom-right corner, bare
+// (no tile), ink for light toolbars and paper for dark ones.
+for (const size of [16, 32, 48, 128]) {
+  for (const [suffix, fill, other] of [['', '#1F1F1F', '#F7F6F2'], ['-dark', '#F7F6F2', '#1F1F1F']]) {
+    const file = `../icons/icon${size}${suffix}.svg`;
+    const svg = read(file);
+    assert.match(svg, new RegExp(fill, 'i'), `${file} is drawn in ${fill}`);
+    assert.doesNotMatch(svg, new RegExp(other, 'i'), `${file} is one colour`);
+    assert.doesNotMatch(svg, /<rect|<circle|stroke=/, `${file} is a single bare path`);
+    assert.match(svg, /<path d="M(\d+) \1V\d+A(\d+) \2 0 0 0 \d+ \1Z"/, `${file} is the quarter-disc from the bottom-right corner`);
+    assert.doesNotMatch(svg, /#E5342A|#18181B|#F59E0B|#FFFFFF/i, `${file} must not keep the old red bullseye palette or black/amber/white`);
+    assert.match(svg, new RegExp(`width="${size}" height="${size}"`), `${file} dimensions intact`);
+  }
 }
 
 const pngSize = (rel) => {
@@ -195,17 +198,23 @@ const pngSize = (rel) => {
   assert.equal(buf.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', `${rel} is a PNG`);
   return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
 };
-for (const [rel, w, h] of [
-  ['../icons/icon16.png', 16, 16],
-  ['../icons/icon48.png', 48, 48],
-  ['../icons/icon128.png', 128, 128]
-]) {
-  const { w: pw, h: ph } = pngSize(rel);
-  assert.equal(pw, w, `${rel} width`);
-  assert.equal(ph, h, `${rel} height`);
+for (const size of [16, 32, 48, 128]) {
+  for (const suffix of ['', '-dark']) {
+    const rel = `../icons/icon${size}${suffix}.png`;
+    const { w: pw, h: ph } = pngSize(rel);
+    assert.equal(pw, size, `${rel} width`);
+    assert.equal(ph, size, `${rel} height`);
+  }
 }
 
-assert.match(read('../manifest.json'), /icons\/icon128\.png/, 'manifest points at the regenerated PNG set');
+const manifest = JSON.parse(read('../manifest.json'));
+assert.equal(manifest.name, 'Morrow', 'the extension is named after the mark');
+for (const size of [16, 32, 48, 128]) {
+  assert.equal(manifest.action.default_icon[size], `icons/icon${size}.png`, `toolbar default icon ${size} is the light-toolbar mark`);
+}
+assert.match(read('../background.js'), /SET_TOOLBAR_ICON[\s\S]*setToolbarIcon|setToolbarIcon[\s\S]*SET_TOOLBAR_ICON/, 'service worker flips the toolbar icon on request');
+assert.match(read('../background.js'), /icons\/icon\$\{size\}\$\{suffix\}\.png/, 'the dark set is addressed by the -dark suffix');
+assert.match(read('../lib/theme.js'), /SET_TOOLBAR_ICON/, 'pages report the browser colour scheme for the toolbar icon');
 
 // --- focus:theme localStorage mirror written by loadTheme -------------------
 

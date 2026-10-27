@@ -415,6 +415,7 @@
         storageArea.set({ calendarSettings: { ...store.calendarSettings, ...message.settings } });
         return structuredClone(store.calendarSettings);
       }
+      case 'SET_TOOLBAR_ICON': return { success: true };
       default: return null;
     }
   };
