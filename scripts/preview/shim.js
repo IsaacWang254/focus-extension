@@ -534,7 +534,15 @@
         if (previewState === 'mutation-error' || fixture?.mutationFail) return json({ error: 'Preview mutation failed' }, 503);
         const created = previewQuickAdd(JSON.parse(init?.body || '{}').text);
         taskStore.push(created);
-        return json(structuredClone(created));
+        // The live endpoint answers in the legacy sync shape: `id`/`project_id`
+        // are old-format IDs; v1 callers must read `v2_id`/`v2_project_id`.
+        return json(structuredClone({
+          ...created,
+          id: `legacy-${created.id}`,
+          project_id: created.project_id ? `legacy-${created.project_id}` : undefined,
+          v2_id: created.id,
+          v2_project_id: created.project_id
+        }));
       }
       const moveMatch = /\/tasks\/([^/]+)\/move$/.exec(url);
       if (moveMatch && method === 'POST') {

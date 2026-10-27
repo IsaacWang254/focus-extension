@@ -1017,14 +1017,16 @@ function setupQuickAdd() {
       quickAddAutocomplete.close();
       foot.dataset.mode = 'status';
       foot.innerHTML = '';
-      foot.append(document.createTextNode(describeCreatedTask(task, projects) + ' '));
-      const link = document.createElement('a');
-      link.className = 'quick-add-link';
-      link.href = `https://app.todoist.com/app/task/${encodeURIComponent(task.id)}`;
-      link.target = '_blank';
-      link.rel = 'noreferrer';
-      link.textContent = 'Open in Todoist';
-      foot.appendChild(link);
+      foot.append(document.createTextNode((task ? describeCreatedTask(task, projects) : 'Added.') + ' '));
+      if (task?.id) {
+        const link = document.createElement('a');
+        link.className = 'quick-add-link';
+        link.href = `https://app.todoist.com/app/task/${encodeURIComponent(task.id)}`;
+        link.target = '_blank';
+        link.rel = 'noreferrer';
+        link.textContent = 'Open in Todoist';
+        foot.appendChild(link);
+      }
       input.focus();
     } catch (error) {
       console.error('Failed to create task:', error);
@@ -1034,6 +1036,9 @@ function setupQuickAdd() {
       input.disabled = false;
       spinner.hidden = true;
       form.removeAttribute('aria-busy');
+      // Disabling the field mid-request released its focus to the page;
+      // return it so the next keystroke (and ⌘A) still lands in the composer.
+      if (quickAddIsOpen()) input.focus();
     }
   });
 }
@@ -1059,6 +1064,17 @@ function setupDrawer() {
     const openPanel = (!quickAdd?.classList.contains('hidden') && quickAdd)
       || (!editModal?.classList.contains('hidden') && editModal);
     if (!openPanel) return;
+    if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'a') {
+      // Keep ⌘A/Ctrl+A inside the overlay's text field: the document-level
+      // Select All must not run while a composer field is the target.
+      const field = event.target?.closest?.('input[type="text"], input:not([type]), textarea')
+        || document.activeElement?.closest?.('input[type="text"], input:not([type]), textarea');
+      if (field && openPanel.contains(field) && !field.disabled && typeof field.select === 'function') {
+        event.preventDefault();
+        field.select();
+      }
+      return;
+    }
     if (event.key === 'Escape') {
       // While a save is in flight, Cancel/Escape stays disabled.
       if (openPanel === editModal && editModal.dataset.saving) return;

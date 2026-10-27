@@ -11,7 +11,7 @@ const cacheSource = fs.readFileSync(new URL('../lib/request-cache.js', import.me
 
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
-function harness({ taskPages = null, projectPages = null } = {}) {
+function harness({ taskPages = null, projectPages = null, quickAdd = null } = {}) {
   const counts = { tasks: 0, labels: 0, projects: 0 };
   const requests = [];
   const store = { todoistToken: 'token-a', todoistCacheRevision: 'rev-a' };
@@ -45,6 +45,12 @@ function harness({ taskPages = null, projectPages = null } = {}) {
       counts.projects++;
       body = projectPages?.[url.searchParams.get('cursor') || 'first'] ||
         { results: [{ id: 'p1', name: 'Inbox' }], next_cursor: null };
+    } else if (url.pathname.endsWith('/tasks/quick')) {
+      const parsed = JSON.parse(options.body || '{}');
+      // Live Quick Add answers in the legacy sync shape: old-format `id` and
+      // `project_id`, with the API v1 pair under `v2_id`/`v2_project_id`.
+      body = quickAdd ? quickAdd(parsed)
+        : { id: '2990001', project_id: '22001', v2_id: 'v2-1', v2_project_id: 'p1', content: parsed.text, priority: 1, labels: [] };
     } else if (/\/tasks\/[^/]+$/.test(url.pathname) && (options.method || 'GET') === 'POST') {
       body = { id: url.pathname.split('/').pop(), ...JSON.parse(options.body) };
     } else if (url.pathname.endsWith('/close') || url.pathname.endsWith('/reopen') || url.pathname.endsWith('/tasks')) {
@@ -79,7 +85,7 @@ function harness({ taskPages = null, projectPages = null } = {}) {
   vm.runInContext(cacheSource, sandbox);
   vm.runInContext(`${transformed}
 this.api = { getToken, isAuthenticated, logout, getTasks, getTasksWithSubtasks, getTask,
-  completeTask, reopenTask, createTask,
+  completeTask, reopenTask, createTask, quickAddTask,
   updateTask, getProjects, getLabels, getLabelsMap };`, sandbox);
 
   return {
@@ -130,10 +136,11 @@ this.api = { getToken, isAuthenticated, logout, getTasks, getTasksWithSubtasks, 
   assert.equal(h.counts.tasks, 3, 'a repeated query after an intervening scope must refetch, not cross data');
 }
 
-for (const mutate of ['completeTask', 'reopenTask', 'createTask', 'updateTask']) {
+for (const mutate of ['completeTask', 'reopenTask', 'createTask', 'quickAddTask', 'updateTask']) {
   const h = harness();
   await h.api.getTasksWithSubtasks();
   if (mutate === 'createTask') await h.api.createTask({ content: 'x' });
+  else if (mutate === 'quickAddTask') await h.api.quickAddTask('x');
   else if (mutate === 'updateTask') await h.api.updateTask('t1', { priority: 4 });
   else await h.api[mutate]('t1');
   await h.api.getTasksWithSubtasks();
@@ -222,6 +229,26 @@ for (const mutate of ['completeTask', 'reopenTask', 'createTask', 'updateTask'])
   await h.api.getProjects();
   assert.equal(h.counts.labels, 1, 'labels reads must share the cache');
   assert.equal(h.counts.projects, 1, 'projects reads must share the cache');
+}
+
+{
+  const h = harness();
+  const task = await h.api.quickAddTask('buy milk today #Inbox p2');
+  assert.equal(task.id, 'v2-1', 'quick add must surface the API v1 task id, not the legacy one');
+  assert.equal(task.project_id, 'p1', 'quick add must surface the API v1 project id, not the legacy one');
+  const sent = JSON.parse(h.requests.at(-1).body);
+  assert.equal(sent.text, 'buy milk today #Inbox p2');
+  assert.equal(sent.auto_reminder, true);
+}
+
+{
+  const h = harness({
+    quickAdd: () => ({ item: { id: '9', project_id: '8', v2_id: 'v2-2', v2_project_id: 'p2', content: 'wrapped', priority: 1 } })
+  });
+  const task = await h.api.quickAddTask('wrapped');
+  assert.equal(task.id, 'v2-2', 'an item-wrapped quick-add response is unwrapped');
+  assert.equal(task.project_id, 'p2');
+  assert.equal(task.content, 'wrapped');
 }
 
 console.log('todoist-cache tests passed');
