@@ -5,7 +5,7 @@ import {
   layoutDayGrid,
   parseTaskDeadline
 } from '../newtab/planner-model.js';
-import { contrastRatio, eventColors } from '../newtab/planner-color.js';
+import { contrastRatio, eventColors, reserveRed } from '../newtab/planner-color.js';
 
 const DATE = '2026-09-29';
 const SCALE = 64 / 60; // 64px per hour
@@ -73,6 +73,45 @@ function runLocalTests() {
   assert.deepEqual(lanes, { a: 0, b: 1, c: 0 }, 'the lowest free lane is reused');
   assert.equal(overlapping.events.find(e => e.id === 'a').overlapGroup, overlapping.groups[0].id);
 
+  // --- lane cap ---
+  const pileEvents = [
+    timed('l1', '09:00', '10:00'),
+    timed('l2', '09:00', '10:00'),
+    timed('l3', '09:00', '10:00'),
+    timed('l4', '09:15', '10:00'),
+    timed('l5', '09:30', '10:00')
+  ];
+  const pile = gridFor(pileEvents);
+  assert.equal(pile.groups[0].laneCount, 3, 'lanes are capped at three');
+  assert.equal(pile.groups[0].fullLaneCount, 5);
+  assert.equal(pile.groups[0].overflow, 2, 'two events overflow the cap');
+  assert.equal(pile.groups[0].overflowTopMinutes, 9 * 60 + 15, 'the affordance sits at the first hidden start');
+  assert.deepEqual(pile.events.filter(e => e.hidden).map(e => e.id), ['l4', 'l5']);
+  assert.ok(pile.events.filter(e => !e.hidden).every(e => e.laneCount === 3));
+  const expanded = layoutDayGrid(buildDayTimeline(pileEvents, DATE, new Date(at('10:30'))), { pxPerMinute: SCALE, expandedGroups: new Set([pile.groups[0].key]) });
+  assert.equal(pile.groups[0].key, pile.events.map(e => e.key).sort().join('|'), 'groups are keyed by their members, not their index');
+  assert.equal(expanded.groups[0].overflow, 0, 'an expanded group shows every lane');
+  assert.equal(expanded.groups[0].laneCount, 5);
+  assert.ok(pile.events.filter(e => !e.hidden).every(e => e.pillReserve), 'members beside the pill leave it a strip');
+
+  // The pill strip is only given up by members that share the pill's band;
+  // a member an hour below it in the same group keeps the full width.
+  const tail = gridFor([
+    timed('l1', '09:00', '10:00'),
+    timed('l2', '09:00', '10:00'),
+    timed('l3', '09:00', '11:00'),
+    timed('l4', '09:15', '10:00'),
+    timed('l5', '09:30', '10:00'),
+    timed('l6', '10:00', '10:45')
+  ]);
+  assert.equal(tail.groups.length, 1, 'l6 chains into the pile through l3');
+  assert.equal(tail.groups[0].overflowTopMinutes, 9 * 60 + 15);
+  assert.deepEqual(
+    tail.events.filter(e => !e.hidden).map(e => `${e.id}:${e.pillReserve}`),
+    ['l1:true', 'l2:true', 'l3:true', 'l6:false'],
+    'only members in the pill band reserve the strip'
+  );
+
   const nested = gridFor([
     timed('outer', '09:00', '12:00'),
     timed('inner', '09:30', '10:00'),
@@ -136,6 +175,10 @@ function runLocalTests() {
   }
   assert.equal(eventColors('javascript:alert(1)', 'light').bar, '#73736c', 'invalid colors fall back to neutral');
   assert.equal(eventColors('#A4BDFC', 'light').bar, '#A4BDFC', 'valid provider colors pass through');
+  assert.equal(reserveRed('#246fe0'), '#246fe0', 'non-red hues pass through');
+  assert.equal(reserveRed('#73736c'), '#73736c', 'desaturated colours pass through');
+  assert.equal(reserveRed('#dc4c3e'), '#be4592', 'red-family hues turn to plum');
+  assert.equal(eventColors('#dc4c3e', 'light').bar, '#be4592', 'event bars never use the overdue red');
   assert.notEqual(eventColors('#246fe0', 'light').background, eventColors('#246fe0', 'dark').background, 'themes tint differently');
 }
 

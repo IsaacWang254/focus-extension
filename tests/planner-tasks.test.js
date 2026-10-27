@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { taskMeta, taskMetaParts, taskPriorityStyle } from '../newtab/planner-tasks.js';
 import { TODOIST_COLORS, contrastRatio, readableTagColor, todoistColor } from '../newtab/planner-color.js';
 
-assert.deepEqual(taskPriorityStyle(4), { label: 'P1', color: '#dc4c3e' });
-assert.deepEqual(taskPriorityStyle(3), { label: 'P2', color: '#eb8909' });
-assert.deepEqual(taskPriorityStyle(2), { label: 'P3', color: '#246fe0' });
-assert.deepEqual(taskPriorityStyle(1), { label: 'P4', color: '#808080' });
-assert.deepEqual(taskPriorityStyle('unexpected'), { label: 'P4', color: '#808080' });
+assert.deepEqual(taskPriorityStyle(4), { label: 'P1', color: 'var(--nt-ink)' });
+assert.deepEqual(taskPriorityStyle(3), { label: 'P2', color: '#c96f00' });
+assert.deepEqual(taskPriorityStyle(2), { label: 'P3', color: '#1a5fcc' });
+assert.deepEqual(taskPriorityStyle(1), { label: 'P4', color: '#767676' });
+assert.deepEqual(taskPriorityStyle('unexpected'), { label: 'P4', color: '#767676' });
 
 // taskMetaParts: due → project → @labels → parentContent, no priority text.
 const now = new Date('2026-09-30T12:00:00');
@@ -26,10 +26,10 @@ const labelColors = new Map([['deep work', 'yellow'], ['quick', 'green']]);
     { text: 'Focus extension', color: 'blue' },
     { text: '@deep work', color: 'yellow' },
     { text: '@quick', color: 'green' },
-    { text: 'Parent task' }
+    { text: '↳ Parent task' }
   ], 'order: due, project, labels, parent — no priority part');
   assert.equal(taskMeta(task, projects, now, labelColors),
-    'Today · Focus extension · @deep work · @quick · Parent task');
+    'Today · Focus extension · @deep work · @quick · ↳ Parent task');
 }
 
 {
@@ -52,7 +52,10 @@ const labelColors = new Map([['deep work', 'yellow'], ['quick', 'green']]);
 {
   const parts = taskMetaParts(
     { content: 'Late', due: { date: '2026-09-29' } }, new Map(), now);
-  assert.deepEqual(parts, [{ text: 'Overdue' }]);
+  assert.deepEqual(parts, [{ text: '1 day overdue', kind: 'overdue' }, { text: 'Sep 29' }]);
+  assert.deepEqual(
+    taskMetaParts({ content: 'Later', due: { date: '2026-09-27' } }, new Map(), now),
+    [{ text: '3 days overdue', kind: 'overdue' }, { text: 'Sep 27' }]);
 }
 
 // readableTagColor: every Todoist colour resolves to ≥4.5:1 on theme paper.

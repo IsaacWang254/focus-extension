@@ -29,7 +29,7 @@ body {
   position: relative;
   z-index: 2;
   flex: 1;
-  width: min(812px, 100% - 48px);
+  width: min(720px, 100% - 48px);
   min-height: 100vh;
   margin: 0 auto;
   padding: 96px 0 96px;
@@ -56,17 +56,18 @@ body {
 
 .home-head {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 48px;
+  gap: 24px;
 }
 
 .clock {
   display: flex;
   align-items: baseline;
   margin: 0;
-  color: var(--nt-ink);
-  font-size: 56px;
+  /* A step under full ink so a 19px/600 task title wins the first glance. */
+  color: color-mix(in srgb, var(--nt-ink) 84%, var(--nt-paper));
+  font-size: 28px;
   font-weight: 500;
   line-height: 1;
   letter-spacing: -0.02em;
@@ -84,19 +85,22 @@ body {
 
 .home-side {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px 14px;
   min-width: 0;
-  padding-top: 10px;
   text-align: right;
 }
 
 .full-date {
   margin: 0;
-  color: var(--nt-ink);
-  font-size: 17px;
+  /* Same ink step as the clock so the date row reads as one quiet line. */
+  color: color-mix(in srgb, var(--nt-ink) 84%, var(--nt-paper));
+  font-size: 15px;
+  font-weight: 600;
   line-height: 1.3;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.005em;
 }
 
 /* ============================================
@@ -105,13 +109,12 @@ body {
 
 .weather-section {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: flex-end;
   gap: 8px;
   min-height: 22px;
-  margin-top: 6px;
   color: var(--nt-muted);
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.4;
   text-align: right;
 }
@@ -123,9 +126,14 @@ body {
 
 .weather-content {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: flex-end;
   gap: 6px;
+}
+
+/* The icon centres on the text line without feeding the row's baseline. */
+.weather-content .weather-icon {
+  align-self: center;
 }
 
 /* The H/L segment reads as a continuation of the description — one normal
@@ -143,11 +151,11 @@ body {
 .weather-icon svg {
   width: 18px;
   height: 18px;
-  stroke-width: 1.5;
+  stroke-width: 1.75;
 }
 
 .weather-temp {
-  color: var(--nt-ink);
+  color: color-mix(in srgb, var(--nt-ink) 84%, var(--nt-paper));
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -206,13 +214,13 @@ body[data-surface="newtab"] {
 }
 
 /* Full-viewport column: the Calendar section flexes to fill whatever the
-   header and tasks leave; the page itself never scrolls unless the 160px
+   header and tasks leave; the page itself never scrolls unless the 232px (~4h)
    timeline minimum can't fit (accessibility fallback). */
 body[data-surface="newtab"] .main {
   display: flex;
   flex-direction: column;
   flex: none; /* the generic .main rule sets flex:1, which would re-stretch past 100dvh */
-  width: min(812px, 100% - 48px);
+  width: min(720px, 100% - 48px);
   height: 100dvh;
   margin: 0 auto;
   padding: 96px 0 48px;
@@ -222,7 +230,8 @@ body[data-surface="newtab"] .main {
 /* ≥12px between the weather/date block's bottom edge and the toolbar's
    focus-ring edge (button box + 4px ring offset). */
 #tasks-section {
-  margin-top: 16px;
+  position: relative;
+  margin-top: 0;
 }
 
 #today-timeline-section {
@@ -230,7 +239,7 @@ body[data-surface="newtab"] .main {
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
-  margin-top: 48px;
+  margin-top: 28px;
 }
 
 
@@ -306,12 +315,17 @@ body[data-surface="newtab"] .main {
 .task-list .planner-task-row {
   align-items: flex-start;
   gap: 12px;
+  --tag-color: var(--nt-muted);
   /* Symmetric 8px block padding keeps the hover wash balanced above/below the
      content; the remaining 8px of the old 24px bottom padding lives in the
      inter-row margin so the row pitch is unchanged and adjacent washes keep
      a real gap. */
-  padding: 8px 0;
-  margin-bottom: 8px;
+  padding: 9px 0;
+  margin-bottom: 4px;
+}
+
+.planner-meta-tag {
+  color: var(--tag-color);
 }
 
 /* ≥8px between the toolbar's outermost paint (focus ring: box + 4px) and the
@@ -320,13 +334,14 @@ body[data-surface="newtab"] .main {
   margin-top: 12px;
 }
 
-/* Round priority ring: 19px glyph inside a 36px hit target. */
+/* Round priority ring: 22px glyph inside a 36px hit target, centred on the
+   first title line. */
 .task-list .planner-check {
   position: relative;
   width: 36px;
   height: 36px;
   flex: 0 0 36px;
-  margin: -7px 0 -6px -4px;
+  margin: -5px 0 -8px -4px;
   border: 0;
   background: transparent;
 }
@@ -334,14 +349,35 @@ body[data-surface="newtab"] .main {
 .task-list .planner-check::after {
   content: '';
   position: absolute;
-  inset: 8.5px;
-  border: 1px solid var(--task-priority-color, color-mix(in srgb, var(--nt-ink) 58%, transparent));
+  inset: 7px;
+  border: 1.5px solid var(--task-priority-color, color-mix(in srgb, var(--nt-ink) 58%, transparent));
   border-radius: 50%;
 }
 
 .task-list .planner-check:hover::after {
-  border-width: 1.5px;
-  inset: 7.5px;
+  border-width: 2px;
+  inset: 6.5px;
+}
+
+/* Dark theme lifts the P2/P3 ring hues so they clear 3:1 on the paper and on
+   the overdue tint (Todoist's #1a5fcc sits near 2:1 there). */
+html[data-theme$="dark"] .task-list .planner-task-row[data-priority="P2"] {
+  --task-priority-color: #e39a3b;
+}
+
+html[data-theme$="dark"] .task-list .planner-task-row[data-priority="P3"] {
+  --task-priority-color: #6fa3f7;
+}
+
+/* P4 grey: #767676 clears 3:1 on light paper and on the overdue tint even
+   after the Up next step; dark paper keeps the lighter grey. */
+html[data-theme$="dark"] .task-list .planner-task-row[data-priority="P4"] {
+  --task-priority-color: #8a8a8a;
+}
+
+.task-list .planner-task-row[data-priority="P1"] .planner-check::after {
+  border-width: 2.5px;
+  inset: 6px;
 }
 
 .task-list .planner-check.is-pending {
@@ -450,16 +486,16 @@ body[data-surface="newtab"] .main {
 }
 
 .task-list .planner-row-title {
-  font-size: 17px;
-  font-weight: 400;
-  line-height: 1.35;
-  letter-spacing: -0.015em;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
   color: var(--nt-ink);
   white-space: normal;
 }
 
 .planner-task-row {
-  --task-priority-color: #808080;
+  --task-priority-color: var(--task-priority-base, #808080);
 }
 
 /* Soft row highlight: a ::before wash bleeding 12px past the content box on
@@ -508,10 +544,144 @@ body[data-surface="newtab"] .main {
 .task-list .planner-row-meta {
   overflow: hidden;
   color: var(--nt-muted);
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 13.5px;
+  line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.task-list .planner-meta-overdue {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--nt-danger);
+  font-weight: 600;
+}
+
+.task-list .planner-meta-overdue svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+}
+
+/* Tags rest in muted ink so status is the only hue in the list; the
+   provider colour returns on hover/focus. */
+.task-list .planner-meta-tag {
+  color: var(--nt-muted);
+}
+
+.task-list .planner-task-row:not(.is-overdue):is(:hover, :has(:focus-visible)) .planner-meta-tag {
+  color: var(--tag-color);
+}
+
+/* Overdue rows fuse into one tinted block: the wash stays on, gaps between
+   consecutive overdue rows close, and a 3px danger rail runs down the edge. */
+.task-list .planner-task-row.is-overdue::before {
+  opacity: 1;
+  background: var(--nt-danger-tint);
+  border-radius: 0 8px 8px 0;
+}
+
+.task-list .planner-task-row.is-overdue:has(+ .planner-task-row.is-overdue) {
+  margin-bottom: 0;
+}
+
+.task-list .planner-task-row.is-overdue:has(+ .planner-task-row.is-overdue)::before {
+  border-end-end-radius: 0;
+}
+
+.task-list .planner-task-row.is-overdue + .planner-task-row.is-overdue::before {
+  border-start-end-radius: 0;
+}
+
+.task-list .planner-task-row.is-overdue:not(:has(.is-pending)):is(:hover, :has(:focus-visible))::before {
+  background: var(--nt-danger-pill);
+}
+
+.task-list .planner-task-row.is-overdue::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: -12px;
+  width: 3px;
+  background: var(--nt-danger);
+}
+
+/* Group eyebrows: Overdue / Today / Up next, each with a count pill. */
+.task-list .task-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 32px 0 4px;
+  color: var(--nt-muted);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.task-list > .task-group:first-child {
+  margin-top: 18px;
+}
+
+.task-list .task-group[data-group="overdue"] {
+  color: var(--nt-danger);
+}
+
+.task-list .task-group[data-group="overdue"] .task-group-count {
+  background: var(--nt-danger);
+  color: var(--nt-paper);
+}
+
+/* Up next (later-dated) rows sit one step down the scale from Today: 17px/500
+   at ~72% ink (meta ~56%), so the tier reads "later" by scale and tone rather
+   than as a disabled copy of a Today row. Rings never fade: a control stays
+   a control. */
+.task-list .task-group[data-group="later"] ~ .planner-task-row .planner-row-title {
+  font-size: 17px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--nt-ink) 72%, var(--nt-paper));
+}
+
+.task-list .task-group[data-group="later"] ~ .planner-task-row .planner-row-meta {
+  color: color-mix(in srgb, var(--nt-ink) 56%, var(--nt-paper));
+}
+
+/* Dark paper swallows mid greys: the muted tier sits a step higher so the
+   meta clears 3:1 and the titles stay crisp at weight 500. */
+html[data-theme$="dark"] .task-list .task-group[data-group="later"] ~ .planner-task-row .planner-row-title {
+  color: color-mix(in srgb, var(--nt-ink) 76%, var(--nt-paper));
+}
+
+html[data-theme$="dark"] .task-list .task-group[data-group="later"] ~ .planner-task-row .planner-row-meta {
+  color: color-mix(in srgb, var(--nt-ink) 60%, var(--nt-paper));
+}
+
+/* Rings in the muted tier soften by colour (never opacity) so they sit with
+   the grey titles instead of outshining them, and still clear 3:1. */
+.task-list .task-group[data-group="later"] ~ .planner-task-row .planner-check::after {
+  border-color: color-mix(in srgb, var(--task-priority-color) 90%, var(--nt-paper));
+}
+
+/* Dark paper already mutes a 1.5px ring; stepping it further drops P3 under 3:1. */
+html[data-theme$="dark"] .task-list .task-group[data-group="later"] ~ .planner-task-row .planner-check::after {
+  border-color: var(--task-priority-color);
+}
+
+.task-list .task-group[data-group="later"] ~ .planner-task-row:is(:hover, :has(:focus-visible)) .planner-row-title {
+  color: var(--nt-ink);
+}
+
+.task-group-count {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--nt-ink) 10%, transparent);
+  color: var(--nt-ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 
 .planner-row-meta,
@@ -902,15 +1072,13 @@ html.planner-open {
     padding-top: 56px;
   }
 
-  body[data-surface="newtab"] .clock {
-    font-size: 44px;
-  }
-
   .edit-modal-panel {
     width: calc(100vw - 24px);
   }
 
-  .task-list > .planner-task-row:nth-child(n+4) {
+  /* Narrow screens keep the first three rows; later rows and any group
+     eyebrow that only introduces hidden rows go. */
+  .task-list > .is-overflow {
     display: none;
   }
 }
@@ -936,9 +1104,20 @@ body[data-surface="newtab"] textarea {
   margin-bottom: 4px;
 }
 
+/* The task actions share the first eyebrow's row instead of a row of their own. */
 .sec-head-tools {
-  justify-content: flex-end;
-  margin-bottom: 0;
+  position: absolute;
+  top: 12px;
+  right: 0;
+  min-height: 0;
+  margin: 0;
+}
+
+.sec-head-tools .icon-action,
+.cal-head > .icon-actions .icon-action {
+  flex-basis: 32px;
+  width: 32px;
+  height: 32px;
 }
 
 /* ≥8px between the Calendar action ring edge (button box + 4px) and the
@@ -949,12 +1128,21 @@ body[data-surface="newtab"] textarea {
   margin-bottom: 16px;
 }
 
+/* Same eyebrow component as the task groups. */
 .cal-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   margin: 0;
   color: var(--nt-muted);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.cal-head {
+  align-items: center;
 }
 
 .icon-actions {
@@ -981,9 +1169,10 @@ body[data-surface="newtab"] textarea {
 
 .icon-action svg {
   display: block;
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
 }
+
 
 .icon-action-glyph {
   display: inline-flex;
@@ -1031,6 +1220,21 @@ body[data-surface="newtab"] textarea {
 .icon-action--reveal {
   opacity: 0;
   pointer-events: none;
+}
+
+.timeline-blk .icon-action--reveal,
+.timeline-ad .icon-action--reveal {
+  background: var(--bg-soft);
+}
+
+html[data-theme$="dark"] .timeline-blk,
+html[data-theme$="dark"] .timeline-ad {
+  --bg-soft: color-mix(in srgb, var(--bg, var(--nt-wash)) 32%, var(--nt-paper));
+  border-left-color: color-mix(in srgb, var(--bar, var(--nt-muted)) 72%, var(--nt-paper));
+}
+
+html[data-theme$="dark"] .timeline-now .line {
+  background: color-mix(in srgb, var(--nt-ink) 55%, transparent);
 }
 
 .icon-action--reveal:focus-visible,
@@ -1140,14 +1344,14 @@ body[data-surface="newtab"] textarea {
   position: relative;
   flex: 1 1 auto;
   height: auto;
-  min-height: 160px;
+  min-height: 232px;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 24px), transparent);
-  mask-image: linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16px, #000);
+  mask-image: linear-gradient(to bottom, transparent, #000 16px, #000);
 }
 
 .timeline-viewport:focus-visible {
@@ -1237,10 +1441,12 @@ body[data-surface="newtab"] textarea {
   box-sizing: border-box;
   /* clip (not hidden) so the sticky .blk-inner still tracks the outer scroll
      container — overflow:hidden would make the block itself the scrollport. */
+  z-index: 1;
   overflow: clip;
-  border-left: 3px solid var(--bar, var(--nt-muted));
+  --bg-soft: color-mix(in srgb, var(--bg, var(--nt-wash)) 55%, var(--nt-paper));
+  border-left: 2px solid var(--bar, var(--nt-muted));
   border-radius: 4px;
-  background: var(--bg, var(--nt-wash));
+  background: var(--bg-soft);
   color: var(--fg, var(--nt-ink));
 }
 
@@ -1256,7 +1462,14 @@ body[data-surface="newtab"] textarea {
 }
 
 .timeline-viewport .timeline-blk .blk-inner {
-  --blk-stick: 26px;
+  --blk-stick: 18px;
+}
+
+/* Dark paper swallows the 55% mix; fills lift a step off the page so the
+   surface, not just the rail, says "event". */
+html[data-theme$="dark"] .timeline-blk,
+html[data-theme$="dark"] .timeline-ad {
+  --bg-soft: color-mix(in srgb, var(--bg, var(--nt-wash)) 55%, #1c1c1c);
 }
 
 .timeline-blk:hover,
@@ -1286,7 +1499,7 @@ body[data-surface="newtab"] textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  opacity: calc(var(--blk-fade, 1) * 0.85);
+  opacity: var(--blk-fade, 1);
 }
 
 .timeline-blk.is-past:hover .t,
@@ -1346,7 +1559,7 @@ body[data-surface="newtab"] textarea {
   top: 2px;
   right: 2px;
   border-color: transparent;
-  background: var(--bg);
+  background: var(--bg-soft);
   color: var(--fg);
 }
 
@@ -1357,6 +1570,10 @@ body[data-surface="newtab"] textarea {
   color: var(--fg);
 }
 
+/* Event blocks (z-index 1) paint over the now-line so a title is never
+   struck through; the line stays visible in the gaps, and the dots at both
+   ends (z-index 2, above the blocks) and the time label in the gutter always
+   bracket now, even inside a booked hour. */
 .timeline-now {
   position: absolute;
   left: 0;
@@ -1370,18 +1587,27 @@ body[data-surface="newtab"] textarea {
   left: var(--nt-rail);
   right: 0;
   height: 2px;
+  background: color-mix(in srgb, var(--nt-ink) 80%, transparent);
+}
+
+.timeline-now .line::before,
+.timeline-now .line::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  top: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   background: var(--nt-ink);
 }
 
 .timeline-now .line::before {
-  content: '';
-  position: absolute;
-  top: -3px;
-  left: -3.5px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--nt-ink);
+  left: -3px;
+}
+
+.timeline-now .line::after {
+  right: 0;
 }
 
 .timeline-now .lbl {
@@ -1442,9 +1668,10 @@ body[data-surface="newtab"] textarea {
   height: 24px;
   max-width: 100%;
   padding: 0 8px;
-  border-left: 3px solid var(--bar, var(--nt-muted));
+  --bg-soft: color-mix(in srgb, var(--bg, var(--nt-wash)) 55%, var(--nt-paper));
+  border-left: 2px solid var(--bar, var(--nt-muted));
   border-radius: 4px;
-  background: var(--bg, var(--nt-wash));
+  background: var(--bg-soft);
   color: var(--fg, var(--nt-ink));
   font-size: 12.5px;
   font-weight: 500;
@@ -1460,7 +1687,6 @@ body[data-surface="newtab"] textarea {
   margin-left: 6px;
   font-size: 11.5px;
   font-weight: 400;
-  opacity: 0.8;
 }
 
 .timeline-ad .icon-action--compact {
@@ -1469,7 +1695,7 @@ body[data-surface="newtab"] textarea {
   flex-basis: 22px;
   margin: 0 -4px 0 4px;
   border-color: transparent;
-  background: var(--bg);
+  background: var(--bg-soft);
   color: var(--fg);
 }
 
@@ -1481,6 +1707,32 @@ body[data-surface="newtab"] textarea {
 
 .timeline-ad-more {
   align-self: center;
+}
+
+/* Lane-cap affordance: a small pill on the right edge at the first hidden
+   event's start. */
+.timeline-more {
+  position: absolute;
+  z-index: 3;
+  right: 4px;
+  transform: translateY(2px);
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--nt-ink) 14%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--nt-ink) 8%, var(--nt-paper));
+  color: color-mix(in srgb, var(--nt-ink) 78%, var(--nt-paper));
+  font: 600 11.5px/1.4 "Inter", system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.timeline-more:hover {
+  background: color-mix(in srgb, var(--nt-ink) 14%, var(--nt-paper));
+  color: var(--nt-ink);
+}
+
+.timeline-more:focus-visible {
+  outline: 2px solid var(--nt-ink);
+  outline-offset: 2px;
 }
 
 /* ============================================
@@ -1534,12 +1786,8 @@ body[data-surface="newtab"] textarea {
     padding-bottom: 32px;
   }
 
-  body[data-surface="newtab"] .clock {
-    font-size: 48px;
-  }
-
   #tasks-section {
-    margin-top: 16px;
+    margin-top: 8px;
   }
 
   .task-list .planner-task-row {
@@ -1764,4 +2012,94 @@ html[data-theme$="dark"] .edit-modal select.field-input {
 .quick-add-link {
   color: var(--nt-ink);
   text-decoration: underline;
+}
+
+/* ============================================
+   Wide screens: tasks and calendar side by side
+   ============================================
+   The single column stops at 720px, which left the calendar hostage to the
+   task list's height (an overdue day showed three hours) and the right half
+   of the task zone empty. From 1180px the page is a two-column grid under a
+   one-line header: tasks left, calendar right filling the viewport height. */
+@media (min-width: 1180px) {
+  body[data-surface="newtab"] .main {
+    display: grid;
+    grid-template-columns: minmax(0, 48fr) minmax(0, 52fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      "tasks head"
+      "tasks cal";
+    column-gap: 64px;
+    width: min(1200px, 100% - 96px);
+    padding: 80px 0 48px;
+  }
+
+  /* Tasks own the top-left; the clock, date and weather stack over the
+     calendar they belong with, so the first fixation lands on a task. */
+  .home-head {
+    grid-area: head;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    /* Clock cap-top on the Today eyebrow's cap line, so the two column
+       heads share one top edge. */
+    padding-top: 4px;
+  }
+
+  .home-head .clock {
+    font-size: 36px;
+  }
+
+  .home-side,
+  .weather-section {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  #tasks-section {
+    grid-area: tasks;
+    align-self: start;
+    margin-top: 0;
+  }
+
+  .sec-head-tools {
+    top: 0;
+  }
+
+  .task-list > .task-group:first-child {
+    margin-top: 8px;
+  }
+
+  #today-timeline-section {
+    grid-area: cal;
+    margin-top: 22px;
+  }
+
+  .timeline-viewport {
+    min-height: 0;
+  }
+
+  /* The calendar column is ~590px: all-day chips keep their own row under
+     the eyebrow instead of sharing the heading line. */
+  body[data-surface="newtab"] .cal-head .timeline-all-day {
+    flex: 0 0 100%;
+    order: 2;
+    padding: 6px 0 10px;
+  }
+
+  body[data-surface="newtab"] .cal-head .cal-label {
+    order: 0;
+  }
+
+  body[data-surface="newtab"] .cal-head .icon-actions {
+    order: 1;
+  }
+
+  body[data-surface="newtab"] .cal-head .timeline-all-day-label {
+    display: block;
+  }
+
+  body[data-surface="newtab"] .cal-head .timeline-all-day-list {
+    justify-content: flex-start;
+  }
 }

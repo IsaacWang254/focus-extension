@@ -10,6 +10,9 @@ import {
   safeExternalUrl,
   selectCurrentEvents,
   selectHomepageTasks,
+  timelineWindow,
+  taskDueBucket,
+  taskOverdueDays,
   selectNextEvent,
   parseTaskDeadline,
   rankSuggestedTasks,
@@ -140,6 +143,39 @@ const shuffled = [...tasks].reverse();
 assert.deepEqual(rankSuggestedTasks(shuffled, now).map(task => task.id), rankSuggestedTasks(tasks, now).map(task => task.id), 'input order never affects ranking');
 assert.deepEqual(selectHomepageTasks(), [], 'no tasks yields an empty list');
 
+const lateDay = new Date('2026-09-30T10:42:00');
+assert.equal(taskDueBucket({ content: 'a', due: { date: '2026-09-27' } }, lateDay), 'overdue');
+assert.equal(taskDueBucket({ content: 'a', due: { date: '2026-09-30' } }, lateDay), 'today');
+assert.equal(taskDueBucket({ content: 'a', due: { date: '2026-10-01' } }, lateDay), 'later');
+assert.equal(taskDueBucket({ content: 'a' }, lateDay), 'later', 'undated work is never overdue');
+assert.equal(taskOverdueDays({ content: 'a', due: { date: '2026-09-27' } }, lateDay), 3);
+assert.equal(taskOverdueDays({ content: 'a', due: { date: '2026-09-29T23:30:00' } }, lateDay), 1);
+assert.equal(taskOverdueDays({ content: 'a', due: { date: '2026-09-30' } }, lateDay), 0, 'due today is not overdue');
+
+const manyDue = [
+  { id: 'o1', content: 'o1', due: { date: '2026-09-27' } },
+  { id: 'o2', content: 'o2', due: { date: '2026-09-27' } },
+  { id: 'o3', content: 'o3', due: { date: '2026-09-29' } },
+  { id: 't1', content: 't1', due: { date: '2026-09-30' } },
+  { id: 't2', content: 't2', due: { date: '2026-09-30' } },
+  { id: 't3', content: 't3', due: { date: '2026-09-30' } },
+  { id: 't4', content: 't4', due: { date: '2026-09-30' } },
+  { id: 'later', content: 'later', due: { date: '2026-10-02' } }
+];
+assert.deepEqual(
+  selectHomepageTasks(manyDue, lateDay).map(t => t.id),
+  ['o1', 'o2', 'o3', 't1', 't2', 't3'],
+  'the homepage grows past three rows for overdue/today work, capped at six'
+);
+assert.equal(selectHomepageTasks(manyDue.slice(0, 2).concat(manyDue.slice(-1)), lateDay).length, 3, 'never fewer than three rows');
+assert.deepEqual(
+  selectHomepageTasks(manyDue, lateDay, 6, 8).map(t => t.id),
+  ['o1', 'o2', 'o3', 't1', 't2', 't3', 't4'],
+  'a wide layout asks for a longer slice: every due row up to `cap`, later rows only up to `limit`'
+);
+assert.equal(selectHomepageTasks(manyDue.slice(0, 2).concat(manyDue.slice(-1)), lateDay, 6, 8).length, 3, 'the wide floor never invents rows');
+assert.deepEqual(selectHomepageTasks(manyDue.slice(0, 3).concat(manyDue.slice(-1)), lateDay, 6, 8).map(t => t.id), ['o1', 'o2', 'o3', 'later'], 'later rows fill the wide floor when fewer than `limit` rows are due');
+
 const day = groupTasks(tasks, 'day', '2026-09-29');
 assert.deepEqual(day.map(group => group.key), ['overdue', '2026-09-29']);
 assert.deepEqual(day[1].tasks.map(task => task.id), ['today', 'child']);
@@ -209,3 +245,24 @@ const unsortedUpcoming = [
 assert.deepEqual(groupTasks(unsortedUpcoming, 'upcoming', '2026-09-29').map(group => group.key), ['2026-09-30', '2026-10-03']);
 
 console.log('planner model tests passed');
+
+// Timeline window: opens two whole hours before now, drops leading empty
+// hours, and ends at the later of now + 3h and the last event's end.
+{
+  const at = (h, m = 0) => new Date(2026, 8, 30, h, m).getTime();
+  const ev = (sh, sm, eh, em) => ({ start: new Date(2026, 8, 30, sh, sm).toISOString(), end: new Date(2026, 8, 30, eh, em).toISOString() });
+  const tenFortyTwo = new Date(2026, 8, 30, 10, 42);
+  let w = timelineWindow([ev(8, 30, 9, 0), ev(12, 0, 13, 0)], tenFortyTwo);
+  assert.equal(w.startMs, at(8), 'opens at 8 AM when the 8 o\'clock hour has an event');
+  assert.equal(w.endMs, at(14), 'ends at now + 3h rounded up (1:42 PM -> 2 PM)');
+  w = timelineWindow([ev(9, 0, 10, 0), ev(12, 0, 13, 0)], tenFortyTwo);
+  assert.equal(w.startMs, at(9), 'an empty 8 o\'clock hour is skipped');
+  w = timelineWindow([ev(16, 0, 17, 30)], tenFortyTwo);
+  assert.equal(w.startMs, at(9), 'leading empty hours stop one hour above now');
+  assert.equal(w.endMs, at(18), 'a late event extends the end to its hour');
+  assert.equal(w.hours, 9);
+  w = timelineWindow([{ start: '2026-09-30', end: '2026-10-01', isAllDay: true }], tenFortyTwo);
+  assert.equal(w.startMs, at(9), 'all-day events do not count as hour content');
+  assert.equal(w.hours, 5, '9 AM to 2 PM');
+  assert.equal(timelineWindow([], new Date(2026, 8, 30, 0, 10)).hours >= 3, true, 'never shorter than three hours');
+}

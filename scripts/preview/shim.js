@@ -214,6 +214,23 @@
         { id: 'sg-none', content: 'Undated task', priority: 3, labels: [], order: 6 }
       ]
     },
+    // Overdue stress: items 1/2/3 days late mixed with today and later, so
+    // the home list's overdue treatment can be judged against real backlog.
+    overdue: { tasks: [
+      { id: 'od-1', content: 'Submit CS 240 problem set 6', priority: 3, labels: ['school'], project_id: 'p2', due: { date: DD(-3), string: DD(-3) }, order: 1 },
+      { id: 'od-2', content: 'Email Prof. Lin about extension', priority: 2, labels: [], project_id: 'p2', due: { date: DD(-3), string: DD(-3) }, order: 2 },
+      { id: 'od-3', content: 'Read chapters 4–5 for seminar', priority: 1, labels: ['reading'], project_id: 'p2', due: { date: DD(-1), string: DD(-1) }, order: 3 },
+      { id: 'od-4', content: 'Finish the blocked-page restyle', priority: 4, labels: ['deep-work'], project_id: 'p1', due: { date: D, string: 'today' }, order: 4 },
+      { id: 'od-5', content: 'Reply to worker deploy thread', priority: 2, labels: ['quick'], project_id: 'p1', due: { date: D, string: 'today' }, order: 5 },
+      { id: 'od-6', content: 'Plan next week', priority: 1, labels: [], due: { date: DD(2), string: 'Wednesday' }, order: 6 }
+    ] },
+    normal: { tasks: [
+      { id: 'nm-1', content: 'Finish the blocked-page restyle', priority: 4, labels: ['deep-work'], project_id: 'p1', due: { date: D, string: 'today' }, order: 1 },
+      { id: 'nm-2', content: 'Submit CS 240 problem set 7', priority: 3, labels: ['school'], project_id: 'p2', due: { date: D, string: 'today' }, order: 2 },
+      { id: 'nm-3', content: 'Reply to worker deploy thread', priority: 2, labels: ['quick'], project_id: 'p1', due: { date: D, string: 'today' }, order: 3 },
+      { id: 'nm-4', content: 'Read chapters 6–7 for seminar', priority: 1, labels: ['reading'], project_id: 'p2', due: { date: DD(2), string: 'Friday' }, order: 4 },
+      { id: 'nm-5', content: 'Plan next week', priority: 1, labels: [], due: { date: DD(5), string: 'Monday' }, order: 5 }
+    ] },
     'future-only': { tasks: [
       { id: 'ft-1', content: 'Tomorrow morning review', priority: 2, labels: [], due: { date: DD(1), string: 'tomorrow' }, order: 1 },
       { id: 'ft-2', content: 'Next week planning', priority: 1, labels: [], due: { date: DD(5), string: 'Monday' }, order: 2 },
@@ -249,6 +266,8 @@
     { id: 't1a', content: 'Unify unblock rail spacing', parent_id: 't1', priority: 2, labels: [], due: null, order: 1 },
     { id: 't1b', content: 'Check dark theme contrast', parent_id: 't1', priority: 2, labels: [], due: null, order: 2 }
   ];
+  // Mutations (close, edit, add) act on whichever list the fixture serves.
+  const taskStore = fixture?.tasks ?? TASKS;
 
   const COMPLETED = [
     { id: 'c1', content: 'Morning review', completed_at: new Date(now - 2 * 36e5).toISOString() },
@@ -459,7 +478,7 @@
   // @label, p1-p4, today/tomorrow/every <weekday>/at 5pm, and `// description`.
   function previewQuickAdd(text) {
     let rest = ` ${String(text || '')} `;
-    const task = { id: `preview-${Date.now()}`, order: TASKS.length + 1, priority: 1, labels: [] };
+    const task = { id: `preview-${Date.now()}`, order: taskStore.length + 1, priority: 1, labels: [] };
     rest = rest.replace(/(^|\s)p([1-4])(?=\s|$)/i, (m, space, n) => { task.priority = 5 - Number(n); return space; });
     rest = rest.replace(/#((?:\\.|[^\s])+)/g, (m, raw) => {
       const name = raw.replace(/\\(.)/g, '$1');
@@ -512,13 +531,13 @@
       if (/\/tasks\/quick$/.test(url) && method === 'POST') {
         if (previewState === 'mutation-error' || fixture?.mutationFail) return json({ error: 'Preview mutation failed' }, 503);
         const created = previewQuickAdd(JSON.parse(init?.body || '{}').text);
-        TASKS.push(created);
+        taskStore.push(created);
         return json(structuredClone(created));
       }
       const moveMatch = /\/tasks\/([^/]+)\/move$/.exec(url);
       if (moveMatch && method === 'POST') {
         if (previewState === 'mutation-error' || fixture?.mutationFail) return json({ error: 'Preview mutation failed' }, 503);
-        const task = TASKS.find(item => item.id === moveMatch[1]);
+        const task = taskStore.find(item => item.id === moveMatch[1]);
         if (task) task.project_id = JSON.parse(init?.body || '{}').project_id;
         return json(task ? structuredClone(task) : {});
       }
@@ -526,15 +545,15 @@
       if (closeMatch) {
         if (previewState === 'mutation-error' || fixture?.mutationFail) return json({ error: 'Preview mutation failed' }, 503);
         if (closeMatch[2] === 'close') {
-          const index = TASKS.findIndex(task => task.id === closeMatch[1]);
-          if (index >= 0) TASKS.splice(index, 1);
+          const index = taskStore.findIndex(task => task.id === closeMatch[1]);
+          if (index >= 0) taskStore.splice(index, 1);
         }
         return Promise.resolve(new Response(null, { status: 204 }));
       }
       const taskMatch = /\/tasks\/([^/?]+)$/.exec(url);
       if (taskMatch && method === 'POST') {
         if (previewState === 'mutation-error' || fixture?.mutationFail) return json({ error: 'Preview mutation failed' }, 503);
-        const task = TASKS.find(item => item.id === taskMatch[1]);
+        const task = taskStore.find(item => item.id === taskMatch[1]);
         if (task) {
           const body = JSON.parse(init?.body || '{}');
           Object.assign(task, body);
@@ -555,13 +574,13 @@
       if (url.includes('/tasks') && method === 'POST') {
         if (previewState === 'mutation-error' || fixture?.mutationFail) return json({ error: 'Preview mutation failed' }, 503);
         const body = JSON.parse(init?.body || '{}');
-        const created = { id: `preview-${Date.now()}`, order: TASKS.length + 1, ...body, due: body.due_date ? { date: body.due_date, is_recurring: false } : null };
-        TASKS.push(created);
+        const created = { id: `preview-${Date.now()}`, order: taskStore.length + 1, ...body, due: body.due_date ? { date: body.due_date, is_recurring: false } : null };
+        taskStore.push(created);
         return json(created);
       }
       if (url.includes('/tasks')) {
         if (fixture?.todoistError) return json({ error: 'Preview todoist failure' }, 503);
-        const list = fixture?.tasks ?? (previewState === 'empty' ? [] : TASKS);
+        const list = previewState === 'empty' ? [] : taskStore;
         return json({ results: structuredClone(list), next_cursor: null });
       }
       if (url.includes('/labels')) return json({ results: structuredClone(LABELS) });

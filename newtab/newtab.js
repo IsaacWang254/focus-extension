@@ -106,7 +106,7 @@ function setupIcons() {
   const modKey = /mac/i.test(navigator.platform || navigator.userAgent || '') ? '⌘K' : 'Ctrl+K';
   setIconButton('add-task-btn', { icon: Icons.plus, label: `Add task (${modKey})` });
   setIconButton('view-tasks-btn', { icon: Icons.externalLink });
-  setIconButton('view-schedule-btn', { icon: Icons.calendarDot });
+  setIconButton('view-schedule-btn', { icon: Icons.calendarDays });
   setIconButton('back-to-now-btn', { icon: Icons.chevronUp, label: 'Back to now' });
   setIconButton('edit-modal-close', { icon: Icons.x, label: 'Close' });
 }
@@ -117,6 +117,7 @@ function setupIcons() {
 
 let clockIntervalId = null;
 let lastRenderedClockTime = '';
+
 
 function updateClock() {
   const now = new Date();

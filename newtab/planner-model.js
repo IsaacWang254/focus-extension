@@ -200,8 +200,73 @@ export function rankSuggestedTasks(tasks = [], now = new Date()) {
     .map(entry => entry.task);
 }
 
-export function selectHomepageTasks(tasks = [], now = new Date(), limit = 3) {
-  return rankSuggestedTasks(tasks, now).slice(0, limit);
+/** 'overdue' | 'today' | 'later' (undated and malformed dues count as later). */
+export function taskDueBucket(task, now = new Date()) {
+  const deadline = parseTaskDeadline(task);
+  if (deadline.kind === 'none') return 'later';
+  const today = toLocalDateKey(now);
+  if (deadline.localDate < today) return 'overdue';
+  return deadline.localDate === today ? 'today' : 'later';
+}
+
+/** Whole days between a task's due date and today; 0 when not overdue. */
+export function taskOverdueDays(task, now = new Date()) {
+  const deadline = parseTaskDeadline(task);
+  if (deadline.kind === 'none') return 0;
+  const [y, m, d] = deadline.localDate.split('-').map(Number);
+  const days = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(y, m - 1, d)) / 86400000);
+  return Math.max(0, days);
+}
+
+export const HOMEPAGE_DUE_CAP = 6;
+
+/**
+ * The homepage shows at least `limit` rows, growing to HOMEPAGE_DUE_CAP so
+ * everything overdue or due today stays visible instead of being cut off at
+ * the usual three.
+ */
+export function selectHomepageTasks(tasks = [], now = new Date(), limit = 3, cap = HOMEPAGE_DUE_CAP) {
+  const ranked = rankSuggestedTasks(tasks, now);
+  const due = ranked.filter(task => taskDueBucket(task, now) !== 'later').length;
+  return ranked.slice(0, Math.min(Math.max(cap, limit), Math.max(limit, due)));
+}
+
+/**
+ * Wide (two-column) screens give the task list a column of its own, so it
+ * shows a longer slice of the ranked list instead of the three-row teaser.
+ */
+export const WIDE_HOMEPAGE_LIMIT = 6;
+export const WIDE_HOMEPAGE_CAP = 8;
+
+const HOUR_MS = 60 * 60 * 1000;
+export const TIMELINE_LOOKBACK_MS = 2 * HOUR_MS;
+export const TIMELINE_LOOKAHEAD_MS = 3 * HOUR_MS;
+export const TIMELINE_MIN_HOURS = 3;
+
+/**
+ * The slice of the day the timeline opens on: whole hours from two hours
+ * before now (leading hours with no event are dropped while now stays at
+ * least an hour below the top) to the later of now + 3h and the last timed
+ * event's end, rounded up to the hour. `hours` is the window's length.
+ */
+export function timelineWindow(events = [], now = new Date()) {
+  const nowMs = now instanceof Date ? now.getTime() : Number(now);
+  const spans = [];
+  for (const event of events) {
+    if (!event || event.isAllDay) continue;
+    const start = new Date(event.start).getTime();
+    const end = new Date(event.end).getTime();
+    if (Number.isFinite(start) && Number.isFinite(end) && end > start) spans.push([start, end]);
+  }
+  const floorHour = ms => { const d = new Date(ms); d.setMinutes(0, 0, 0); return d.getTime(); };
+  let startMs = floorHour(nowMs - TIMELINE_LOOKBACK_MS);
+  const hasContent = from => spans.some(([a, b]) => b > from && a < from + HOUR_MS);
+  while (startMs + HOUR_MS <= nowMs - HOUR_MS && !hasContent(startMs)) startMs += HOUR_MS;
+  const lastEnd = spans.reduce((max, [, b]) => Math.max(max, b), 0);
+  let endMs = floorHour(Math.max(nowMs + TIMELINE_LOOKAHEAD_MS, lastEnd));
+  if (endMs < Math.max(nowMs + TIMELINE_LOOKAHEAD_MS, lastEnd)) endMs += HOUR_MS;
+  endMs = Math.max(endMs, startMs + TIMELINE_MIN_HOURS * HOUR_MS);
+  return { startMs, endMs, hours: Math.round((endMs - startMs) / HOUR_MS) };
 }
 
 /**
@@ -209,7 +274,17 @@ export function selectHomepageTasks(tasks = [], now = new Date(), limit = 3) {
  * pxPerMinute. Day bounds come from local calendar dates (`setDate`), so
  * minutes are real elapsed minutes and day length can be 1380/1410/1440/1500.
  */
-export function layoutDayGrid(timeline, { pxPerMinute } = {}) {
+export const MAX_EVENT_LANES = 3;
+// Vertical room a "+N more" / "Show fewer" pill occupies (pill box + gap).
+const PILL_BAND_PX = 30;
+
+/**
+ * `maxLanes` caps concurrent lanes: in a group with more, events assigned to
+ * later lanes are marked `hidden` and the group reports `overflow` (count)
+ * and `overflowTopMinutes` so the view can show a "+N more" affordance.
+ * Groups whose `key` is in `expandedGroups` are laid out in full.
+ */
+export function layoutDayGrid(timeline, { pxPerMinute, maxLanes = MAX_EVENT_LANES, expandedGroups = new Set() } = {}) {
   const scale = Number(pxPerMinute);
   const result = {
     date: timeline?.date || '',
@@ -288,13 +363,43 @@ export function layoutDayGrid(timeline, { pxPerMinute } = {}) {
   }
 
   for (const current of groups) {
-    const laneCount = current.laneEnds.length;
-    result.groups.push({ id: current.id, laneCount, keys: current.members.map(member => member.key) });
+    const fullLaneCount = current.laneEnds.length;
+    // Stable identity across refreshes: the member keys, not the positional id.
+    const groupKey = current.members.map(member => member.key).sort().join('|');
+    const capped = fullLaneCount > maxLanes && !expandedGroups.has(groupKey);
+    const laneCount = capped ? maxLanes : fullLaneCount;
+    const hiddenMembers = capped ? current.members.filter(member => member.lane >= maxLanes) : [];
+    const visibleMembers = current.members.filter(member => member.lane < laneCount);
+    result.groups.push({
+      id: current.id,
+      key: groupKey,
+      laneCount,
+      fullLaneCount,
+      keys: current.members.map(member => member.key),
+      overflow: hiddenMembers.length,
+      overflowTopMinutes: hiddenMembers.length
+        ? (Math.min(...hiddenMembers.map(member => member.clippedStartMs)) - result.dayStartMs) / 60000
+        : null
+    });
+    const showsToggle = hiddenMembers.length > 0 || (fullLaneCount > maxLanes && expandedGroups.has(groupKey));
+    // The pill sits at the first hidden start (or the group's start once
+    // expanded); only members that share its band give up the strip, so an
+    // event an hour below it keeps the full width.
+    const pillTopMinutes = !showsToggle ? null
+      : hiddenMembers.length ? result.groups[result.groups.length - 1].overflowTopMinutes
+      : (current.members[0].clippedStartMs - result.dayStartMs) / 60000;
+    const pillBandMinutes = PILL_BAND_PX / scale;
     for (const event of current.members) {
+      event.hidden = event.lane >= laneCount;
       event.laneCount = laneCount;
+      const startMin = (event.clippedStartMs - result.dayStartMs) / 60000;
+      const endMin = (event.clippedEndMs - result.dayStartMs) / 60000;
+      event.pillReserve = showsToggle
+        && startMin < pillTopMinutes + pillBandMinutes
+        && endMin > pillTopMinutes;
       let laneSpan = 1;
       for (let lane = event.lane + 1; lane < laneCount; lane += 1) {
-        const conflict = current.members.some(other => other.lane === lane
+        const conflict = visibleMembers.some(other => other.lane === lane
           && other.clippedStartMs < event.clippedEndMs
           && other.clippedEndMs > event.clippedStartMs);
         if (conflict) break;

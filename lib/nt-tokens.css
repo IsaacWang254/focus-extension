@@ -30,6 +30,8 @@ body[data-surface] {
   --nt-hair: #e6e6e6;
   --nt-wash: #f1f1f1;
   --nt-danger: #b3261e;
+  --nt-danger-tint: #fbeeec;
+  --nt-danger-pill: #f6d9d6;
   --nt-shadow: rgba(0, 0, 0, 0.08);
   --nt-rail: 56px;
 }
@@ -43,5 +45,7 @@ html[data-theme$="dark"] body[data-surface] {
   --nt-hair: #262626;
   --nt-wash: #1e1e1e;
   --nt-danger: #f28b82;
+  --nt-danger-tint: #2a1c1b;
+  --nt-danger-pill: #4a2622;
   --nt-shadow: rgba(0, 0, 0, 0.6);
 }

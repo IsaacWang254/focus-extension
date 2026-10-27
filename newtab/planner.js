@@ -1,13 +1,14 @@
 import * as todoist from '../lib/todoist.js';
 import {
   normalizeEvents,
-  selectHomepageTasks,
+  selectHomepageTasks, WIDE_HOMEPAGE_LIMIT, WIDE_HOMEPAGE_CAP, timelineWindow,
+  taskDueBucket,
   toLocalDateKey
 } from './planner-model.js';
 import { createTaskRow, taskPriorityStyle } from './planner-tasks.js';
 import { normalizePlannerEventsPayload } from './planner-calendar.js';
 import { createPlannerCalendarData } from './planner-calendar-data.js';
-import { centerTimelineOnNow, renderDayTimeline } from './planner-timeline.js';
+import { centerTimelineOnNow, renderDayTimeline, snapTimelineViewport } from './planner-timeline.js';
 import { setActionAvailable, setButtonPending, setIconButton } from './planner-controls.js';
 import {
   buildUpdateTaskPayload,
@@ -238,8 +239,10 @@ function renderTasks() {
   const now = new Date();
   const list = element('task-list');
   if (!list) return;
+  const wide = typeof matchMedia === 'function' && matchMedia(WIDE_LAYOUT_QUERY).matches;
   const rows = selectHomepageTasks(
-    tasks.filter(task => !completedTaskIds.has(String(task.id))), now);
+    tasks.filter(task => !completedTaskIds.has(String(task.id))), now,
+    wide ? WIDE_HOMEPAGE_LIMIT : 3, wide ? WIDE_HOMEPAGE_CAP : undefined);
   const animate = taskListRenderedOnce && !reducedMotion()
     && typeof list.querySelectorAll === 'function';
   const oldTops = new Map();
@@ -255,7 +258,16 @@ function renderTasks() {
   const focusWasVisible = focusWasOpen && document.activeElement?.matches?.(':focus-visible');
   list.innerHTML = '';
   const labelColors = new Map((labelsList || []).map(label => [label.name, label.color]));
+  // Group eyebrows only when something is overdue — the usual calm list
+  // stays label-free, but late work gets a named, counted section.
+  const buckets = rows.map(task => taskDueBucket(task, now));
+  const labelled = rows.length > 0;
   rows.forEach((task, index) => {
+    if (labelled && buckets[index] !== buckets[index - 1]) {
+      const label = createTaskGroupLabel(buckets[index], buckets.filter(b => b === buckets[index]).length);
+      if (index >= 3) label.classList.add('is-overflow');
+      list.appendChild(label);
+    }
     list.appendChild(createTaskRow(task, {
       projects, now,
       home: true,
@@ -264,6 +276,7 @@ function renderTasks() {
       onComplete: completeTask,
       onEdit: (t, trigger, viaKeyboard) => openEditModal(t, trigger, viaKeyboard)
     }));
+    if (index >= 3) list.lastElementChild.classList.add('is-overflow');
   });
   taskListRenderedOnce = true;
   if (animate) flipTaskRows(list, oldTops);
@@ -286,15 +299,37 @@ function renderTasks() {
   }
 }
 
+const GROUP_LABELS = { overdue: 'Overdue', today: 'Today', later: 'Up next' };
+
+function createTaskGroupLabel(bucket, count) {
+  const label = document.createElement('li');
+  label.className = 'task-group';
+  label.dataset.group = bucket;
+  label.setAttribute('role', 'presentation');
+  label.textContent = GROUP_LABELS[bucket];
+  const badge = document.createElement('span');
+  badge.className = 'task-group-count';
+  badge.textContent = String(count);
+  label.appendChild(badge);
+  return label;
+}
+
 function renderCalendar({ recenter = false } = {}) {
   const viewport = element('timeline-viewport');
   const allDay = element('timeline-all-day');
   const empty = element('timeline-empty');
   const unavailable = element('timeline-unavailable');
   if (!viewport || !allDay || !empty) return;
+  const count = element('calendar-count');
+  if (count) {
+    count.textContent = String(todayEvents.length);
+    count.classList.toggle('hidden', !todayEvents.length);
+  }
+  const now = new Date();
+  snapTimelineViewport(viewport, { maxHours: timelineWindow(todayEvents, now).hours });
   const result = renderDayTimeline({ viewport, allDay, empty, unavailable }, todayEvents, {
     date: loadedCalendarDate || toLocalDateKey(),
-    now: new Date(),
+    now,
     hasStatus: Boolean(element('calendar-status')?.textContent)
   });
   // A focused block that lost its Open link (now too small, or the event has
@@ -349,15 +384,16 @@ function updateBackToNow() {
 function completeTask(task, button) {
   const taskId = String(task.id);
   if (button.disabled || pendingTaskIds.has(taskId) || completedTaskIds.has(taskId)) return;
+  // Keyboard click = :focus-visible at click time; focus moves to the row
+  // that lands at the same index after the re-render. Read it before
+  // disabling the button, which drops focus.
+  const keyboardFocus = Boolean(button.matches?.(':focus-visible'));
   pendingTaskIds.add(taskId);
   completedTaskIds.add(taskId);
   button.disabled = true;
   const row = button.closest?.('.planner-task-row');
   const list = element('task-list');
-  const rowIndex = row && list ? [...list.children].indexOf(row) : -1;
-  // Keyboard click = :focus-visible at click time; focus moves to the row
-  // that lands at the same index after the re-render.
-  const keyboardFocus = Boolean(button.matches?.(':focus-visible'));
+  const rowIndex = row && list ? [...list.querySelectorAll('.planner-task-row')].indexOf(row) : -1;
   const reduced = reducedMotion();
   row?.classList.add('is-completing');
   // Counted from the click, not the fade start: a storage- or poll-triggered
@@ -1122,6 +1158,9 @@ function setupActions() {
   });
 }
 
+// Keep in sync with the @media (min-width) block in newtab.css.
+const WIDE_LAYOUT_QUERY = '(min-width: 1180px)';
+
 export function initPlannerDashboard(options) {
   if (plannerStarted) return;
   plannerStarted = true;
@@ -1139,15 +1178,23 @@ export function initPlannerDashboard(options) {
   // The viewport is now flex-sized: its height changes with the window (and
   // once while webfonts settle). The canvas padding is a fraction of that
   // height, so re-render on real height changes.
-  const viewportEl = element('timeline-viewport');
-  if (typeof ResizeObserver !== 'undefined' && viewportEl) {
-    let lastViewportHeight = viewportEl.clientHeight;
+  // renderCalendar pins the viewport to whole hours, so watch the column it
+  // sits in (and the window) rather than the viewport itself.
+  const shellEl = element('timeline-viewport')?.parentElement;
+  if (typeof ResizeObserver !== 'undefined' && shellEl) {
+    let lastShellHeight = shellEl.clientHeight;
     new ResizeObserver(() => {
-      const h = viewportEl.clientHeight;
-      if (Math.abs(h - lastViewportHeight) < 1) return;
-      lastViewportHeight = h;
+      const h = shellEl.clientHeight;
+      if (Math.abs(h - lastShellHeight) < 1) return;
+      lastShellHeight = h;
       renderCalendar({ recenter: true });
-    }).observe(viewportEl);
+    }).observe(shellEl);
+  }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', () => renderCalendar({ recenter: true }));
+  }
+  if (typeof matchMedia === 'function') {
+    matchMedia(WIDE_LAYOUT_QUERY).addEventListener?.('change', () => renderTasks());
   }
 }
 
