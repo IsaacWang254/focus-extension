@@ -61,7 +61,7 @@ Chrome extension that replaces the new tab page with a calm daily command centre
 
 ```bash
 git clone <this-repo-url>
-cd focus-extension
+cd morrow
 npm install
 cd worker && npm install && cd ..
 ```
@@ -120,7 +120,7 @@ If you change the deployed Worker URL, update `TOKEN_PROXY_URL` in `.env` and re
 1. Run `npm run build:local` first so the generated config files exist.
 2. Open `chrome://extensions`.
 3. Enable **Developer mode**.
-4. Click **Load unpacked** and select the `focus-extension` folder.
+4. Click **Load unpacked** and select the `morrow` folder.
 
 ### Previewing the UI outside Chrome
 
