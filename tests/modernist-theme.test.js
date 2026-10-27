@@ -184,9 +184,9 @@ for (const [file, w, h] of [
   ['../icons/icon128.svg', 128, 128]
 ]) {
   const svg = read(file);
-  assert.match(svg, /#E5342A/i, `${file} carries the brand red`);
-  assert.match(svg, /#F7F5EF/i, `${file} carries the paper tone`);
-  assert.doesNotMatch(svg, /#18181B|#F59E0B|#FFFFFF/i, `${file} must not keep old black/amber/white`);
+  assert.match(svg, /#1F1F1F/i, `${file} carries the ink tile`);
+  assert.match(svg, /#F7F6F2/i, `${file} carries the paper glyph`);
+  assert.doesNotMatch(svg, /#E5342A|#18181B|#F59E0B|#FFFFFF/i, `${file} must not keep the old red bullseye palette or black/amber/white`);
   assert.match(svg, new RegExp(`width="${w}" height="${h}"`), `${file} dimensions intact`);
 }
 
